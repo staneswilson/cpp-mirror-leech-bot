@@ -1,0 +1,28 @@
+{
+    "telegram": {
+        "api_id": 0,
+        "api_hash": "",
+        "database_directory": "tdlib",
+        "owner_id": 0,
+        "sudo_users": [],
+        "authorized_chats": []
+    },
+    "aria2": {
+        "rpc_url": "ws://localhost:6800/jsonrpc",
+        "secret": "",
+        "max_concurrent_downloads": 5
+    },
+    "qbittorrent": {
+        "url": "http://localhost:8080",
+        "username": "admin",
+        "password": "",
+        "seed_ratio_limit": 1.0,
+        "seed_time_limit": 60
+    },
+    "rclone": {
+        "path": "rclone",
+        "config_path": ""
+    },
+    "download_dir": "downloads",
+    "log_level": "info"
+}

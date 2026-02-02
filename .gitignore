@@ -1,0 +1,48 @@
+# Build directories
+build/
+out/
+cmake-build-*/
+
+# IDE files
+.vs/
+.vscode/
+.idea/
+*.sln
+*.vcxproj*
+CMakeSettings.json
+
+# Compiled files
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.pdb
+
+# Data and logs
+data/
+downloads/
+logs/
+*.log
+
+# Configuration with secrets
+config.json
+.env
+
+# TDLib database
+tdlib/
+
+# Package managers
+vcpkg_installed/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*~
