@@ -501,14 +501,20 @@ private:
 
                 // SNI is required by most TLS terminators. The OpenSSL macro
                 // expands to an old-style cast to `void*`; suppress the
-                // warning for this single call.
+                // warning for this single call. MSVC doesn't understand the
+                // GCC pragma syntax (it parses but warns C4068), so we gate
+                // the push/pop on the compilers that actually use it.
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
+#endif
                 if (!SSL_set_tlsext_host_name(tls_stream_->next_layer().native_handle(),
                                               parsed->host.c_str())) {
                     co_return error(ErrorCode::Network, "failed to set TLS SNI hostname");
                 }
+#if defined(__GNUC__) || defined(__clang__)
 #pragma GCC diagnostic pop
+#endif
 
                 co_await tls_stream_->next_layer().async_handshake(asio::ssl::stream_base::client,
                                                                    asio::use_awaitable);
