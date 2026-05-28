@@ -24,8 +24,8 @@ namespace cmlb::infrastructure::telegram {
 
 /// A single inline keyboard button.
 struct InlineKeyboardButton {
-    std::string label;          ///< User-visible text on the button.
-    std::string callback_data;  ///< Payload sent back as `data` on press.
+    std::string label;         ///< User-visible text on the button.
+    std::string callback_data; ///< Payload sent back as `data` on press.
 };
 
 /// One horizontal row of inline keyboard buttons.
@@ -45,48 +45,42 @@ class MessengerInterface {
 public:
     virtual ~MessengerInterface() = default;
 
-    MessengerInterface()                                     = default;
-    MessengerInterface(const MessengerInterface&)            = delete;
+    MessengerInterface() = default;
+    MessengerInterface(const MessengerInterface&) = delete;
     MessengerInterface& operator=(const MessengerInterface&) = delete;
-    MessengerInterface(MessengerInterface&&)                 = delete;
-    MessengerInterface& operator=(MessengerInterface&&)      = delete;
+    MessengerInterface(MessengerInterface&&) = delete;
+    MessengerInterface& operator=(MessengerInterface&&) = delete;
 
     /// Sends an HTML-formatted message. See `Messenger::send_html`.
-    [[nodiscard]] virtual boost::asio::awaitable<core::Result<domain::MessageId>>
-        send_html(domain::ChatId chat, std::string html) = 0;
+    [[nodiscard]] virtual boost::asio::awaitable<core::Result<domain::MessageId>> send_html(
+        domain::ChatId chat, std::string html) = 0;
 
     /// Edits an existing HTML message.
-    [[nodiscard]] virtual boost::asio::awaitable<core::Result<void>>
-        edit_html(domain::ChatId chat, domain::MessageId msg, std::string html) = 0;
+    [[nodiscard]] virtual boost::asio::awaitable<core::Result<void>> edit_html(
+        domain::ChatId chat, domain::MessageId msg, std::string html) = 0;
 
     /// Sends an HTML message with an attached inline keyboard.
     [[nodiscard]] virtual boost::asio::awaitable<core::Result<domain::MessageId>>
-        send_html_with_keyboard(domain::ChatId chat,
-                                std::string html,
-                                InlineKeyboard kb) = 0;
+    send_html_with_keyboard(domain::ChatId chat, std::string html, InlineKeyboard kb) = 0;
 
     /// Replaces the inline keyboard attached to a message.
-    [[nodiscard]] virtual boost::asio::awaitable<core::Result<void>>
-        edit_keyboard(domain::ChatId chat,
-                      domain::MessageId msg,
-                      InlineKeyboard kb) = 0;
+    [[nodiscard]] virtual boost::asio::awaitable<core::Result<void>> edit_keyboard(
+        domain::ChatId chat, domain::MessageId msg, InlineKeyboard kb) = 0;
 
     /// Acknowledges a callback query.
-    [[nodiscard]] virtual boost::asio::awaitable<core::Result<void>>
-        answer_callback(domain::CallbackQueryId id,
-                        std::string text,
-                        bool alert) = 0;
+    [[nodiscard]] virtual boost::asio::awaitable<core::Result<void>> answer_callback(
+        domain::CallbackQueryId id, std::string text, bool alert) = 0;
 
     /// Uploads a file as a document.
-    [[nodiscard]] virtual boost::asio::awaitable<core::Result<domain::MessageId>>
-        send_file(domain::ChatId chat,
-                  std::filesystem::path file,
-                  std::string caption,
-                  std::optional<std::filesystem::path> thumbnail) = 0;
+    [[nodiscard]] virtual boost::asio::awaitable<core::Result<domain::MessageId>> send_file(
+        domain::ChatId chat,
+        std::filesystem::path file,
+        std::string caption,
+        std::optional<std::filesystem::path> thumbnail) = 0;
 
     /// Deletes a message.
-    [[nodiscard]] virtual boost::asio::awaitable<core::Result<void>>
-        delete_message(domain::ChatId chat, domain::MessageId msg) = 0;
+    [[nodiscard]] virtual boost::asio::awaitable<core::Result<void>> delete_message(
+        domain::ChatId chat, domain::MessageId msg) = 0;
 };
 
 /// Convenience wrapper. Owns nothing — references the gateway externally.
@@ -103,41 +97,36 @@ public:
 
     /// Sends an HTML-formatted message. Wraps
     /// `TelegramGateway::send_formatted_message`.
-    [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>>
-        send_html(domain::ChatId chat, std::string html) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>> send_html(
+        domain::ChatId chat, std::string html) override;
 
     /// Edits an existing HTML message.
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-        edit_html(domain::ChatId chat, domain::MessageId msg, std::string html) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> edit_html(domain::ChatId chat,
+                                                                       domain::MessageId msg,
+                                                                       std::string html) override;
 
     /// Sends an HTML message with an attached inline keyboard.
-    [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>>
-        send_html_with_keyboard(domain::ChatId chat,
-                                std::string html,
-                                InlineKeyboard kb) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>> send_html_with_keyboard(
+        domain::ChatId chat, std::string html, InlineKeyboard kb) override;
 
     /// Replaces the inline keyboard attached to a message.
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-        edit_keyboard(domain::ChatId chat,
-                      domain::MessageId msg,
-                      InlineKeyboard kb) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> edit_keyboard(
+        domain::ChatId chat, domain::MessageId msg, InlineKeyboard kb) override;
 
     /// Acknowledges a callback query, optionally surfacing a toast/alert.
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-        answer_callback(domain::CallbackQueryId id,
-                        std::string text = {},
-                        bool alert       = false) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> answer_callback(
+        domain::CallbackQueryId id, std::string text = {}, bool alert = false) override;
 
     /// Uploads a file as a document.
-    [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>>
-        send_file(domain::ChatId chat,
-                  std::filesystem::path file,
-                  std::string caption                          = {},
-                  std::optional<std::filesystem::path> thumbnail = std::nullopt) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>> send_file(
+        domain::ChatId chat,
+        std::filesystem::path file,
+        std::string caption = {},
+        std::optional<std::filesystem::path> thumbnail = std::nullopt) override;
 
     /// Deletes a message.
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-        delete_message(domain::ChatId chat, domain::MessageId msg) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> delete_message(
+        domain::ChatId chat, domain::MessageId msg) override;
 
     /// Builds a [Refresh][Close] button row. Used for status messages whose
     /// refresh action is keyed by a freshly minted token; the close action
@@ -146,10 +135,10 @@ public:
 
 private:
     /// Translates the ergonomic keyboard type to the gateway's raw form.
-    [[nodiscard]] static std::vector<std::vector<std::pair<std::string, std::string>>>
-        to_raw(const InlineKeyboard& kb);
+    [[nodiscard]] static std::vector<std::vector<std::pair<std::string, std::string>>> to_raw(
+        const InlineKeyboard& kb);
 
     TelegramGateway& gateway_;
 };
 
-}  // namespace cmlb::infrastructure::telegram
+} // namespace cmlb::infrastructure::telegram

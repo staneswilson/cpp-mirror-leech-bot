@@ -1,5 +1,3 @@
-#include <cmlb/infrastructure/persistence/schema_migrator.hpp>
-
 #include <exception>
 #include <string>
 #include <string_view>
@@ -10,6 +8,7 @@
 #include <sqlite_modern_cpp.h>
 
 #include <cmlb/core/error.hpp>
+#include <cmlb/infrastructure/persistence/schema_migrator.hpp>
 #include <cmlb/infrastructure/persistence/sqlite_connection_pool.hpp>
 
 namespace cmlb::infrastructure::persistence {
@@ -113,8 +112,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_downloader_id
 
 const std::vector<Migration>& migrations() {
     static const std::vector<Migration> kRegistry{
-        {1, "V0001__initial_schema",            kV0001InitialSchemaSql},
-        {2, "V0002__rss_feeds",                 kV0002RssFeedsSql},
+        {1, "V0001__initial_schema", kV0001InitialSchemaSql},
+        {2, "V0002__rss_feeds", kV0002RssFeedsSql},
         {3, "V0003__task_downloader_attachment", kV0003TaskDownloaderAttachmentSql},
     };
     return kRegistry;
@@ -131,21 +130,19 @@ const std::vector<Migration>& migrations() {
         )SQL";
         return {};
     } catch (const sqlite::sqlite_exception& ex) {
-        return core::error(
-            core::ErrorCode::Migration,
-            std::string{"Failed to ensure schema_version table: "} + ex.what());
+        return core::error(core::ErrorCode::Migration,
+                           std::string{"Failed to ensure schema_version table: "} + ex.what());
     }
 }
 
 [[nodiscard]] core::Result<int> read_current_version(sqlite::database& db) {
     try {
         int max_version = 0;
-        bool any_row    = false;
-        db << "SELECT COALESCE(MAX(version), 0) FROM schema_version;"
-           >> [&](int v) {
-               max_version = v;
-               any_row     = true;
-           };
+        bool any_row = false;
+        db << "SELECT COALESCE(MAX(version), 0) FROM schema_version;" >> [&](int v) {
+            max_version = v;
+            any_row = true;
+        };
         return any_row ? max_version : 0;
     } catch (const sqlite::sqlite_exception& ex) {
         return core::error(core::ErrorCode::Database,
@@ -157,34 +154,29 @@ const std::vector<Migration>& migrations() {
     try {
         db << "BEGIN IMMEDIATE;";
     } catch (const sqlite::sqlite_exception& ex) {
-        return core::error(
-            core::ErrorCode::Migration,
-            std::string{"Failed to BEGIN for migration "} + std::string{m.name} + ": "
-                + ex.what());
+        return core::error(core::ErrorCode::Migration,
+                           std::string{"Failed to BEGIN for migration "} + std::string{m.name}
+                               + ": " + ex.what());
     }
 
     try {
         // sqlite-modern-cpp does not execute multi-statement SQL via operator<<,
         // so use the C API exec for the migration body.
         char* err_msg = nullptr;
-        const int rc  = sqlite3_exec(db.connection().get(),
-                                    std::string{m.sql}.c_str(),
-                                    nullptr,
-                                    nullptr,
-                                    &err_msg);
+        const int rc = sqlite3_exec(
+            db.connection().get(), std::string{m.sql}.c_str(), nullptr, nullptr, &err_msg);
         if (rc != SQLITE_OK) {
             std::string detail = err_msg != nullptr ? err_msg : "(no detail)";
             if (err_msg != nullptr) {
                 sqlite3_free(err_msg);
             }
             db << "ROLLBACK;";
-            return core::error(
-                core::ErrorCode::Migration,
-                std::string{"Migration "} + std::string{m.name} + " failed: " + detail);
+            return core::error(core::ErrorCode::Migration,
+                               std::string{"Migration "} + std::string{m.name}
+                                   + " failed: " + detail);
         }
 
-        db << "INSERT INTO schema_version (version, name) VALUES (?, ?);"
-           << m.version
+        db << "INSERT INTO schema_version (version, name) VALUES (?, ?);" << m.version
            << std::string{m.name};
 
         db << "COMMIT;";
@@ -195,13 +187,13 @@ const std::vector<Migration>& migrations() {
         } catch (...) {
             // Already failing — swallow to surface the original error.
         }
-        return core::error(
-            core::ErrorCode::Migration,
-            std::string{"Migration "} + std::string{m.name} + " threw: " + ex.what());
+        return core::error(core::ErrorCode::Migration,
+                           std::string{"Migration "} + std::string{m.name}
+                               + " threw: " + ex.what());
     }
 }
 
-}  // namespace
+} // namespace
 
 const std::vector<Migration>& SchemaMigrator::registry() noexcept {
     return migrations();
@@ -247,4 +239,4 @@ boost::asio::awaitable<core::Result<void>> SchemaMigrator::migrate() {
     co_return core::Result<void>{};
 }
 
-}  // namespace cmlb::infrastructure::persistence
+} // namespace cmlb::infrastructure::persistence

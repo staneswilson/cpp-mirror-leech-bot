@@ -6,21 +6,19 @@
 // loading spinner is dismissed even when no action is taken.
 // ---------------------------------------------------------------------------
 
-#include <cmlb/presentation/callback_dispatcher.hpp>
-
 #include <string>
 #include <string_view>
 #include <utility>
-
-#include <cmlb/core/formatting.hpp>
-#include <cmlb/core/logger.hpp>
-#include <cmlb/domain/upload_destination.hpp>
-#include <cmlb/infrastructure/telegram/messenger.hpp>
 
 #include <cmlb/application/cancel_task.hpp>
 #include <cmlb/application/pause_task.hpp>
 #include <cmlb/application/resume_task.hpp>
 #include <cmlb/application/update_user_settings.hpp>
+#include <cmlb/core/formatting.hpp>
+#include <cmlb/core/logger.hpp>
+#include <cmlb/domain/upload_destination.hpp>
+#include <cmlb/infrastructure/telegram/messenger.hpp>
+#include <cmlb/presentation/callback_dispatcher.hpp>
 
 namespace cmlb::presentation {
 
@@ -50,34 +48,39 @@ struct PayloadSplit {
 /// Cycles `Telegram -> GoogleDrive -> Rclone -> Telegram`.
 [[nodiscard]] UploadDestination next_destination(UploadDestination current) noexcept {
     switch (current) {
-        case UploadDestination::Telegram:    return UploadDestination::GoogleDrive;
-        case UploadDestination::GoogleDrive: return UploadDestination::Rclone;
-        case UploadDestination::Rclone:      return UploadDestination::Telegram;
+    case UploadDestination::Telegram:
+        return UploadDestination::GoogleDrive;
+    case UploadDestination::GoogleDrive:
+        return UploadDestination::Rclone;
+    case UploadDestination::Rclone:
+        return UploadDestination::Telegram;
     }
     return UploadDestination::Telegram;
 }
 
-}  // namespace
+} // namespace
 
-CallbackDispatcher::CallbackDispatcher(Dependencies deps) noexcept
-    : deps_{std::move(deps)} {}
+CallbackDispatcher::CallbackDispatcher(Dependencies deps) noexcept : deps_{std::move(deps)} {
+}
 
 CallbackDispatcher::~CallbackDispatcher() = default;
 
-asio::awaitable<Result<void>>
-CallbackDispatcher::dispatch(cmlb::domain::ChatId          chat,
-                             cmlb::domain::UserId          sender,
-                             cmlb::domain::MessageId       msg_id,
-                             cmlb::domain::CallbackQueryId query_id,
-                             std::string                   data) {
+asio::awaitable<Result<void>> CallbackDispatcher::dispatch(cmlb::domain::ChatId chat,
+                                                           cmlb::domain::UserId sender,
+                                                           cmlb::domain::MessageId msg_id,
+                                                           cmlb::domain::CallbackQueryId query_id,
+                                                           std::string data) {
     using namespace cmlb::application;
 
     Logger::debug("callback: chat={} user={} msg={} data=\"{}\"",
-                  chat.value(), sender.value(), msg_id.value(), data);
+                  chat.value(),
+                  sender.value(),
+                  msg_id.value(),
+                  data);
 
     Result<void> outcome{};
-    std::string  ack_text;          // toast surfaced to the user
-    bool         ack_as_alert{false};
+    std::string ack_text; // toast surfaced to the user
+    bool ack_as_alert{false};
     const auto [head, rest] = split_colon(data);
 
     if (head == "close") {
@@ -87,11 +90,9 @@ CallbackDispatcher::dispatch(cmlb::domain::ChatId          chat,
         if (msg_id.value() != 0) {
             auto del = co_await deps_.messenger.delete_message(chat, msg_id);
             if (!del) {
-                Logger::warn("callback: close: delete_message failed: {}",
-                             del.error().message);
+                Logger::warn("callback: close: delete_message failed: {}", del.error().message);
                 outcome = std::unexpected(del.error());
-                ack_text = std::string{
-                    cmlb::core::friendly_error_label(del.error().code)};
+                ack_text = std::string{cmlb::core::friendly_error_label(del.error().code)};
                 ack_as_alert = true;
             }
         }
@@ -104,16 +105,15 @@ CallbackDispatcher::dispatch(cmlb::domain::ChatId          chat,
         if (section == "upload" && action == "cycle") {
             UpdateUserSettingsRequest req{
                 .user = sender,
-                .mutate = [](auto& rec) noexcept {
-                    rec.mirror_destination =
-                        next_destination(rec.mirror_destination);
-                },
+                .mutate =
+                    [](auto& rec) noexcept {
+                        rec.mirror_destination = next_destination(rec.mirror_destination);
+                    },
             };
             auto res = co_await deps_.update_user.execute(std::move(req));
             if (!res) {
                 outcome = std::unexpected(res.error());
-                ack_text = std::string{
-                    cmlb::core::friendly_error_label(res.error().code)};
+                ack_text = std::string{cmlb::core::friendly_error_label(res.error().code)};
                 ack_as_alert = true;
             } else {
                 ack_text = "Upload destination updated";
@@ -121,15 +121,15 @@ CallbackDispatcher::dispatch(cmlb::domain::ChatId          chat,
         } else if (section == "doc" && action == "toggle") {
             UpdateUserSettingsRequest req{
                 .user = sender,
-                .mutate = [](auto& rec) noexcept {
-                    rec.upload_as_document = !rec.upload_as_document;
-                },
+                .mutate =
+                    [](auto& rec) noexcept {
+                        rec.upload_as_document = !rec.upload_as_document;
+                    },
             };
             auto res = co_await deps_.update_user.execute(std::move(req));
             if (!res) {
                 outcome = std::unexpected(res.error());
-                ack_text = std::string{
-                    cmlb::core::friendly_error_label(res.error().code)};
+                ack_text = std::string{cmlb::core::friendly_error_label(res.error().code)};
                 ack_as_alert = true;
             } else {
                 ack_text = "Setting toggled";
@@ -147,13 +147,12 @@ CallbackDispatcher::dispatch(cmlb::domain::ChatId          chat,
         } else if (verb == "cancel") {
             CancelTaskRequest req{
                 .task_id = cmlb::domain::TaskId{std::string{task_id_text}},
-                .chat    = chat,
+                .chat = chat,
             };
             auto res = co_await deps_.cancel_task.execute(std::move(req));
             if (!res) {
                 outcome = std::unexpected(res.error());
-                ack_text = std::string{
-                    cmlb::core::friendly_error_label(res.error().code)};
+                ack_text = std::string{cmlb::core::friendly_error_label(res.error().code)};
                 ack_as_alert = true;
             } else {
                 ack_text = "Cancelling task";
@@ -161,13 +160,12 @@ CallbackDispatcher::dispatch(cmlb::domain::ChatId          chat,
         } else if (verb == "pause") {
             PauseTaskRequest req{
                 .task_id = cmlb::domain::TaskId{std::string{task_id_text}},
-                .chat    = chat,
+                .chat = chat,
             };
             auto res = co_await deps_.pause_task.execute(std::move(req));
             if (!res) {
                 outcome = std::unexpected(res.error());
-                ack_text = std::string{
-                    cmlb::core::friendly_error_label(res.error().code)};
+                ack_text = std::string{cmlb::core::friendly_error_label(res.error().code)};
                 ack_as_alert = true;
             } else {
                 ack_text = "Task paused";
@@ -175,13 +173,12 @@ CallbackDispatcher::dispatch(cmlb::domain::ChatId          chat,
         } else if (verb == "resume") {
             ResumeTaskRequest req{
                 .task_id = cmlb::domain::TaskId{std::string{task_id_text}},
-                .chat    = chat,
+                .chat = chat,
             };
             auto res = co_await deps_.resume_task.execute(std::move(req));
             if (!res) {
                 outcome = std::unexpected(res.error());
-                ack_text = std::string{
-                    cmlb::core::friendly_error_label(res.error().code)};
+                ack_text = std::string{cmlb::core::friendly_error_label(res.error().code)};
                 ack_as_alert = true;
             } else {
                 ack_text = "Task resumed";
@@ -197,12 +194,12 @@ CallbackDispatcher::dispatch(cmlb::domain::ChatId          chat,
 
     // Acknowledge the callback regardless of outcome — the toast carries the
     // outcome message; alert=true is reserved for actual failures.
-    auto ack = co_await deps_.messenger.answer_callback(
-        query_id, std::move(ack_text), ack_as_alert);
+    auto ack =
+        co_await deps_.messenger.answer_callback(query_id, std::move(ack_text), ack_as_alert);
     if (!ack && outcome.has_value()) {
         outcome = std::unexpected(ack.error());
     }
     co_return outcome;
 }
 
-}  // namespace cmlb::presentation
+} // namespace cmlb::presentation

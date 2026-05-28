@@ -28,8 +28,8 @@ public:
                        std::string target_folder_id) noexcept;
 
     /// Returns the new Drive id of the top-level copy.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<std::string>>
-    execute(CloneRequest request);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<std::string>> execute(
+        CloneRequest request);
 
 private:
     cmlb::infrastructure::upload::GoogleDriveUploader& gdrive_;
@@ -37,4 +37,4 @@ private:
     std::string target_folder_id_;
 };
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

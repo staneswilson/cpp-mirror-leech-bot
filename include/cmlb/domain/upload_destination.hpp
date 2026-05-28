@@ -21,9 +21,12 @@ enum class UploadDestination {
 
 [[nodiscard]] inline std::string_view to_string(UploadDestination dest) noexcept {
     switch (dest) {
-        case UploadDestination::Telegram:    return "telegram";
-        case UploadDestination::GoogleDrive: return "gdrive";
-        case UploadDestination::Rclone:      return "rclone";
+    case UploadDestination::Telegram:
+        return "telegram";
+    case UploadDestination::GoogleDrive:
+        return "gdrive";
+    case UploadDestination::Rclone:
+        return "rclone";
     }
     return "unknown";
 }
@@ -33,22 +36,21 @@ enum class UploadDestination {
 ///   - gdrive, googledrive, google_drive, drive  → GoogleDrive
 ///   - rclone, mirror                            → Rclone
 [[nodiscard]] inline cmlb::core::Result<UploadDestination> parse_upload_destination(
-    std::string_view input,
-    std::source_location loc = std::source_location::current()) {
+    std::string_view input, std::source_location loc = std::source_location::current()) {
     std::string lower;
     lower.reserve(input.size());
     for (const char ch : input) {
-        lower.push_back(static_cast<char>(
-            std::tolower(static_cast<unsigned char>(ch))));
+        lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
     }
 
     static constexpr std::array telegram_aliases{
         std::string_view{"telegram"}, std::string_view{"tg"}, std::string_view{"leech"}};
-    static constexpr std::array gdrive_aliases{
-        std::string_view{"gdrive"}, std::string_view{"googledrive"},
-        std::string_view{"google_drive"}, std::string_view{"drive"}};
-    static constexpr std::array rclone_aliases{
-        std::string_view{"rclone"}, std::string_view{"mirror"}};
+    static constexpr std::array gdrive_aliases{std::string_view{"gdrive"},
+                                               std::string_view{"googledrive"},
+                                               std::string_view{"google_drive"},
+                                               std::string_view{"drive"}};
+    static constexpr std::array rclone_aliases{std::string_view{"rclone"},
+                                               std::string_view{"mirror"}};
 
     if (std::ranges::find(telegram_aliases, lower) != telegram_aliases.end()) {
         return UploadDestination::Telegram;
@@ -61,7 +63,8 @@ enum class UploadDestination {
     }
 
     return cmlb::core::error(cmlb::core::ErrorCode::InvalidArgument,
-                             "Unknown upload destination: " + std::string{input}, loc);
+                             "Unknown upload destination: " + std::string{input},
+                             loc);
 }
 
-}  // namespace cmlb::domain
+} // namespace cmlb::domain

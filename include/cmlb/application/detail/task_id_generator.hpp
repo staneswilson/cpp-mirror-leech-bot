@@ -19,14 +19,13 @@ namespace cmlb::application::detail {
 [[nodiscard]] inline cmlb::domain::TaskId make_task_id() {
     std::random_device rd;
     // Two 64-bit draws → 16 bytes.
-    const std::uint64_t hi = (static_cast<std::uint64_t>(rd()) << 32)
-                             | static_cast<std::uint64_t>(rd());
-    const std::uint64_t lo = (static_cast<std::uint64_t>(rd()) << 32)
-                             | static_cast<std::uint64_t>(rd());
+    const std::uint64_t hi =
+        (static_cast<std::uint64_t>(rd()) << 32) | static_cast<std::uint64_t>(rd());
+    const std::uint64_t lo =
+        (static_cast<std::uint64_t>(rd()) << 32) | static_cast<std::uint64_t>(rd());
 
     static constexpr std::array<char, 16> kHex{
-        '0', '1', '2', '3', '4', '5', '6', '7',
-        '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
     std::string out;
     out.resize(32);
@@ -41,4 +40,4 @@ namespace cmlb::application::detail {
     return cmlb::domain::TaskId{std::move(out)};
 }
 
-}  // namespace cmlb::application::detail
+} // namespace cmlb::application::detail

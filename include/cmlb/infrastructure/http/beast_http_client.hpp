@@ -93,18 +93,15 @@ public:
     /// an `AppError` with one of: `InvalidArgument` (malformed URL),
     /// `Network` (DNS/connect/transport), `Timeout` (deadline exceeded),
     /// `Io` (TLS or read/write error).
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<HttpResponse>>
-        request(HttpRequest req);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<HttpResponse>> request(HttpRequest req);
 
     /// Convenience GET. Equivalent to `request({Get, url, headers, {}, default_timeout})`.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<HttpResponse>>
-        get(std::string url, std::vector<HttpHeader> headers = {});
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<HttpResponse>> get(
+        std::string url, std::vector<HttpHeader> headers = {});
 
     /// Convenience POST.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<HttpResponse>>
-        post(std::string url,
-             std::string body,
-             std::vector<HttpHeader> headers = {});
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<HttpResponse>> post(
+        std::string url, std::string body, std::vector<HttpHeader> headers = {});
 
     /// Streaming download: GETs `url` and writes the response body to `dest`
     /// in chunks via Beast's `response_parser<file_body>`. The body is never
@@ -116,11 +113,11 @@ public:
     ///
     /// On success returns an `HttpResponse` whose `body` is empty but whose
     /// `status_code`/`headers`/`duration` reflect the exchange.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<HttpResponse>>
-        download_to_file(std::string url,
-                         std::filesystem::path dest,
-                         std::function<void(std::int64_t, std::int64_t)> on_progress = nullptr,
-                         std::vector<HttpHeader> headers = {});
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<HttpResponse>> download_to_file(
+        std::string url,
+        std::filesystem::path dest,
+        std::function<void(std::int64_t, std::int64_t)> on_progress = nullptr,
+        std::vector<HttpHeader> headers = {});
 
 private:
     boost::asio::any_io_executor exec_;
@@ -131,4 +128,4 @@ private:
     std::shared_ptr<class ConnectionPool> pool_;
 };
 
-}  // namespace cmlb::infrastructure::http
+} // namespace cmlb::infrastructure::http

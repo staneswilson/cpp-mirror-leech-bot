@@ -42,11 +42,11 @@ struct CommandRequest {
 /// instance state.
 class CommandParser {
 public:
-    CommandParser()                                = delete;
-    CommandParser(const CommandParser&)            = delete;
+    CommandParser() = delete;
+    CommandParser(const CommandParser&) = delete;
     CommandParser& operator=(const CommandParser&) = delete;
-    CommandParser(CommandParser&&)                 = delete;
-    CommandParser& operator=(CommandParser&&)      = delete;
+    CommandParser(CommandParser&&) = delete;
+    CommandParser& operator=(CommandParser&&) = delete;
 
     /// Attempts to parse @p text as a command.
     ///
@@ -63,11 +63,10 @@ public:
     ///  - `"hello"`              -> `nullopt`
     ///  - `""`                   -> `nullopt`
     ///  - `"/"`                  -> `nullopt`
-    [[nodiscard]] static std::optional<CommandRequest>
-        parse(std::string_view text,
-              cmlb::domain::UserId sender,
-              cmlb::domain::ChatId chat,
-              cmlb::domain::MessageId msg);
+    [[nodiscard]] static std::optional<CommandRequest> parse(std::string_view text,
+                                                             cmlb::domain::UserId sender,
+                                                             cmlb::domain::ChatId chat,
+                                                             cmlb::domain::MessageId msg);
 };
 
-}  // namespace cmlb::presentation
+} // namespace cmlb::presentation

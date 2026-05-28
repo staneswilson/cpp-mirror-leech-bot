@@ -25,7 +25,6 @@
 #include <boost/asio/use_future.hpp>
 
 #include <catch2/catch_test_macros.hpp>
-
 #include <cmlb/core/configuration.hpp>
 #include <cmlb/core/error.hpp>
 #include <cmlb/domain/identifiers.hpp>
@@ -56,9 +55,9 @@ using cmlb::infrastructure::persistence::SqliteTaskRepository;
 class TempDatabase {
 public:
     TempDatabase() {
-        std::random_device                           rd;
+        std::random_device rd;
         std::uniform_int_distribution<std::uint64_t> dist;
-        const auto                                   salt = dist(rd);
+        const auto salt = dist(rd);
         dir_ = std::filesystem::temp_directory_path()
                / ("cmlb_task_repo_test_" + std::to_string(salt));
         std::filesystem::create_directories(dir_);
@@ -70,15 +69,14 @@ public:
         std::filesystem::remove_all(dir_, ec);
     }
 
-    TempDatabase(const TempDatabase&)            = delete;
+    TempDatabase(const TempDatabase&) = delete;
     TempDatabase& operator=(const TempDatabase&) = delete;
-    TempDatabase(TempDatabase&&)                 = delete;
-    TempDatabase& operator=(TempDatabase&&)      = delete;
+    TempDatabase(TempDatabase&&) = delete;
+    TempDatabase& operator=(TempDatabase&&) = delete;
 
     [[nodiscard]] DatabaseConfig config() const {
-        return DatabaseConfig{.path         = path_,
-                              .busy_timeout = std::chrono::milliseconds{5000},
-                              .wal_mode     = true};
+        return DatabaseConfig{
+            .path = path_, .busy_timeout = std::chrono::milliseconds{5000}, .wal_mode = true};
     }
 
 private:
@@ -91,9 +89,7 @@ private:
 /// awaitables sequentially.
 template <typename Factory>
 auto run_on(asio::io_context& ctx, Factory&& make_awaitable) {
-    auto fut = asio::co_spawn(ctx,
-                              std::forward<Factory>(make_awaitable),
-                              asio::use_future);
+    auto fut = asio::co_spawn(ctx, std::forward<Factory>(make_awaitable), asio::use_future);
     ctx.run();
     auto value = fut.get();
     ctx.restart();
@@ -102,31 +98,28 @@ auto run_on(asio::io_context& ctx, Factory&& make_awaitable) {
 
 [[nodiscard]] TaskMetadata sample_metadata(std::string id,
                                            std::int64_t user_id,
-                                           TaskKind     kind = TaskKind::Mirror) {
+                                           TaskKind kind = TaskKind::Mirror) {
     const auto now = std::chrono::system_clock::now();
     return TaskMetadata{
-        .id             = TaskId{std::move(id)},
-        .user           = UserId{user_id},
-        .chat           = ChatId{-100123},
+        .id = TaskId{std::move(id)},
+        .user = UserId{user_id},
+        .chat = ChatId{-100123},
         .status_message = MessageId{42},
-        .kind           = kind,
-        .source_url     = "https://example.com/file.iso",
-        .created_at     = now,
-        .updated_at     = now,
+        .kind = kind,
+        .source_url = "https://example.com/file.iso",
+        .created_at = now,
+        .updated_at = now,
     };
 }
 
 struct RepoFixture {
-    TempDatabase          tmp;
-    asio::io_context      ctx;
-    SqliteConnectionPool  pool;
-    SqliteTaskRepository  repo;
+    TempDatabase tmp;
+    asio::io_context ctx;
+    SqliteConnectionPool pool;
+    SqliteTaskRepository repo;
 
     RepoFixture()
-        : tmp{},
-          ctx{},
-          pool{tmp.config(), ctx.get_executor(), /*pool_size=*/2},
-          repo{pool} {
+        : tmp{}, ctx{}, pool{tmp.config(), ctx.get_executor(), /*pool_size=*/2}, repo{pool} {
         SchemaMigrator migrator{pool};
         auto migrate_result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {
             co_return co_await migrator.migrate();
@@ -135,7 +128,7 @@ struct RepoFixture {
     }
 };
 
-}  // namespace
+} // namespace
 
 TEST_CASE("save then find returns the persisted task",
           "[integration][persistence][task_repository]") {
@@ -148,10 +141,9 @@ TEST_CASE("save then find returns the persisted task",
     });
     REQUIRE(save_result.has_value());
 
-    auto found = run_on(fix.ctx,
-        [&]() -> asio::awaitable<cmlb::core::Result<std::optional<Task>>> {
-            co_return co_await fix.repo.find(original.metadata().id);
-        });
+    auto found = run_on(fix.ctx, [&]() -> asio::awaitable<cmlb::core::Result<std::optional<Task>>> {
+        co_return co_await fix.repo.find(original.metadata().id);
+    });
     REQUIRE(found.has_value());
     REQUIRE(found->has_value());
     REQUIRE((**found).metadata().id.value() == original.metadata().id.value());
@@ -160,20 +152,18 @@ TEST_CASE("save then find returns the persisted task",
     REQUIRE((**found).state() == TaskState::Queued);
 }
 
-TEST_CASE("find returns nullopt for unknown ids",
-          "[integration][persistence][task_repository]") {
+TEST_CASE("find returns nullopt for unknown ids", "[integration][persistence][task_repository]") {
     RepoFixture fix;
 
-    auto result = run_on(fix.ctx,
-        [&]() -> asio::awaitable<cmlb::core::Result<std::optional<Task>>> {
+    auto result =
+        run_on(fix.ctx, [&]() -> asio::awaitable<cmlb::core::Result<std::optional<Task>>> {
             co_return co_await fix.repo.find(TaskId{"does-not-exist"});
         });
     REQUIRE(result.has_value());
     REQUIRE_FALSE(result->has_value());
 }
 
-TEST_CASE("for_user filters by user id",
-          "[integration][persistence][task_repository]") {
+TEST_CASE("for_user filters by user id", "[integration][persistence][task_repository]") {
     RepoFixture fix;
 
     Task t1{sample_metadata("task-a", 100)};
@@ -187,10 +177,9 @@ TEST_CASE("for_user filters by user id",
         REQUIRE(save_result.has_value());
     }
 
-    auto results = run_on(fix.ctx,
-        [&]() -> asio::awaitable<cmlb::core::Result<std::vector<Task>>> {
-            co_return co_await fix.repo.for_user(UserId{100});
-        });
+    auto results = run_on(fix.ctx, [&]() -> asio::awaitable<cmlb::core::Result<std::vector<Task>>> {
+        co_return co_await fix.repo.for_user(UserId{100});
+    });
     REQUIRE(results.has_value());
     REQUIRE(results->size() == 2);
     for (const auto& t : *results) {
@@ -198,8 +187,7 @@ TEST_CASE("for_user filters by user id",
     }
 }
 
-TEST_CASE("incomplete excludes terminal states",
-          "[integration][persistence][task_repository]") {
+TEST_CASE("incomplete excludes terminal states", "[integration][persistence][task_repository]") {
     RepoFixture fix;
 
     Task queued{sample_metadata("queued", 1)};
@@ -219,39 +207,35 @@ TEST_CASE("incomplete excludes terminal states",
         REQUIRE(save_result.has_value());
     }
 
-    auto live = run_on(fix.ctx,
-        [&]() -> asio::awaitable<cmlb::core::Result<std::vector<Task>>> {
-            co_return co_await fix.repo.incomplete();
-        });
+    auto live = run_on(fix.ctx, [&]() -> asio::awaitable<cmlb::core::Result<std::vector<Task>>> {
+        co_return co_await fix.repo.incomplete();
+    });
     REQUIRE(live.has_value());
     REQUIRE(live->size() == 1);
     REQUIRE((*live)[0].metadata().id.value() == "queued");
     REQUIRE((*live)[0].state() == TaskState::Queued);
 }
 
-TEST_CASE("remove deletes a persisted task",
-          "[integration][persistence][task_repository]") {
+TEST_CASE("remove deletes a persisted task", "[integration][persistence][task_repository]") {
     RepoFixture fix;
 
     Task t{sample_metadata("victim", 7)};
     REQUIRE(run_on(fix.ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {
-        co_return co_await fix.repo.save(t);
-    }).has_value());
+                co_return co_await fix.repo.save(t);
+            }).has_value());
 
     REQUIRE(run_on(fix.ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {
-        co_return co_await fix.repo.remove(t.metadata().id);
-    }).has_value());
+                co_return co_await fix.repo.remove(t.metadata().id);
+            }).has_value());
 
-    auto found = run_on(fix.ctx,
-        [&]() -> asio::awaitable<cmlb::core::Result<std::optional<Task>>> {
-            co_return co_await fix.repo.find(t.metadata().id);
-        });
+    auto found = run_on(fix.ctx, [&]() -> asio::awaitable<cmlb::core::Result<std::optional<Task>>> {
+        co_return co_await fix.repo.find(t.metadata().id);
+    });
     REQUIRE(found.has_value());
     REQUIRE_FALSE(found->has_value());
 }
 
-TEST_CASE("remove on unknown id returns NotFound",
-          "[integration][persistence][task_repository]") {
+TEST_CASE("remove on unknown id returns NotFound", "[integration][persistence][task_repository]") {
     RepoFixture fix;
 
     auto result = run_on(fix.ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {
@@ -269,13 +253,12 @@ TEST_CASE("save with error message persists the message",
     REQUIRE(t.mark_failed("boom").has_value());
 
     REQUIRE(run_on(fix.ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {
-        co_return co_await fix.repo.save(t);
-    }).has_value());
+                co_return co_await fix.repo.save(t);
+            }).has_value());
 
-    auto found = run_on(fix.ctx,
-        [&]() -> asio::awaitable<cmlb::core::Result<std::optional<Task>>> {
-            co_return co_await fix.repo.find(t.metadata().id);
-        });
+    auto found = run_on(fix.ctx, [&]() -> asio::awaitable<cmlb::core::Result<std::optional<Task>>> {
+        co_return co_await fix.repo.find(t.metadata().id);
+    });
     REQUIRE(found.has_value());
     REQUIRE(found->has_value());
     REQUIRE((**found).state() == TaskState::Failed);

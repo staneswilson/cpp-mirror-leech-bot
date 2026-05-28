@@ -27,8 +27,8 @@ public:
                     cmlb::infrastructure::telegram::MessengerInterface& messenger) noexcept;
 
     /// Inserts a new feed. The returned id is the SQLite-assigned primary key.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<std::int64_t>>
-    add(cmlb::infrastructure::persistence::RssFeed feed);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<std::int64_t>> add(
+        cmlb::infrastructure::persistence::RssFeed feed);
 
     /// Returns every enabled feed whose `chat` matches @p chat.
     [[nodiscard]] boost::asio::awaitable<
@@ -38,14 +38,12 @@ public:
     /// Removes the feed identified by @p feed_id. Returns `PermissionDenied`
     /// if the feed's chat differs from @p requester_chat, or `NotFound` if
     /// no feed matches @p feed_id.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>>
-    remove(std::int64_t feed_id,
-           cmlb::domain::UserId requester,
-           cmlb::domain::ChatId requester_chat);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>> remove(
+        std::int64_t feed_id, cmlb::domain::UserId requester, cmlb::domain::ChatId requester_chat);
 
 private:
     cmlb::infrastructure::persistence::RssFeedRepository& repo_;
     cmlb::infrastructure::telegram::MessengerInterface& messenger_;
 };
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

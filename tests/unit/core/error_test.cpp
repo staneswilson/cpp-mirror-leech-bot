@@ -7,15 +7,14 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
-
 #include <cmlb/core/error.hpp>
 
+using Catch::Matchers::ContainsSubstring;
 using cmlb::core::AppError;
-using cmlb::core::ErrorCode;
-using cmlb::core::Result;
 using cmlb::core::error;
 using cmlb::core::error_code_name;
-using Catch::Matchers::ContainsSubstring;
+using cmlb::core::ErrorCode;
+using cmlb::core::Result;
 
 // NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
@@ -27,40 +26,40 @@ struct NamedCode {
 };
 
 constexpr std::array<NamedCode, 31> kCases{{
-    {ErrorCode::None,                 "None"},
-    {ErrorCode::InvalidArgument,      "InvalidArgument"},
+    {ErrorCode::None, "None"},
+    {ErrorCode::InvalidArgument, "InvalidArgument"},
     {ErrorCode::InvalidConfiguration, "InvalidConfiguration"},
-    {ErrorCode::InvalidState,         "InvalidState"},
-    {ErrorCode::NotFound,             "NotFound"},
-    {ErrorCode::AlreadyExists,        "AlreadyExists"},
-    {ErrorCode::PermissionDenied,     "PermissionDenied"},
-    {ErrorCode::Unauthenticated,      "Unauthenticated"},
-    {ErrorCode::Cancelled,            "Cancelled"},
-    {ErrorCode::DeadlineExceeded,     "DeadlineExceeded"},
-    {ErrorCode::ResourceExhausted,    "ResourceExhausted"},
-    {ErrorCode::QuotaExceeded,        "QuotaExceeded"},
-    {ErrorCode::Network,              "Network"},
-    {ErrorCode::Timeout,              "Timeout"},
-    {ErrorCode::Io,                   "Io"},
-    {ErrorCode::FileSystem,           "FileSystem"},
-    {ErrorCode::Serialization,        "Serialization"},
-    {ErrorCode::Deserialization,      "Deserialization"},
-    {ErrorCode::JsonParse,            "JsonParse"},
-    {ErrorCode::TelegramApi,          "TelegramApi"},
-    {ErrorCode::Aria2Rpc,             "Aria2Rpc"},
-    {ErrorCode::QbittorrentApi,       "QbittorrentApi"},
-    {ErrorCode::GoogleDriveApi,       "GoogleDriveApi"},
-    {ErrorCode::RcloneInvocation,     "RcloneInvocation"},
-    {ErrorCode::Database,             "Database"},
-    {ErrorCode::Migration,            "Migration"},
-    {ErrorCode::SubprocessFailed,     "SubprocessFailed"},
-    {ErrorCode::MediaProcessing,      "MediaProcessing"},
-    {ErrorCode::ArchiveProcessing,    "ArchiveProcessing"},
-    {ErrorCode::Internal,             "Internal"},
-    {ErrorCode::Unknown,              "Unknown"},
+    {ErrorCode::InvalidState, "InvalidState"},
+    {ErrorCode::NotFound, "NotFound"},
+    {ErrorCode::AlreadyExists, "AlreadyExists"},
+    {ErrorCode::PermissionDenied, "PermissionDenied"},
+    {ErrorCode::Unauthenticated, "Unauthenticated"},
+    {ErrorCode::Cancelled, "Cancelled"},
+    {ErrorCode::DeadlineExceeded, "DeadlineExceeded"},
+    {ErrorCode::ResourceExhausted, "ResourceExhausted"},
+    {ErrorCode::QuotaExceeded, "QuotaExceeded"},
+    {ErrorCode::Network, "Network"},
+    {ErrorCode::Timeout, "Timeout"},
+    {ErrorCode::Io, "Io"},
+    {ErrorCode::FileSystem, "FileSystem"},
+    {ErrorCode::Serialization, "Serialization"},
+    {ErrorCode::Deserialization, "Deserialization"},
+    {ErrorCode::JsonParse, "JsonParse"},
+    {ErrorCode::TelegramApi, "TelegramApi"},
+    {ErrorCode::Aria2Rpc, "Aria2Rpc"},
+    {ErrorCode::QbittorrentApi, "QbittorrentApi"},
+    {ErrorCode::GoogleDriveApi, "GoogleDriveApi"},
+    {ErrorCode::RcloneInvocation, "RcloneInvocation"},
+    {ErrorCode::Database, "Database"},
+    {ErrorCode::Migration, "Migration"},
+    {ErrorCode::SubprocessFailed, "SubprocessFailed"},
+    {ErrorCode::MediaProcessing, "MediaProcessing"},
+    {ErrorCode::ArchiveProcessing, "ArchiveProcessing"},
+    {ErrorCode::Internal, "Internal"},
+    {ErrorCode::Unknown, "Unknown"},
 }};
 
-}  // namespace
+} // namespace
 
 TEST_CASE("error_code_name covers every enum value", "[core][error]") {
     for (const auto& kase : kCases) {
@@ -71,7 +70,7 @@ TEST_CASE("error_code_name covers every enum value", "[core][error]") {
 
 TEST_CASE("AppError captures source location and formats with code+message+location",
           "[core][error]") {
-    AppError err{ErrorCode::Network, "connection refused"};  // location captured here
+    AppError err{ErrorCode::Network, "connection refused"}; // location captured here
 
     CHECK(err.code == ErrorCode::Network);
     CHECK(err.message == "connection refused");
@@ -89,19 +88,24 @@ TEST_CASE("AppError captures source location and formats with code+message+locat
 
 namespace {
 
-Result<int> ok_value() { return 42; }
-Result<int> fail_value() { return error(ErrorCode::NotFound, "missing"); }
+Result<int> ok_value() {
+    return 42;
+}
+
+Result<int> fail_value() {
+    return error(ErrorCode::NotFound, "missing");
+}
 
 Result<int> propagate() {
     auto v = fail_value();
-    if (!v) return std::unexpected(v.error());
+    if (!v)
+        return std::unexpected(v.error());
     return *v + 1;
 }
 
-}  // namespace
+} // namespace
 
-TEST_CASE("Result<int> round-trips and propagates via std::unexpected",
-          "[core][error]") {
+TEST_CASE("Result<int> round-trips and propagates via std::unexpected", "[core][error]") {
     auto ok = ok_value();
     REQUIRE(ok.has_value());
     CHECK(*ok == 42);
@@ -117,8 +121,7 @@ TEST_CASE("Result<int> round-trips and propagates via std::unexpected",
     CHECK(propagated.error().message == "missing");
 }
 
-TEST_CASE("error() factory captures the caller's source location",
-          "[core][error]") {
+TEST_CASE("error() factory captures the caller's source location", "[core][error]") {
     const int line_here = __LINE__ + 1;
     auto bad = error(ErrorCode::Internal, "boom");
     CHECK(bad.error().code == ErrorCode::Internal);

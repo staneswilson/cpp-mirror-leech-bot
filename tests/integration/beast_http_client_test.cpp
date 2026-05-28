@@ -13,32 +13,31 @@
 #include <string>
 #include <thread>
 
-#include <catch2/catch_test_macros.hpp>
-#include <catch2/matchers/catch_matchers.hpp>
-#include <catch2/matchers/catch_matchers_string.hpp>
-
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/redirect_error.hpp>
-#include <boost/asio/use_future.hpp>
 #include <boost/asio/use_awaitable.hpp>
-#include <boost/system/error_code.hpp>
+#include <boost/asio/use_future.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 #include <boost/beast/version.hpp>
+#include <boost/system/error_code.hpp>
 
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 #include <cmlb/infrastructure/http/beast_http_client.hpp>
 
-namespace asio  = boost::asio;
+namespace asio = boost::asio;
 namespace beast = boost::beast;
-namespace http  = beast::http;
-using tcp       = asio::ip::tcp;
+namespace http = beast::http;
+using tcp = asio::ip::tcp;
 
+using Catch::Matchers::ContainsSubstring;
 using cmlb::infrastructure::http::BeastHttpClient;
 using cmlb::infrastructure::http::HttpResponse;
-using Catch::Matchers::ContainsSubstring;
 
 namespace {
 
@@ -77,12 +76,12 @@ struct TestServer {
             }
         };
 
-        auto loop = [&, acceptor = std::move(acceptor),
-                     session]() mutable -> asio::awaitable<void> {
+        auto loop =
+            [&, acceptor = std::move(acceptor), session]() mutable -> asio::awaitable<void> {
             while (running.load()) {
                 boost::system::error_code ec;
-                auto sock = co_await acceptor.async_accept(
-                    asio::redirect_error(asio::use_awaitable, ec));
+                auto sock =
+                    co_await acceptor.async_accept(asio::redirect_error(asio::use_awaitable, ec));
                 if (ec) {
                     co_return;
                 }
@@ -91,7 +90,9 @@ struct TestServer {
         };
 
         asio::co_spawn(io, loop(), asio::detached);
-        thread = std::thread{[this] { io.run(); }};
+        thread = std::thread{[this] {
+            io.run();
+        }};
     }
 
     ~TestServer() {
@@ -110,54 +111,50 @@ struct TestServer {
 template <typename F>
 auto run_awaitable(F&& f) {
     asio::io_context io;
-    auto fut = asio::co_spawn(io.get_executor(),
-                              std::forward<F>(f)(io.get_executor()),
-                              asio::use_future);
+    auto fut =
+        asio::co_spawn(io.get_executor(), std::forward<F>(f)(io.get_executor()), asio::use_future);
     io.run();
     return fut.get();
 }
 
-}  // namespace
+} // namespace
 
-TEST_CASE("BeastHttpClient GET returns 200 with body",
-          "[integration][http][get]") {
+TEST_CASE("BeastHttpClient GET returns 200 with body", "[integration][http][get]") {
     TestServer server{[](auto& /*req*/, auto& res) {
         res.result(http::status::ok);
         res.set(http::field::content_type, "text/plain");
         res.body() = "hello-cmlb";
     }};
 
-    auto result = run_awaitable([&](asio::any_io_executor exec)
-                                    -> asio::awaitable<cmlb::core::Result<HttpResponse>> {
-        BeastHttpClient client{exec};
-        co_return co_await client.get(server.base_url() + "/hello");
-    });
+    auto result = run_awaitable(
+        [&](asio::any_io_executor exec) -> asio::awaitable<cmlb::core::Result<HttpResponse>> {
+            BeastHttpClient client{exec};
+            co_return co_await client.get(server.base_url() + "/hello");
+        });
 
     REQUIRE(result.has_value());
     CHECK(result->status_code == 200);
     CHECK(result->body == "hello-cmlb");
 }
 
-TEST_CASE("BeastHttpClient surfaces 404 responses without erroring",
-          "[integration][http][404]") {
+TEST_CASE("BeastHttpClient surfaces 404 responses without erroring", "[integration][http][404]") {
     TestServer server{[](auto& /*req*/, auto& res) {
         res.result(http::status::not_found);
         res.body() = "missing";
     }};
 
-    auto result = run_awaitable([&](asio::any_io_executor exec)
-                                    -> asio::awaitable<cmlb::core::Result<HttpResponse>> {
-        BeastHttpClient client{exec};
-        co_return co_await client.get(server.base_url() + "/nope");
-    });
+    auto result = run_awaitable(
+        [&](asio::any_io_executor exec) -> asio::awaitable<cmlb::core::Result<HttpResponse>> {
+            BeastHttpClient client{exec};
+            co_return co_await client.get(server.base_url() + "/nope");
+        });
 
     REQUIRE(result.has_value());
     CHECK(result->status_code == 404);
     CHECK(result->body == "missing");
 }
 
-TEST_CASE("BeastHttpClient follows redirect chains",
-          "[integration][http][redirect]") {
+TEST_CASE("BeastHttpClient follows redirect chains", "[integration][http][redirect]") {
     TestServer server{[](auto& req, auto& res) {
         if (req.target() == "/one") {
             res.result(http::status::found);
@@ -171,19 +168,18 @@ TEST_CASE("BeastHttpClient follows redirect chains",
         }
     }};
 
-    auto result = run_awaitable([&](asio::any_io_executor exec)
-                                    -> asio::awaitable<cmlb::core::Result<HttpResponse>> {
-        BeastHttpClient client{exec};
-        co_return co_await client.get(server.base_url() + "/one");
-    });
+    auto result = run_awaitable(
+        [&](asio::any_io_executor exec) -> asio::awaitable<cmlb::core::Result<HttpResponse>> {
+            BeastHttpClient client{exec};
+            co_return co_await client.get(server.base_url() + "/one");
+        });
 
     REQUIRE(result.has_value());
     CHECK(result->status_code == 200);
     CHECK(result->body == "final");
 }
 
-TEST_CASE("BeastHttpClient honors per-request timeout",
-          "[integration][http][timeout]") {
+TEST_CASE("BeastHttpClient honors per-request timeout", "[integration][http][timeout]") {
     // Server that never replies — bind a socket and accept without responding.
     asio::io_context srv_io;
     tcp::acceptor acceptor{srv_io, tcp::endpoint{tcp::v4(), 0}};
@@ -196,7 +192,8 @@ TEST_CASE("BeastHttpClient honors per-request timeout",
                 boost::system::error_code ec;
                 tcp::socket s{srv_io};
                 acceptor.accept(s, ec);
-                if (ec) break;
+                if (ec)
+                    break;
                 // Hold the connection open without writing anything.
                 while (alive.load()) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -206,14 +203,14 @@ TEST_CASE("BeastHttpClient honors per-request timeout",
         }
     }};
 
-    auto result = run_awaitable([&, port](asio::any_io_executor exec)
-                                    -> asio::awaitable<cmlb::core::Result<HttpResponse>> {
-        BeastHttpClient client{exec};
-        cmlb::infrastructure::http::HttpRequest req;
-        req.url = "http://127.0.0.1:" + std::to_string(port) + "/slow";
-        req.timeout = std::chrono::milliseconds(200);
-        co_return co_await client.request(std::move(req));
-    });
+    auto result = run_awaitable(
+        [&, port](asio::any_io_executor exec) -> asio::awaitable<cmlb::core::Result<HttpResponse>> {
+            BeastHttpClient client{exec};
+            cmlb::infrastructure::http::HttpRequest req;
+            req.url = "http://127.0.0.1:" + std::to_string(port) + "/slow";
+            req.timeout = std::chrono::milliseconds(200);
+            co_return co_await client.request(std::move(req));
+        });
 
     alive.store(false);
     boost::system::error_code ec;

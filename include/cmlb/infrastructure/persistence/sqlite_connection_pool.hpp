@@ -34,7 +34,7 @@ class SqliteConnectionHandle {
 public:
     SqliteConnectionHandle() = default;
 
-    SqliteConnectionHandle(const SqliteConnectionHandle&)            = delete;
+    SqliteConnectionHandle(const SqliteConnectionHandle&) = delete;
     SqliteConnectionHandle& operator=(const SqliteConnectionHandle&) = delete;
 
     SqliteConnectionHandle(SqliteConnectionHandle&& other) noexcept
@@ -46,23 +46,32 @@ public:
     SqliteConnectionHandle& operator=(SqliteConnectionHandle&& other) noexcept {
         if (this != &other) {
             release_();
-            pool_       = other.pool_;
-            slot_       = other.slot_;
-            db_         = std::move(other.db_);
+            pool_ = other.pool_;
+            slot_ = other.slot_;
+            db_ = std::move(other.db_);
             other.pool_ = nullptr;
             other.slot_ = static_cast<std::size_t>(-1);
         }
         return *this;
     }
 
-    ~SqliteConnectionHandle() { release_(); }
+    ~SqliteConnectionHandle() {
+        release_();
+    }
 
     /// Returns the raw `sqlite::database` ref. Lifetime is tied to *this*.
-    [[nodiscard]] sqlite::database& database() noexcept { return *db_; }
-    [[nodiscard]] const sqlite::database& database() const noexcept { return *db_; }
+    [[nodiscard]] sqlite::database& database() noexcept {
+        return *db_;
+    }
+
+    [[nodiscard]] const sqlite::database& database() const noexcept {
+        return *db_;
+    }
 
     /// True iff this handle currently owns a borrowed connection.
-    [[nodiscard]] bool valid() const noexcept { return pool_ != nullptr && db_ != nullptr; }
+    [[nodiscard]] bool valid() const noexcept {
+        return pool_ != nullptr && db_ != nullptr;
+    }
 
 private:
     friend class SqliteConnectionPool;
@@ -70,12 +79,13 @@ private:
     SqliteConnectionHandle(SqliteConnectionPool* pool,
                            std::size_t slot,
                            std::shared_ptr<sqlite::database> db) noexcept
-        : pool_{pool}, slot_{slot}, db_{std::move(db)} {}
+        : pool_{pool}, slot_{slot}, db_{std::move(db)} {
+    }
 
     void release_() noexcept;
 
-    SqliteConnectionPool*             pool_{nullptr};
-    std::size_t                       slot_{static_cast<std::size_t>(-1)};
+    SqliteConnectionPool* pool_{nullptr};
+    std::size_t slot_{static_cast<std::size_t>(-1)};
     std::shared_ptr<sqlite::database> db_;
 };
 
@@ -98,16 +108,16 @@ public:
     /// SQLite error message) if any connection fails to open or its pragmas
     /// fail to apply. The synchronous failure mode is deliberate — a process
     /// that cannot open its database has no useful runtime to recover into.
-    SqliteConnectionPool(core::DatabaseConfig          config,
-                         boost::asio::any_io_executor  executor,
-                         std::size_t                   pool_size = kDefaultPoolSize);
+    SqliteConnectionPool(core::DatabaseConfig config,
+                         boost::asio::any_io_executor executor,
+                         std::size_t pool_size = kDefaultPoolSize);
 
     ~SqliteConnectionPool();
 
-    SqliteConnectionPool(const SqliteConnectionPool&)            = delete;
+    SqliteConnectionPool(const SqliteConnectionPool&) = delete;
     SqliteConnectionPool& operator=(const SqliteConnectionPool&) = delete;
-    SqliteConnectionPool(SqliteConnectionPool&&)                 = delete;
-    SqliteConnectionPool& operator=(SqliteConnectionPool&&)      = delete;
+    SqliteConnectionPool(SqliteConnectionPool&&) = delete;
+    SqliteConnectionPool& operator=(SqliteConnectionPool&&) = delete;
 
     /// Borrow a connection. The returned handle releases the connection on
     /// destruction. Cancellation of the awaitable leaves pool state intact.
@@ -117,7 +127,9 @@ public:
     [[nodiscard]] boost::asio::awaitable<core::Result<void>> ping();
 
     /// Number of connections in the pool (fixed for the lifetime of *this*).
-    [[nodiscard]] std::size_t size() const noexcept { return connections_.size(); }
+    [[nodiscard]] std::size_t size() const noexcept {
+        return connections_.size();
+    }
 
     /// Returns the executor passed to the constructor.
     [[nodiscard]] boost::asio::any_io_executor get_executor() const noexcept {
@@ -125,20 +137,23 @@ public:
     }
 
     /// Returns the on-disk path the pool is bound to.
-    [[nodiscard]] const core::DatabaseConfig& config() const noexcept { return config_; }
+    [[nodiscard]] const core::DatabaseConfig& config() const noexcept {
+        return config_;
+    }
 
 private:
     friend class SqliteConnectionHandle;
 
-    using Channel = boost::asio::experimental::channel<void(boost::system::error_code, std::size_t)>;
+    using Channel =
+        boost::asio::experimental::channel<void(boost::system::error_code, std::size_t)>;
 
     void return_slot_(std::size_t slot) noexcept;
 
-    core::DatabaseConfig                            config_;
-    boost::asio::any_io_executor                    executor_;
-    std::vector<std::shared_ptr<sqlite::database>>  connections_;
-    std::unique_ptr<Channel>                        free_slots_;
-    std::mutex                                      mutex_;
+    core::DatabaseConfig config_;
+    boost::asio::any_io_executor executor_;
+    std::vector<std::shared_ptr<sqlite::database>> connections_;
+    std::unique_ptr<Channel> free_slots_;
+    std::mutex mutex_;
 };
 
-}  // namespace cmlb::infrastructure::persistence
+} // namespace cmlb::infrastructure::persistence

@@ -2,6 +2,10 @@
 // cancel_task_test.cpp - unit tests for CancelTask use case.
 // ---------------------------------------------------------------------------
 
+#include "in_memory_task_repository.hpp"
+#include "stub_downloader.hpp"
+#include "stub_messenger.hpp"
+
 #include <chrono>
 #include <optional>
 #include <string>
@@ -13,14 +17,9 @@
 #include <boost/asio/use_future.hpp>
 
 #include <catch2/catch_test_macros.hpp>
-
 #include <cmlb/application/active_task_registry.hpp>
 #include <cmlb/application/cancel_task.hpp>
 #include <cmlb/domain/task.hpp>
-
-#include "in_memory_task_repository.hpp"
-#include "stub_downloader.hpp"
-#include "stub_messenger.hpp"
 
 namespace asio = boost::asio;
 
@@ -53,18 +52,18 @@ auto run_on(asio::io_context& ctx, Factory&& f) {
 TaskMetadata sample_metadata(std::string id = "tid-1") {
     const auto now = std::chrono::system_clock::now();
     return TaskMetadata{
-        .id             = TaskId{std::move(id)},
-        .user           = UserId{42},
-        .chat           = ChatId{-100123},
+        .id = TaskId{std::move(id)},
+        .user = UserId{42},
+        .chat = ChatId{-100123},
         .status_message = MessageId{7},
-        .kind           = TaskKind::Mirror,
-        .source_url     = "https://example.com/file.iso",
-        .created_at     = now,
-        .updated_at     = now,
+        .kind = TaskKind::Mirror,
+        .source_url = "https://example.com/file.iso",
+        .created_at = now,
+        .updated_at = now,
     };
 }
 
-}  // namespace
+} // namespace
 
 TEST_CASE("CancelTask returns NotFound when the task does not exist",
           "[application][cancel_task]") {
@@ -76,18 +75,15 @@ TEST_CASE("CancelTask returns NotFound when the task does not exist",
     CancelTask uc{tasks, aria2, qbit, messenger, active_tasks};
 
     asio::io_context ctx;
-    auto result = run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<void>> {
-        co_return co_await uc.execute(
-            CancelTaskRequest{TaskId{"missing"}, ChatId{-1}});
+    auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {
+        co_return co_await uc.execute(CancelTaskRequest{TaskId{"missing"}, ChatId{-1}});
     });
 
     REQUIRE_FALSE(result.has_value());
     CHECK(result.error().code == ErrorCode::NotFound);
 }
 
-TEST_CASE("CancelTask rejects already-terminal tasks",
-          "[application][cancel_task]") {
+TEST_CASE("CancelTask rejects already-terminal tasks", "[application][cancel_task]") {
     InMemoryTaskRepository tasks;
     StubDownloader aria2;
     StubDownloader qbit;
@@ -105,10 +101,8 @@ TEST_CASE("CancelTask rejects already-terminal tasks",
     });
 
     CancelTask uc{tasks, aria2, qbit, messenger, active_tasks};
-    auto result = run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<void>> {
-        co_return co_await uc.execute(
-            CancelTaskRequest{task.metadata().id, ChatId{-100123}});
+    auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {
+        co_return co_await uc.execute(CancelTaskRequest{task.metadata().id, ChatId{-100123}});
     });
 
     REQUIRE_FALSE(result.has_value());
@@ -136,10 +130,8 @@ TEST_CASE("CancelTask happy path: marks task cancelled and notifies user",
     });
 
     CancelTask uc{tasks, aria2, qbit, messenger, active_tasks};
-    auto result = run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<void>> {
-        co_return co_await uc.execute(
-            CancelTaskRequest{task.metadata().id, ChatId{-100123}});
+    auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {
+        co_return co_await uc.execute(CancelTaskRequest{task.metadata().id, ChatId{-100123}});
     });
 
     REQUIRE(result.has_value());
@@ -149,8 +141,7 @@ TEST_CASE("CancelTask happy path: marks task cancelled and notifies user",
     CHECK_FALSE(messenger.sends().empty());
 
     // Persisted task is now Cancelled.
-    auto loaded = run_on(ctx, [&]()
-        -> asio::awaitable<cmlb::core::Result<std::optional<Task>>> {
+    auto loaded = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<std::optional<Task>>> {
         co_return co_await tasks.find(task.metadata().id);
     });
     REQUIRE(loaded.has_value());
@@ -180,10 +171,8 @@ TEST_CASE("CancelTask delegates teardown when a coroutine is registered",
     auto cancel_flag = active_tasks.register_task(task.metadata().id);
 
     CancelTask uc{tasks, aria2, qbit, messenger, active_tasks};
-    auto result = run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<void>> {
-        co_return co_await uc.execute(
-            CancelTaskRequest{task.metadata().id, ChatId{-100123}});
+    auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {
+        co_return co_await uc.execute(CancelTaskRequest{task.metadata().id, ChatId{-100123}});
     });
 
     REQUIRE(result.has_value());
@@ -197,8 +186,7 @@ TEST_CASE("CancelTask delegates teardown when a coroutine is registered",
 
     // The DB row is still in Downloading — the live coroutine is responsible
     // for transitioning it to Cancelled once it observes the flag.
-    auto loaded = run_on(ctx, [&]()
-        -> asio::awaitable<cmlb::core::Result<std::optional<Task>>> {
+    auto loaded = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<std::optional<Task>>> {
         co_return co_await tasks.find(task.metadata().id);
     });
     REQUIRE(loaded.has_value());

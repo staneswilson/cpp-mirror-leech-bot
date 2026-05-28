@@ -2,6 +2,12 @@
 // mirror_url_test.cpp - unit tests for MirrorUrl orchestration.
 // ---------------------------------------------------------------------------
 
+#include "in_memory_task_repository.hpp"
+#include "in_memory_user_settings_repository.hpp"
+#include "stub_downloader.hpp"
+#include "stub_messenger.hpp"
+#include "stub_uploader.hpp"
+
 #include <chrono>
 #include <filesystem>
 #include <string>
@@ -13,18 +19,11 @@
 #include <boost/asio/use_future.hpp>
 
 #include <catch2/catch_test_macros.hpp>
-
 #include <cmlb/application/active_task_registry.hpp>
 #include <cmlb/application/mirror_url.hpp>
 #include <cmlb/core/executor.hpp>
 #include <cmlb/infrastructure/system/system_metrics.hpp>
 #include <cmlb/presentation/progress_renderer.hpp>
-
-#include "in_memory_task_repository.hpp"
-#include "in_memory_user_settings_repository.hpp"
-#include "stub_downloader.hpp"
-#include "stub_messenger.hpp"
-#include "stub_uploader.hpp"
 
 namespace asio = boost::asio;
 
@@ -56,33 +55,43 @@ auto run_on(asio::io_context& ctx, Factory&& f) {
 }
 
 struct Fixture {
-    cmlb::core::Executor                            executor{std::size_t{1}};
-    StubDownloader                                  aria2;
-    StubDownloader                                  qbit;
-    StubUploader                                    gdrive{"gdrive"};
-    StubUploader                                    rclone{"rclone"};
-    InMemoryTaskRepository                          tasks;
-    InMemoryUserSettingsRepository                  settings;
-    StubMessenger                                   messenger;
-    cmlb::infrastructure::system::SystemMetrics     metrics;
-    cmlb::presentation::ProgressRenderer            progress_renderer{
-        messenger, metrics, std::chrono::steady_clock::now(),
-        executor.get_executor(), std::chrono::milliseconds{0}};
-    ActiveTaskRegistry                              active_tasks;
+    cmlb::core::Executor executor{std::size_t{1}};
+    StubDownloader aria2;
+    StubDownloader qbit;
+    StubUploader gdrive{"gdrive"};
+    StubUploader rclone{"rclone"};
+    InMemoryTaskRepository tasks;
+    InMemoryUserSettingsRepository settings;
+    StubMessenger messenger;
+    cmlb::infrastructure::system::SystemMetrics metrics;
+    cmlb::presentation::ProgressRenderer progress_renderer{messenger,
+                                                           metrics,
+                                                           std::chrono::steady_clock::now(),
+                                                           executor.get_executor(),
+                                                           std::chrono::milliseconds{0}};
+    ActiveTaskRegistry active_tasks;
 
     MirrorUrl make() {
-        return MirrorUrl{aria2, qbit, gdrive, rclone,
-                         tasks, settings, messenger,
-                         progress_renderer, executor, active_tasks, 4};
+        return MirrorUrl{aria2,
+                         qbit,
+                         gdrive,
+                         rclone,
+                         tasks,
+                         settings,
+                         messenger,
+                         progress_renderer,
+                         executor,
+                         active_tasks,
+                         4};
     }
 };
 
 MirrorRequest sample_request(std::string url = "https://example.com/file.iso") {
     return MirrorRequest{
-        .url             = std::move(url),
-        .user            = UserId{42},
-        .chat            = ChatId{-100123},
-        .source_message  = MessageId{7},
+        .url = std::move(url),
+        .user = UserId{42},
+        .chat = ChatId{-100123},
+        .source_message = MessageId{7},
         .use_qbittorrent = false,
         .override_destination = std::nullopt,
     };
@@ -90,27 +99,25 @@ MirrorRequest sample_request(std::string url = "https://example.com/file.iso") {
 
 DownloadStatus complete_status() {
     DownloadStatus s;
-    s.id               = Gid{std::string{"stub-gid"}};
-    s.name             = "file.iso";
-    s.state            = DownloadState::Complete;
-    s.total_bytes      = 1024;
+    s.id = Gid{std::string{"stub-gid"}};
+    s.name = "file.iso";
+    s.state = DownloadState::Complete;
+    s.total_bytes = 1024;
     s.downloaded_bytes = 1024;
-    s.save_path        = std::filesystem::path{"/tmp/x"};
-    s.files            = {std::filesystem::path{"/tmp/x/file.iso"}};
+    s.save_path = std::filesystem::path{"/tmp/x"};
+    s.files = {std::filesystem::path{"/tmp/x/file.iso"}};
     return s;
 }
 
-}  // namespace
+} // namespace
 
-TEST_CASE("MirrorUrl rejects an empty URL with InvalidArgument",
-          "[application][mirror_url]") {
+TEST_CASE("MirrorUrl rejects an empty URL with InvalidArgument", "[application][mirror_url]") {
     Fixture fix;
     auto uc = fix.make();
     asio::io_context ctx;
 
     auto req = sample_request("");
-    auto result = run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<cmlb::domain::TaskId>> {
+    auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> {
         co_return co_await uc.execute(req);
     });
 
@@ -129,8 +136,7 @@ TEST_CASE("MirrorUrl happy path persists task and uploads via gdrive",
     asio::io_context ctx;
 
     auto req = sample_request();
-    auto result = run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<cmlb::domain::TaskId>> {
+    auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> {
         co_return co_await uc.execute(req);
     });
 
@@ -149,12 +155,11 @@ TEST_CASE("MirrorUrl happy path persists task and uploads via gdrive",
     CHECK_FALSE(fix.messenger.edits().empty());
 }
 
-TEST_CASE("MirrorUrl marks task Failed on downloader error",
-          "[application][mirror_url]") {
+TEST_CASE("MirrorUrl marks task Failed on downloader error", "[application][mirror_url]") {
     Fixture fix;
     DownloadStatus err;
-    err.id            = Gid{std::string{"stub-gid"}};
-    err.state         = DownloadState::Error;
+    err.id = Gid{std::string{"stub-gid"}};
+    err.state = DownloadState::Error;
     err.error_message = "network died";
     fix.aria2.push_status(err);
 
@@ -162,8 +167,7 @@ TEST_CASE("MirrorUrl marks task Failed on downloader error",
     asio::io_context ctx;
 
     auto req = sample_request();
-    auto result = run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<cmlb::domain::TaskId>> {
+    auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> {
         co_return co_await uc.execute(req);
     });
 
@@ -178,15 +182,13 @@ TEST_CASE("MirrorUrl marks task Failed when uploader returns an error",
           "[application][mirror_url]") {
     Fixture fix;
     fix.aria2.push_status(complete_status());
-    fix.gdrive.set_error(cmlb::core::AppError{ErrorCode::GoogleDriveApi,
-                                              "quota exceeded"});
+    fix.gdrive.set_error(cmlb::core::AppError{ErrorCode::GoogleDriveApi, "quota exceeded"});
 
     auto uc = fix.make();
     asio::io_context ctx;
 
     auto req = sample_request();
-    auto result = run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<cmlb::domain::TaskId>> {
+    auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> {
         co_return co_await uc.execute(req);
     });
 
@@ -207,8 +209,7 @@ TEST_CASE("MirrorUrl routes through qBittorrent when use_qbittorrent is set",
 
     auto req = sample_request();
     req.use_qbittorrent = true;
-    auto result = run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<cmlb::domain::TaskId>> {
+    auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> {
         co_return co_await uc.execute(req);
     });
 

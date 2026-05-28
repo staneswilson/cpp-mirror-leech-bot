@@ -1,5 +1,3 @@
-#include <cmlb/infrastructure/rss/rss_document_parser.hpp>
-
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -14,14 +12,15 @@
 #include <vector>
 
 #include <cmlb/core/error.hpp>
+#include <cmlb/infrastructure/rss/rss_document_parser.hpp>
 
 namespace cmlb::infrastructure::rss {
 
 namespace {
 
+using cmlb::core::error;
 using cmlb::core::ErrorCode;
 using cmlb::core::Result;
-using cmlb::core::error;
 
 // ---------------------------------------------------------------------------
 // Compiled regex constants. ECMAScript flavour, case-insensitive where the
@@ -57,8 +56,8 @@ const std::regex& magnet_regex() {
 /// CDATA wrappers (`<![CDATA[ ... ]]>`) are unwrapped.
 [[nodiscard]] std::optional<std::string> first_tag_text(std::string_view text,
                                                         std::string_view tag) {
-    const std::string pattern = "<" + std::string{tag}
-                                + R"(\b[^>]*>([\s\S]*?)</)" + std::string{tag} + ">";
+    const std::string pattern =
+        "<" + std::string{tag} + R"(\b[^>]*>([\s\S]*?)</)" + std::string{tag} + ">";
     std::regex r{pattern, std::regex::icase};
     std::cmatch m;
     if (!std::regex_search(text.data(), text.data() + text.size(), m, r)) {
@@ -67,16 +66,16 @@ const std::regex& magnet_regex() {
     std::string body = m[1].str();
     // Strip leading/trailing whitespace.
     auto first = body.find_first_not_of(" \t\r\n");
-    auto last  = body.find_last_not_of(" \t\r\n");
-    if (first == std::string::npos) return std::string{};
+    auto last = body.find_last_not_of(" \t\r\n");
+    if (first == std::string::npos)
+        return std::string{};
     body = body.substr(first, last - first + 1);
 
     // Unwrap a single enclosing CDATA section.
-    constexpr std::string_view kCdataOpen  = "<![CDATA[";
+    constexpr std::string_view kCdataOpen = "<![CDATA[";
     constexpr std::string_view kCdataClose = "]]>";
     if (body.starts_with(kCdataOpen) && body.ends_with(kCdataClose)) {
-        body = body.substr(kCdataOpen.size(),
-                           body.size() - kCdataOpen.size() - kCdataClose.size());
+        body = body.substr(kCdataOpen.size(), body.size() - kCdataOpen.size() - kCdataClose.size());
     }
     return body;
 }
@@ -115,7 +114,7 @@ void for_each_tag(std::string_view text, std::string_view tag, Sink&& sink) {
     const std::string pattern = "<" + std::string{tag} + R"(\b([^>]*)\/?>)";
     std::regex r{pattern, std::regex::icase};
     auto begin = std::cregex_iterator(text.data(), text.data() + text.size(), r);
-    auto end   = std::cregex_iterator();
+    auto end = std::cregex_iterator();
     for (auto it = begin; it != end; ++it) {
         sink((*it)[1].str());
     }
@@ -131,8 +130,8 @@ void for_each_tag(std::string_view text, std::string_view tag, Sink&& sink) {
 
 /// Parses RFC 822 dates (`Wed, 02 Oct 2002 13:00:00 GMT`) — the RSS 2.0
 /// canonical form. Returns nullopt on failure.
-[[nodiscard]] std::optional<std::chrono::system_clock::time_point>
-parse_rfc822(std::string_view text) {
+[[nodiscard]] std::optional<std::chrono::system_clock::time_point> parse_rfc822(
+    std::string_view text) {
     std::tm tm{};
     std::istringstream is{std::string{text}};
     is >> std::get_time(&tm, "%a, %d %b %Y %H:%M:%S");
@@ -141,7 +140,8 @@ parse_rfc822(std::string_view text) {
         std::tm tm2{};
         std::istringstream is2{std::string{text}};
         is2 >> std::get_time(&tm2, "%d %b %Y %H:%M:%S");
-        if (is2.fail()) return std::nullopt;
+        if (is2.fail())
+            return std::nullopt;
         tm = tm2;
     }
 #ifdef _WIN32
@@ -149,23 +149,26 @@ parse_rfc822(std::string_view text) {
 #else
     const auto t = timegm(&tm);
 #endif
-    if (t == -1) return std::nullopt;
+    if (t == -1)
+        return std::nullopt;
     return std::chrono::system_clock::from_time_t(t);
 }
 
 /// Parses RFC 3339 / ISO 8601 timestamps used by Atom feeds.
-[[nodiscard]] std::optional<std::chrono::system_clock::time_point>
-parse_rfc3339(std::string_view text) {
+[[nodiscard]] std::optional<std::chrono::system_clock::time_point> parse_rfc3339(
+    std::string_view text) {
     std::tm tm{};
     std::istringstream is{std::string{text}};
     is >> std::get_time(&tm, "%Y-%m-%dT%H:%M:%S");
-    if (is.fail()) return std::nullopt;
+    if (is.fail())
+        return std::nullopt;
 #ifdef _WIN32
     const auto t = _mkgmtime(&tm);
 #else
     const auto t = timegm(&tm);
 #endif
-    if (t == -1) return std::nullopt;
+    if (t == -1)
+        return std::nullopt;
     return std::chrono::system_clock::from_time_t(t);
 }
 
@@ -175,12 +178,17 @@ parse_rfc3339(std::string_view text) {
 
 RssEntry parse_rss_item(std::string_view body) {
     RssEntry entry;
-    if (auto v = first_tag_text(body, "title"))       entry.title = std::move(*v);
-    if (auto v = first_tag_text(body, "link"))        entry.link  = std::move(*v);
-    if (auto v = first_tag_text(body, "guid"))        entry.guid  = std::move(*v);
-    if (auto v = first_tag_text(body, "description")) entry.description = std::move(*v);
+    if (auto v = first_tag_text(body, "title"))
+        entry.title = std::move(*v);
+    if (auto v = first_tag_text(body, "link"))
+        entry.link = std::move(*v);
+    if (auto v = first_tag_text(body, "guid"))
+        entry.guid = std::move(*v);
+    if (auto v = first_tag_text(body, "description"))
+        entry.description = std::move(*v);
 
-    if (entry.guid.empty()) entry.guid = entry.link;
+    if (entry.guid.empty())
+        entry.guid = entry.link;
 
     // Enclosure with bittorrent type → torrent_url.
     if (auto enclosure_type = attr_of_tag(body, "enclosure", "type")) {
@@ -212,21 +220,22 @@ Result<RssDocument> parse_rss(std::string_view xml) {
     // Channel-level metadata: take the first <title>/<link>/<description>
     // we find *before* the first <item>, so item titles don't shadow the
     // channel title.
-    const auto first_item = std::cregex_iterator(xml.data(), xml.data() + xml.size(),
-                                                 item_regex());
+    const auto first_item = std::cregex_iterator(xml.data(), xml.data() + xml.size(), item_regex());
     std::string_view channel_view = xml;
     if (first_item != std::cregex_iterator()) {
         const auto offset = static_cast<std::size_t>((*first_item).position(0));
         channel_view = xml.substr(0, offset);
     }
-    if (auto v = first_tag_text(channel_view, "title")) doc.title = std::move(*v);
-    if (auto v = first_tag_text(channel_view, "link"))  doc.link  = std::move(*v);
+    if (auto v = first_tag_text(channel_view, "title"))
+        doc.title = std::move(*v);
+    if (auto v = first_tag_text(channel_view, "link"))
+        doc.link = std::move(*v);
     if (auto v = first_tag_text(channel_view, "description")) {
         doc.description = std::move(*v);
     }
 
     auto begin = std::cregex_iterator(xml.data(), xml.data() + xml.size(), item_regex());
-    auto end   = std::cregex_iterator();
+    auto end = std::cregex_iterator();
     for (auto it = begin; it != end; ++it) {
         doc.entries.emplace_back(parse_rss_item((*it)[1].str()));
     }
@@ -239,11 +248,15 @@ Result<RssDocument> parse_rss(std::string_view xml) {
 
 RssEntry parse_atom_entry(std::string_view body) {
     RssEntry entry;
-    if (auto v = first_tag_text(body, "title")) entry.title = std::move(*v);
-    if (auto v = first_tag_text(body, "id"))    entry.guid  = std::move(*v);
-    if (auto v = first_tag_text(body, "summary"))     entry.description = std::move(*v);
+    if (auto v = first_tag_text(body, "title"))
+        entry.title = std::move(*v);
+    if (auto v = first_tag_text(body, "id"))
+        entry.guid = std::move(*v);
+    if (auto v = first_tag_text(body, "summary"))
+        entry.description = std::move(*v);
     if (!entry.description) {
-        if (auto v = first_tag_text(body, "content")) entry.description = std::move(*v);
+        if (auto v = first_tag_text(body, "content"))
+            entry.description = std::move(*v);
     }
 
     // <link> has multiple forms: prefer rel="alternate" (or no rel) with an
@@ -256,12 +269,14 @@ RssEntry parse_atom_entry(std::string_view body) {
             const std::string pat = std::string{name} + R"_(\s*=\s*"([^"]*)")_";
             std::regex r{pat, std::regex::icase};
             std::smatch m;
-            if (std::regex_search(attrs, m, r)) return m[1].str();
+            if (std::regex_search(attrs, m, r))
+                return m[1].str();
             return std::nullopt;
         };
         const auto href = find_attr("href");
-        if (!href) return;
-        const auto rel  = find_attr("rel").value_or("alternate");
+        if (!href)
+            return;
+        const auto rel = find_attr("rel").value_or("alternate");
         const auto type = find_attr("type").value_or("");
         if (type == "application/x-bittorrent") {
             torrent_url = *href;
@@ -271,7 +286,8 @@ RssEntry parse_atom_entry(std::string_view body) {
     });
     entry.link = std::move(alternate_link);
     entry.torrent_url = std::move(torrent_url);
-    if (entry.guid.empty()) entry.guid = entry.link;
+    if (entry.guid.empty())
+        entry.guid = entry.link;
 
     if (entry.description) {
         if (auto magnet = extract_magnet(*entry.description)) {
@@ -295,54 +311,58 @@ RssEntry parse_atom_entry(std::string_view body) {
 Result<RssDocument> parse_atom(std::string_view xml) {
     RssDocument doc;
 
-    const auto first_entry = std::cregex_iterator(xml.data(), xml.data() + xml.size(),
-                                                  atom_entry_regex());
+    const auto first_entry =
+        std::cregex_iterator(xml.data(), xml.data() + xml.size(), atom_entry_regex());
     std::string_view header_view = xml;
     if (first_entry != std::cregex_iterator()) {
         const auto offset = static_cast<std::size_t>((*first_entry).position(0));
         header_view = xml.substr(0, offset);
     }
-    if (auto v = first_tag_text(header_view, "title")) doc.title = std::move(*v);
-    if (auto v = first_tag_text(header_view, "subtitle")) doc.description = std::move(*v);
+    if (auto v = first_tag_text(header_view, "title"))
+        doc.title = std::move(*v);
+    if (auto v = first_tag_text(header_view, "subtitle"))
+        doc.description = std::move(*v);
 
     for_each_tag(header_view, "link", [&](const std::string& attrs) {
         auto find_attr = [&](std::string_view name) -> std::optional<std::string> {
             const std::string pat = std::string{name} + R"_(\s*=\s*"([^"]*)")_";
             std::regex r{pat, std::regex::icase};
             std::smatch m;
-            if (std::regex_search(attrs, m, r)) return m[1].str();
+            if (std::regex_search(attrs, m, r))
+                return m[1].str();
             return std::nullopt;
         };
-        if (!doc.link.empty()) return;
+        if (!doc.link.empty())
+            return;
         const auto href = find_attr("href");
-        if (!href) return;
+        if (!href)
+            return;
         const auto rel = find_attr("rel").value_or("alternate");
-        if (rel == "alternate") doc.link = *href;
+        if (rel == "alternate")
+            doc.link = *href;
     });
 
-    auto begin = std::cregex_iterator(xml.data(), xml.data() + xml.size(),
-                                      atom_entry_regex());
-    auto end   = std::cregex_iterator();
+    auto begin = std::cregex_iterator(xml.data(), xml.data() + xml.size(), atom_entry_regex());
+    auto end = std::cregex_iterator();
     for (auto it = begin; it != end; ++it) {
         doc.entries.emplace_back(parse_atom_entry((*it)[1].str()));
     }
     return doc;
 }
 
-}  // namespace
+} // namespace
 
 Result<RssDocument> RssDocumentParser::parse(std::string_view xml) {
     if (xml.empty()) {
         return error(ErrorCode::Deserialization, "empty RSS document");
     }
-    const bool is_rss  = std::regex_search(xml.data(), xml.data() + xml.size(),
-                                           rss_root_regex());
-    const bool is_atom = std::regex_search(xml.data(), xml.data() + xml.size(),
-                                           atom_root_regex());
-    if (is_rss) return parse_rss(xml);
-    if (is_atom) return parse_atom(xml);
-    return error(ErrorCode::Deserialization,
-                 "document is neither RSS 2.0 nor Atom 1.0");
+    const bool is_rss = std::regex_search(xml.data(), xml.data() + xml.size(), rss_root_regex());
+    const bool is_atom = std::regex_search(xml.data(), xml.data() + xml.size(), atom_root_regex());
+    if (is_rss)
+        return parse_rss(xml);
+    if (is_atom)
+        return parse_atom(xml);
+    return error(ErrorCode::Deserialization, "document is neither RSS 2.0 nor Atom 1.0");
 }
 
-}  // namespace cmlb::infrastructure::rss
+} // namespace cmlb::infrastructure::rss

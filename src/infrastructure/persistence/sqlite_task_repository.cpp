@@ -1,4 +1,4 @@
-#include <cmlb/infrastructure/persistence/sqlite_task_repository.hpp>
+#include "time_codec.hpp"
 
 #include <cstdint>
 #include <exception>
@@ -16,8 +16,7 @@
 #include <cmlb/core/error.hpp>
 #include <cmlb/domain/identifiers.hpp>
 #include <cmlb/domain/task.hpp>
-
-#include "time_codec.hpp"
+#include <cmlb/infrastructure/persistence/sqlite_task_repository.hpp>
 
 namespace cmlb::infrastructure::persistence {
 
@@ -29,50 +28,62 @@ using SysTime = detail::SysTime;
 
 [[nodiscard]] std::string_view kind_to_string(domain::TaskKind k) noexcept {
     switch (k) {
-        case domain::TaskKind::Mirror: return "Mirror";
-        case domain::TaskKind::Leech:  return "Leech";
-        case domain::TaskKind::Clone:  return "Clone";
+    case domain::TaskKind::Mirror:
+        return "Mirror";
+    case domain::TaskKind::Leech:
+        return "Leech";
+    case domain::TaskKind::Clone:
+        return "Clone";
     }
     return "Unknown";
 }
 
 [[nodiscard]] core::Result<domain::TaskKind> parse_kind(std::string_view s) {
-    if (s == "Mirror") return domain::TaskKind::Mirror;
-    if (s == "Leech")  return domain::TaskKind::Leech;
-    if (s == "Clone")  return domain::TaskKind::Clone;
-    return core::error(core::ErrorCode::Deserialization,
-                       "Unknown TaskKind: " + std::string{s});
+    if (s == "Mirror")
+        return domain::TaskKind::Mirror;
+    if (s == "Leech")
+        return domain::TaskKind::Leech;
+    if (s == "Clone")
+        return domain::TaskKind::Clone;
+    return core::error(core::ErrorCode::Deserialization, "Unknown TaskKind: " + std::string{s});
 }
 
-[[nodiscard]] core::Result<domain::DownloaderKind>
-parse_downloader_kind(std::string_view s) {
-    if (s == "None")        return domain::DownloaderKind::None;
-    if (s == "Aria2")       return domain::DownloaderKind::Aria2;
-    if (s == "Qbittorrent") return domain::DownloaderKind::Qbittorrent;
+[[nodiscard]] core::Result<domain::DownloaderKind> parse_downloader_kind(std::string_view s) {
+    if (s == "None")
+        return domain::DownloaderKind::None;
+    if (s == "Aria2")
+        return domain::DownloaderKind::Aria2;
+    if (s == "Qbittorrent")
+        return domain::DownloaderKind::Qbittorrent;
     return core::error(core::ErrorCode::Deserialization,
                        "Unknown DownloaderKind: " + std::string{s});
 }
 
 [[nodiscard]] core::Result<domain::TaskState> parse_state(std::string_view s) {
-    if (s == "Queued")      return domain::TaskState::Queued;
-    if (s == "Downloading") return domain::TaskState::Downloading;
-    if (s == "Processing")  return domain::TaskState::Processing;
-    if (s == "Uploading")   return domain::TaskState::Uploading;
-    if (s == "Completed")   return domain::TaskState::Completed;
-    if (s == "Failed")      return domain::TaskState::Failed;
-    if (s == "Cancelled")   return domain::TaskState::Cancelled;
-    return core::error(core::ErrorCode::Deserialization,
-                       "Unknown TaskState: " + std::string{s});
+    if (s == "Queued")
+        return domain::TaskState::Queued;
+    if (s == "Downloading")
+        return domain::TaskState::Downloading;
+    if (s == "Processing")
+        return domain::TaskState::Processing;
+    if (s == "Uploading")
+        return domain::TaskState::Uploading;
+    if (s == "Completed")
+        return domain::TaskState::Completed;
+    if (s == "Failed")
+        return domain::TaskState::Failed;
+    if (s == "Cancelled")
+        return domain::TaskState::Cancelled;
+    return core::error(core::ErrorCode::Deserialization, "Unknown TaskState: " + std::string{s});
 }
 
 /// Replays the minimum number of state transitions required to drive a freshly
 /// constructed Task to @p target. Returns the populated Task.
-[[nodiscard]] core::Result<domain::Task>
-reconstitute(domain::TaskMetadata metadata,
-             domain::TaskState target,
-             std::optional<std::string> error_message,
-             domain::DownloaderKind downloader_kind,
-             std::optional<std::string> downloader_id) {
+[[nodiscard]] core::Result<domain::Task> reconstitute(domain::TaskMetadata metadata,
+                                                      domain::TaskState target,
+                                                      std::optional<std::string> error_message,
+                                                      domain::DownloaderKind downloader_kind,
+                                                      std::optional<std::string> downloader_id) {
     domain::Task task{std::move(metadata)};
     auto fail = [](std::string_view step, const core::AppError& err) {
         return core::error(core::ErrorCode::Deserialization,
@@ -82,73 +93,81 @@ reconstitute(domain::TaskMetadata metadata,
 
     auto attach_downloader_if_set = [&]() {
         if (downloader_kind != domain::DownloaderKind::None && downloader_id) {
-            task.attach_downloader(domain::Gid{std::move(*downloader_id)},
-                                   downloader_kind);
+            task.attach_downloader(domain::Gid{std::move(*downloader_id)}, downloader_kind);
         }
     };
 
     switch (target) {
-        case domain::TaskState::Queued:
-            attach_downloader_if_set();
-            return task;
+    case domain::TaskState::Queued:
+        attach_downloader_if_set();
+        return task;
 
-        case domain::TaskState::Downloading: {
-            if (auto r = task.start_download(); !r) return fail("start_download", r.error());
-            attach_downloader_if_set();
-            return task;
-        }
-        case domain::TaskState::Processing: {
-            if (auto r = task.start_download(); !r) return fail("start_download", r.error());
-            if (auto r = task.begin_processing(); !r) return fail("begin_processing", r.error());
-            attach_downloader_if_set();
-            return task;
-        }
-        case domain::TaskState::Uploading: {
-            if (auto r = task.start_download(); !r) return fail("start_download", r.error());
-            if (auto r = task.begin_upload(); !r) return fail("begin_upload", r.error());
-            attach_downloader_if_set();
-            return task;
-        }
-        case domain::TaskState::Completed: {
-            if (auto r = task.start_download(); !r) return fail("start_download", r.error());
-            if (auto r = task.begin_upload(); !r) return fail("begin_upload", r.error());
-            if (auto r = task.mark_completed(); !r) return fail("mark_completed", r.error());
-            attach_downloader_if_set();
-            return task;
-        }
-        case domain::TaskState::Failed: {
-            attach_downloader_if_set();
-            const std::string reason = error_message.value_or("(unknown)");
-            if (auto r = task.mark_failed(reason); !r) return fail("mark_failed", r.error());
-            return task;
-        }
-        case domain::TaskState::Cancelled: {
-            attach_downloader_if_set();
-            if (auto r = task.mark_cancelled(); !r) return fail("mark_cancelled", r.error());
-            return task;
-        }
+    case domain::TaskState::Downloading: {
+        if (auto r = task.start_download(); !r)
+            return fail("start_download", r.error());
+        attach_downloader_if_set();
+        return task;
+    }
+    case domain::TaskState::Processing: {
+        if (auto r = task.start_download(); !r)
+            return fail("start_download", r.error());
+        if (auto r = task.begin_processing(); !r)
+            return fail("begin_processing", r.error());
+        attach_downloader_if_set();
+        return task;
+    }
+    case domain::TaskState::Uploading: {
+        if (auto r = task.start_download(); !r)
+            return fail("start_download", r.error());
+        if (auto r = task.begin_upload(); !r)
+            return fail("begin_upload", r.error());
+        attach_downloader_if_set();
+        return task;
+    }
+    case domain::TaskState::Completed: {
+        if (auto r = task.start_download(); !r)
+            return fail("start_download", r.error());
+        if (auto r = task.begin_upload(); !r)
+            return fail("begin_upload", r.error());
+        if (auto r = task.mark_completed(); !r)
+            return fail("mark_completed", r.error());
+        attach_downloader_if_set();
+        return task;
+    }
+    case domain::TaskState::Failed: {
+        attach_downloader_if_set();
+        const std::string reason = error_message.value_or("(unknown)");
+        if (auto r = task.mark_failed(reason); !r)
+            return fail("mark_failed", r.error());
+        return task;
+    }
+    case domain::TaskState::Cancelled: {
+        attach_downloader_if_set();
+        if (auto r = task.mark_cancelled(); !r)
+            return fail("mark_cancelled", r.error());
+        return task;
+    }
     }
     return core::error(core::ErrorCode::Deserialization,
                        "reconstitute: unrecognised TaskState enumerator");
 }
 
-}  // namespace
+} // namespace
 
-boost::asio::awaitable<core::Result<void>>
-SqliteTaskRepository::save(domain::Task task) {
+boost::asio::awaitable<core::Result<void>> SqliteTaskRepository::save(domain::Task task) {
     auto acquired = co_await pool_.acquire();
     if (!acquired.has_value()) {
         co_return std::unexpected{acquired.error()};
     }
     auto& db = acquired->database();
 
-    const auto& md            = task.metadata();
-    const std::string id      = md.id.value();
-    const std::int64_t user   = md.user.value();
-    const std::int64_t chat   = md.chat.value();
-    const std::int64_t msg    = md.status_message.value();
-    const std::string kind    = std::string{kind_to_string(md.kind)};
-    const std::string state   = std::string{domain::to_string(task.state())};
+    const auto& md = task.metadata();
+    const std::string id = md.id.value();
+    const std::int64_t user = md.user.value();
+    const std::int64_t chat = md.chat.value();
+    const std::int64_t msg = md.status_message.value();
+    const std::string kind = std::string{kind_to_string(md.kind)};
+    const std::string state = std::string{domain::to_string(task.state())};
     const std::string created = to_iso8601(md.created_at);
     const std::string updated = to_iso8601(md.updated_at);
 
@@ -177,28 +196,24 @@ SqliteTaskRepository::save(domain::Task task) {
         const bool has_did = downloader_id.has_value();
 
         if (has_err && has_did) {
-            db << "INSERT OR REPLACE INTO tasks " + std::string{kColumns} +
-                  " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
-               << id << user << chat << msg << kind << state
-               << md.source_url << *err_msg << created << updated
-               << downloader_kind << *downloader_id;
+            db << "INSERT OR REPLACE INTO tasks " + std::string{kColumns}
+                      + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+               << id << user << chat << msg << kind << state << md.source_url << *err_msg << created
+               << updated << downloader_kind << *downloader_id;
         } else if (has_err) {
-            db << "INSERT OR REPLACE INTO tasks " + std::string{kColumns} +
-                  " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);"
-               << id << user << chat << msg << kind << state
-               << md.source_url << *err_msg << created << updated
-               << downloader_kind;
+            db << "INSERT OR REPLACE INTO tasks " + std::string{kColumns}
+                      + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);"
+               << id << user << chat << msg << kind << state << md.source_url << *err_msg << created
+               << updated << downloader_kind;
         } else if (has_did) {
-            db << "INSERT OR REPLACE INTO tasks " + std::string{kColumns} +
-                  " VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?);"
-               << id << user << chat << msg << kind << state
-               << md.source_url << created << updated
+            db << "INSERT OR REPLACE INTO tasks " + std::string{kColumns}
+                      + " VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?);"
+               << id << user << chat << msg << kind << state << md.source_url << created << updated
                << downloader_kind << *downloader_id;
         } else {
-            db << "INSERT OR REPLACE INTO tasks " + std::string{kColumns} +
-                  " VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL);"
-               << id << user << chat << msg << kind << state
-               << md.source_url << created << updated
+            db << "INSERT OR REPLACE INTO tasks " + std::string{kColumns}
+                      + " VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL);"
+               << id << user << chat << msg << kind << state << md.source_url << created << updated
                << downloader_kind;
         }
         co_return core::Result<void>{};
@@ -211,8 +226,8 @@ SqliteTaskRepository::save(domain::Task task) {
     }
 }
 
-boost::asio::awaitable<core::Result<std::optional<domain::Task>>>
-SqliteTaskRepository::find(domain::TaskId id) {
+boost::asio::awaitable<core::Result<std::optional<domain::Task>>> SqliteTaskRepository::find(
+    domain::TaskId id) {
     auto acquired = co_await pool_.acquire();
     if (!acquired.has_value()) {
         co_return std::unexpected{acquired.error()};
@@ -221,9 +236,9 @@ SqliteTaskRepository::find(domain::TaskId id) {
 
     try {
         std::optional<domain::Task> result;
-        core::Result<domain::Task>  parse_outcome = core::error(
-            core::ErrorCode::None, "uninit");  // overwritten before use
-        bool                        any_row = false;
+        core::Result<domain::Task> parse_outcome =
+            core::error(core::ErrorCode::None, "uninit"); // overwritten before use
+        bool any_row = false;
 
         db << R"SQL(
             SELECT user_id, chat_id, status_message_id, kind, state, source_url,
@@ -233,56 +248,73 @@ SqliteTaskRepository::find(domain::TaskId id) {
              WHERE id = ?;
         )SQL"
            << id.value()
-           >> [&](std::int64_t                   user_id,
-                  std::int64_t                   chat_id,
-                  std::int64_t                   status_msg,
-                  std::string                    kind_str,
-                  std::string                    state_str,
-                  std::string                    source_url,
-                  std::unique_ptr<std::string>   err_msg,
-                  std::string                    created_at,
-                  std::string                    updated_at,
-                  std::string                    downloader_kind_str,
-                  std::unique_ptr<std::string>   downloader_id_str) {
-               any_row = true;
+            >> [&](std::int64_t user_id,
+                   std::int64_t chat_id,
+                   std::int64_t status_msg,
+                   std::string kind_str,
+                   std::string state_str,
+                   std::string source_url,
+                   std::unique_ptr<std::string> err_msg,
+                   std::string created_at,
+                   std::string updated_at,
+                   std::string downloader_kind_str,
+                   std::unique_ptr<std::string> downloader_id_str) {
+                  any_row = true;
 
-               auto kind_parsed       = parse_kind(kind_str);
-               auto state_parsed      = parse_state(state_str);
-               auto created_tp        = parse_iso8601(created_at);
-               auto updated_tp        = parse_iso8601(updated_at);
-               auto downloader_parsed = parse_downloader_kind(downloader_kind_str);
+                  auto kind_parsed = parse_kind(kind_str);
+                  auto state_parsed = parse_state(state_str);
+                  auto created_tp = parse_iso8601(created_at);
+                  auto updated_tp = parse_iso8601(updated_at);
+                  auto downloader_parsed = parse_downloader_kind(downloader_kind_str);
 
-               if (!kind_parsed)       { parse_outcome = std::unexpected{kind_parsed.error()};       return; }
-               if (!state_parsed)      { parse_outcome = std::unexpected{state_parsed.error()};      return; }
-               if (!created_tp)        { parse_outcome = std::unexpected{created_tp.error()};        return; }
-               if (!updated_tp)        { parse_outcome = std::unexpected{updated_tp.error()};        return; }
-               if (!downloader_parsed) { parse_outcome = std::unexpected{downloader_parsed.error()}; return; }
+                  if (!kind_parsed) {
+                      parse_outcome = std::unexpected{kind_parsed.error()};
+                      return;
+                  }
+                  if (!state_parsed) {
+                      parse_outcome = std::unexpected{state_parsed.error()};
+                      return;
+                  }
+                  if (!created_tp) {
+                      parse_outcome = std::unexpected{created_tp.error()};
+                      return;
+                  }
+                  if (!updated_tp) {
+                      parse_outcome = std::unexpected{updated_tp.error()};
+                      return;
+                  }
+                  if (!downloader_parsed) {
+                      parse_outcome = std::unexpected{downloader_parsed.error()};
+                      return;
+                  }
 
-               domain::TaskMetadata md{
-                   .id             = id,
-                   .user           = domain::UserId{user_id},
-                   .chat           = domain::ChatId{chat_id},
-                   .status_message = domain::MessageId{status_msg},
-                   .kind           = *kind_parsed,
-                   .source_url     = std::move(source_url),
-                   .created_at     = *created_tp,
-                   .updated_at     = *updated_tp,
-               };
+                  domain::TaskMetadata md{
+                      .id = id,
+                      .user = domain::UserId{user_id},
+                      .chat = domain::ChatId{chat_id},
+                      .status_message = domain::MessageId{status_msg},
+                      .kind = *kind_parsed,
+                      .source_url = std::move(source_url),
+                      .created_at = *created_tp,
+                      .updated_at = *updated_tp,
+                  };
 
-               std::optional<std::string> err_opt;
-               if (err_msg) {
-                   err_opt = std::move(*err_msg);
-               }
+                  std::optional<std::string> err_opt;
+                  if (err_msg) {
+                      err_opt = std::move(*err_msg);
+                  }
 
-               std::optional<std::string> did_opt;
-               if (downloader_id_str) {
-                   did_opt = std::move(*downloader_id_str);
-               }
+                  std::optional<std::string> did_opt;
+                  if (downloader_id_str) {
+                      did_opt = std::move(*downloader_id_str);
+                  }
 
-               parse_outcome = reconstitute(
-                   std::move(md), *state_parsed, std::move(err_opt),
-                   *downloader_parsed, std::move(did_opt));
-           };
+                  parse_outcome = reconstitute(std::move(md),
+                                               *state_parsed,
+                                               std::move(err_opt),
+                                               *downloader_parsed,
+                                               std::move(did_opt));
+              };
 
         if (!any_row) {
             co_return std::optional<domain::Task>{std::nullopt};
@@ -303,48 +335,62 @@ SqliteTaskRepository::find(domain::TaskId id) {
 
 namespace {
 
-[[nodiscard]] core::Result<std::vector<domain::Task>>
-collect_tasks(sqlite::database& db, std::string_view sql,
-              std::optional<std::int64_t> bound_user) {
+[[nodiscard]] core::Result<std::vector<domain::Task>> collect_tasks(
+    sqlite::database& db, std::string_view sql, std::optional<std::int64_t> bound_user) {
     std::vector<domain::Task> out;
-    core::Result<void>        loop_status{};
+    core::Result<void> loop_status{};
 
-    auto consume = [&](std::string                  id,
-                       std::int64_t                 user_id,
-                       std::int64_t                 chat_id,
-                       std::int64_t                 status_msg,
-                       std::string                  kind_str,
-                       std::string                  state_str,
-                       std::string                  source_url,
+    auto consume = [&](std::string id,
+                       std::int64_t user_id,
+                       std::int64_t chat_id,
+                       std::int64_t status_msg,
+                       std::string kind_str,
+                       std::string state_str,
+                       std::string source_url,
                        std::unique_ptr<std::string> err_msg,
-                       std::string                  created_at,
-                       std::string                  updated_at,
-                       std::string                  downloader_kind_str,
+                       std::string created_at,
+                       std::string updated_at,
+                       std::string downloader_kind_str,
                        std::unique_ptr<std::string> downloader_id_str) {
         if (!loop_status.has_value()) {
-            return;  // stop accumulating after first error.
+            return; // stop accumulating after first error.
         }
-        auto kind_parsed       = parse_kind(kind_str);
-        auto state_parsed      = parse_state(state_str);
-        auto created_tp        = parse_iso8601(created_at);
-        auto updated_tp        = parse_iso8601(updated_at);
+        auto kind_parsed = parse_kind(kind_str);
+        auto state_parsed = parse_state(state_str);
+        auto created_tp = parse_iso8601(created_at);
+        auto updated_tp = parse_iso8601(updated_at);
         auto downloader_parsed = parse_downloader_kind(downloader_kind_str);
 
-        if (!kind_parsed)       { loop_status = std::unexpected{kind_parsed.error()};       return; }
-        if (!state_parsed)      { loop_status = std::unexpected{state_parsed.error()};      return; }
-        if (!created_tp)        { loop_status = std::unexpected{created_tp.error()};        return; }
-        if (!updated_tp)        { loop_status = std::unexpected{updated_tp.error()};        return; }
-        if (!downloader_parsed) { loop_status = std::unexpected{downloader_parsed.error()}; return; }
+        if (!kind_parsed) {
+            loop_status = std::unexpected{kind_parsed.error()};
+            return;
+        }
+        if (!state_parsed) {
+            loop_status = std::unexpected{state_parsed.error()};
+            return;
+        }
+        if (!created_tp) {
+            loop_status = std::unexpected{created_tp.error()};
+            return;
+        }
+        if (!updated_tp) {
+            loop_status = std::unexpected{updated_tp.error()};
+            return;
+        }
+        if (!downloader_parsed) {
+            loop_status = std::unexpected{downloader_parsed.error()};
+            return;
+        }
 
         domain::TaskMetadata md{
-            .id             = domain::TaskId{std::move(id)},
-            .user           = domain::UserId{user_id},
-            .chat           = domain::ChatId{chat_id},
+            .id = domain::TaskId{std::move(id)},
+            .user = domain::UserId{user_id},
+            .chat = domain::ChatId{chat_id},
             .status_message = domain::MessageId{status_msg},
-            .kind           = *kind_parsed,
-            .source_url     = std::move(source_url),
-            .created_at     = *created_tp,
-            .updated_at     = *updated_tp,
+            .kind = *kind_parsed,
+            .source_url = std::move(source_url),
+            .created_at = *created_tp,
+            .updated_at = *updated_tp,
         };
 
         std::optional<std::string> err_opt;
@@ -357,7 +403,8 @@ collect_tasks(sqlite::database& db, std::string_view sql,
             did_opt = std::move(*downloader_id_str);
         }
 
-        auto task_or_err = reconstitute(std::move(md), *state_parsed,
+        auto task_or_err = reconstitute(std::move(md),
+                                        *state_parsed,
                                         std::move(err_opt),
                                         *downloader_parsed,
                                         std::move(did_opt));
@@ -380,10 +427,9 @@ collect_tasks(sqlite::database& db, std::string_view sql,
     return out;
 }
 
-}  // namespace
+} // namespace
 
-boost::asio::awaitable<core::Result<std::vector<domain::Task>>>
-SqliteTaskRepository::incomplete() {
+boost::asio::awaitable<core::Result<std::vector<domain::Task>>> SqliteTaskRepository::incomplete() {
     auto acquired = co_await pool_.acquire();
     if (!acquired.has_value()) {
         co_return std::unexpected{acquired.error()};
@@ -409,8 +455,8 @@ SqliteTaskRepository::incomplete() {
     }
 }
 
-boost::asio::awaitable<core::Result<std::vector<domain::Task>>>
-SqliteTaskRepository::for_user(domain::UserId user) {
+boost::asio::awaitable<core::Result<std::vector<domain::Task>>> SqliteTaskRepository::for_user(
+    domain::UserId user) {
     auto acquired = co_await pool_.acquire();
     if (!acquired.has_value()) {
         co_return std::unexpected{acquired.error()};
@@ -436,8 +482,7 @@ SqliteTaskRepository::for_user(domain::UserId user) {
     }
 }
 
-boost::asio::awaitable<core::Result<void>>
-SqliteTaskRepository::remove(domain::TaskId id) {
+boost::asio::awaitable<core::Result<void>> SqliteTaskRepository::remove(domain::TaskId id) {
     auto acquired = co_await pool_.acquire();
     if (!acquired.has_value()) {
         co_return std::unexpected{acquired.error()};
@@ -461,4 +506,4 @@ SqliteTaskRepository::remove(domain::TaskId id) {
     }
 }
 
-}  // namespace cmlb::infrastructure::persistence
+} // namespace cmlb::infrastructure::persistence

@@ -25,12 +25,12 @@ public:
     DeleteDriveResource(cmlb::infrastructure::upload::GoogleDriveUploader& gdrive,
                         cmlb::infrastructure::telegram::MessengerInterface& messenger) noexcept;
 
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>>
-    execute(DeleteDriveRequest request);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>> execute(
+        DeleteDriveRequest request);
 
 private:
     cmlb::infrastructure::upload::GoogleDriveUploader& gdrive_;
     cmlb::infrastructure::telegram::MessengerInterface& messenger_;
 };
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

@@ -4,13 +4,12 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
-
 #include <cmlb/core/error.hpp>
 #include <cmlb/infrastructure/rss/rss_document_parser.hpp>
 
+using Catch::Matchers::ContainsSubstring;
 using cmlb::core::ErrorCode;
 using cmlb::infrastructure::rss::RssDocumentParser;
-using Catch::Matchers::ContainsSubstring;
 
 // NOLINTBEGIN(readability-magic-numbers,cppcoreguidelines-avoid-magic-numbers)
 
@@ -55,7 +54,7 @@ constexpr std::string_view kAtomFeed = R"(<?xml version="1.0" encoding="utf-8"?>
 
 constexpr std::string_view kMalformed = R"(<<<not really xml>>>)";
 
-}  // namespace
+} // namespace
 
 TEST_CASE("parse RSS 2.0 with channel metadata and items", "[infra][rss][parser]") {
     auto result = RssDocumentParser::parse(kRssWithMagnetInDescription);
@@ -63,15 +62,15 @@ TEST_CASE("parse RSS 2.0 with channel metadata and items", "[infra][rss][parser]
 
     const auto& doc = *result;
     CHECK(doc.title == "Test Tracker");
-    CHECK(doc.link  == "https://example.org/");
+    CHECK(doc.link == "https://example.org/");
     REQUIRE(doc.description);
     CHECK(*doc.description == "Latest torrents");
 
     REQUIRE(doc.entries.size() == 2);
     const auto& first = doc.entries[0];
     CHECK(first.title == "Ubuntu 24.04 LTS Desktop amd64");
-    CHECK(first.link  == "https://example.org/torrents/1");
-    CHECK(first.guid  == "https://example.org/torrents/1");
+    CHECK(first.link == "https://example.org/torrents/1");
+    CHECK(first.guid == "https://example.org/torrents/1");
     REQUIRE(first.magnet);
     CHECK_THAT(*first.magnet, ContainsSubstring("magnet:?xt=urn:btih:"));
     CHECK_THAT(*first.magnet, ContainsSubstring("0123456789ABCDEF"));
@@ -83,22 +82,21 @@ TEST_CASE("parse RSS 2.0 with channel metadata and items", "[infra][rss][parser]
     CHECK(*second.torrent_url == "https://example.org/torrents/2.torrent");
 }
 
-TEST_CASE("parse Atom 1.0 with alternate link and magnet in summary",
-          "[infra][rss][parser]") {
+TEST_CASE("parse Atom 1.0 with alternate link and magnet in summary", "[infra][rss][parser]") {
     auto result = RssDocumentParser::parse(kAtomFeed);
     REQUIRE(result);
 
     const auto& doc = *result;
     CHECK(doc.title == "Atomic News");
-    CHECK(doc.link  == "https://example.org/");
+    CHECK(doc.link == "https://example.org/");
     REQUIRE(doc.description);
     CHECK(*doc.description == "Sample subtitle");
 
     REQUIRE(doc.entries.size() == 1);
     const auto& entry = doc.entries[0];
     CHECK(entry.title == "Release 1.2.3");
-    CHECK(entry.guid  == "urn:uuid:11111111-1111-1111-1111-111111111111");
-    CHECK(entry.link  == "https://example.org/posts/123");
+    CHECK(entry.guid == "urn:uuid:11111111-1111-1111-1111-111111111111");
+    CHECK(entry.link == "https://example.org/posts/123");
     REQUIRE(entry.magnet);
     CHECK_THAT(*entry.magnet, ContainsSubstring("CAFEBABE"));
     REQUIRE(entry.published_at);
@@ -133,15 +131,13 @@ TEST_CASE("magnet extraction is anchored and does not match arbitrary text",
     CHECK_FALSE(result->entries[1].magnet);
 }
 
-TEST_CASE("malformed XML returns a Deserialization error",
-          "[infra][rss][parser]") {
+TEST_CASE("malformed XML returns a Deserialization error", "[infra][rss][parser]") {
     auto result = RssDocumentParser::parse(kMalformed);
     REQUIRE_FALSE(result);
     CHECK(result.error().code == ErrorCode::Deserialization);
 }
 
-TEST_CASE("empty input returns a Deserialization error",
-          "[infra][rss][parser]") {
+TEST_CASE("empty input returns a Deserialization error", "[infra][rss][parser]") {
     auto result = RssDocumentParser::parse("");
     REQUIRE_FALSE(result);
     CHECK(result.error().code == ErrorCode::Deserialization);

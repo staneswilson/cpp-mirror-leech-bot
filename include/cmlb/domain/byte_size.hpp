@@ -20,10 +20,10 @@ public:
     /// @name Unit constants (powers of two, IEC binary prefixes).
     /// @{
     static constexpr std::int64_t BYTE = 1;
-    static constexpr std::int64_t KIB  = 1024;
-    static constexpr std::int64_t MIB  = 1024LL * 1024;
-    static constexpr std::int64_t GIB  = 1024LL * 1024 * 1024;
-    static constexpr std::int64_t TIB  = 1024LL * 1024 * 1024 * 1024;
+    static constexpr std::int64_t KIB = 1024;
+    static constexpr std::int64_t MIB = 1024LL * 1024;
+    static constexpr std::int64_t GIB = 1024LL * 1024 * 1024;
+    static constexpr std::int64_t TIB = 1024LL * 1024 * 1024 * 1024;
     /// @}
 
     /// Telegram bot API hard cap for a single file part (2 GB).
@@ -40,16 +40,17 @@ public:
 
     /// Validated factory: returns InvalidArgument if @p bytes is negative.
     [[nodiscard]] static constexpr cmlb::core::Result<ByteSize> make(
-        std::int64_t bytes,
-        std::source_location loc = std::source_location::current()) {
+        std::int64_t bytes, std::source_location loc = std::source_location::current()) {
         if (bytes < 0) {
-            return cmlb::core::error(cmlb::core::ErrorCode::InvalidArgument,
-                                     "ByteSize must be non-negative", loc);
+            return cmlb::core::error(
+                cmlb::core::ErrorCode::InvalidArgument, "ByteSize must be non-negative", loc);
         }
         return ByteSize{bytes, unchecked_tag{}};
     }
 
-    [[nodiscard]] constexpr std::int64_t bytes() const noexcept { return bytes_; }
+    [[nodiscard]] constexpr std::int64_t bytes() const noexcept {
+        return bytes_;
+    }
 
     [[nodiscard]] constexpr auto operator<=>(const ByteSize&) const noexcept = default;
     [[nodiscard]] constexpr bool operator==(const ByteSize&) const noexcept = default;
@@ -86,7 +87,8 @@ public:
 private:
     struct unchecked_tag {};
 
-    constexpr ByteSize(std::int64_t bytes, unchecked_tag) noexcept : bytes_{bytes} {}
+    constexpr ByteSize(std::int64_t bytes, unchecked_tag) noexcept : bytes_{bytes} {
+    }
 
     std::int64_t bytes_{0};
 };
@@ -124,6 +126,6 @@ inline namespace literals {
     return ByteSize::from_unchecked(static_cast<std::int64_t>(value) * ByteSize::TIB);
 }
 
-}  // namespace literals
+} // namespace literals
 
-}  // namespace cmlb::domain
+} // namespace cmlb::domain

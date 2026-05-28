@@ -47,40 +47,40 @@ class MediaProcessorInterface {
 public:
     virtual ~MediaProcessorInterface() = default;
 
-    MediaProcessorInterface()                                          = default;
-    MediaProcessorInterface(const MediaProcessorInterface&)            = delete;
+    MediaProcessorInterface() = default;
+    MediaProcessorInterface(const MediaProcessorInterface&) = delete;
     MediaProcessorInterface& operator=(const MediaProcessorInterface&) = delete;
-    MediaProcessorInterface(MediaProcessorInterface&&)                 = delete;
-    MediaProcessorInterface& operator=(MediaProcessorInterface&&)      = delete;
+    MediaProcessorInterface(MediaProcessorInterface&&) = delete;
+    MediaProcessorInterface& operator=(MediaProcessorInterface&&) = delete;
 
     /// Probes @p file with `ffprobe` (or equivalent) and returns a
     /// populated @ref MediaInfo. Returns `MediaProcessing` on failure.
-    virtual boost::asio::awaitable<cmlb::core::Result<MediaInfo>>
-        probe(std::filesystem::path file) = 0;
+    virtual boost::asio::awaitable<cmlb::core::Result<MediaInfo>> probe(
+        std::filesystem::path file) = 0;
 
     /// Extracts a thumbnail at @p position. When @p position is empty the
     /// implementation should choose a sensible default (CMLB convention:
     /// 10% of the probed duration).
-    virtual boost::asio::awaitable<cmlb::core::Result<std::filesystem::path>>
-        extract_thumbnail(std::filesystem::path file,
-                          std::filesystem::path output,
-                          std::optional<std::chrono::seconds> position) = 0;
+    virtual boost::asio::awaitable<cmlb::core::Result<std::filesystem::path>> extract_thumbnail(
+        std::filesystem::path file,
+        std::filesystem::path output,
+        std::optional<std::chrono::seconds> position) = 0;
 
     /// Produces a short stream-copied sample of length @p duration starting
     /// at offset zero. The output container is inferred from the extension
     /// of @p output (use `.mp4` or `.mkv`).
-    virtual boost::asio::awaitable<cmlb::core::Result<std::filesystem::path>>
-        generate_sample(std::filesystem::path file,
-                        std::filesystem::path output,
-                        std::chrono::seconds duration) = 0;
+    virtual boost::asio::awaitable<cmlb::core::Result<std::filesystem::path>> generate_sample(
+        std::filesystem::path file,
+        std::filesystem::path output,
+        std::chrono::seconds duration) = 0;
 
     /// Builds a `@p rows`x`@p columns` screenshot tile evenly distributed
     /// across the duration of the input.
     virtual boost::asio::awaitable<cmlb::core::Result<std::filesystem::path>>
-        generate_screenshot_grid(std::filesystem::path file,
-                                 std::filesystem::path output,
-                                 int rows,
-                                 int columns) = 0;
+    generate_screenshot_grid(std::filesystem::path file,
+                             std::filesystem::path output,
+                             int rows,
+                             int columns) = 0;
 };
 
-}  // namespace cmlb::infrastructure::media
+} // namespace cmlb::infrastructure::media

@@ -35,4 +35,4 @@ private:
     cmlb::infrastructure::persistence::BotSettingsRepository& repo_;
 };
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

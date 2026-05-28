@@ -47,8 +47,8 @@ public:
              cmlb::application::ActiveTaskRegistry& active_tasks,
              int upload_pool_size = 4) noexcept;
 
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>>
-    execute(LeechRequest request);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> execute(
+        LeechRequest request);
 
 private:
     cmlb::infrastructure::download::DownloaderInterface& aria2_;
@@ -63,4 +63,4 @@ private:
     int upload_pool_size_;
 };
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

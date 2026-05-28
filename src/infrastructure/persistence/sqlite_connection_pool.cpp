@@ -1,5 +1,3 @@
-#include <cmlb/infrastructure/persistence/sqlite_connection_pool.hpp>
-
 #include <cstddef>
 #include <exception>
 #include <filesystem>
@@ -18,9 +16,11 @@
 #include <boost/system/error_code.hpp>
 
 #include <fmt/format.h>
+
 #include <sqlite_modern_cpp.h>
 
 #include <cmlb/core/error.hpp>
+#include <cmlb/infrastructure/persistence/sqlite_connection_pool.hpp>
 
 namespace cmlb::infrastructure::persistence {
 
@@ -36,7 +36,7 @@ namespace {
         if (mkdir_ec) {
             throw std::system_error{mkdir_ec,
                                     "Failed to create SQLite parent directory: "
-                                    + cfg.path.parent_path().string()};
+                                        + cfg.path.parent_path().string()};
         }
     }
 
@@ -66,7 +66,7 @@ namespace {
     return db;
 }
 
-}  // namespace
+} // namespace
 
 // ---------------------------------------------------------------------------
 // SqliteConnectionHandle
@@ -85,9 +85,9 @@ void SqliteConnectionHandle::release_() noexcept {
 // SqliteConnectionPool
 // ---------------------------------------------------------------------------
 
-SqliteConnectionPool::SqliteConnectionPool(core::DatabaseConfig         config,
-                                           asio::any_io_executor        executor,
-                                           std::size_t                  pool_size)
+SqliteConnectionPool::SqliteConnectionPool(core::DatabaseConfig config,
+                                           asio::any_io_executor executor,
+                                           std::size_t pool_size)
     : config_{std::move(config)}, executor_{std::move(executor)} {
     if (pool_size == 0) {
         throw std::invalid_argument{"SqliteConnectionPool: pool_size must be >= 1"};
@@ -106,8 +106,8 @@ SqliteConnectionPool::SqliteConnectionPool(core::DatabaseConfig         config,
         free_slots_->try_send(ec, i);
         if (ec) {
             // Should not happen: capacity matches insertions.
-            throw std::runtime_error{
-                "SqliteConnectionPool: failed to prime free-slot channel: " + ec.message()};
+            throw std::runtime_error{"SqliteConnectionPool: failed to prime free-slot channel: "
+                                     + ec.message()};
         }
     }
 }
@@ -120,13 +120,12 @@ SqliteConnectionPool::~SqliteConnectionPool() {
 
 asio::awaitable<core::Result<SqliteConnectionHandle>> SqliteConnectionPool::acquire() {
     boost::system::error_code ec;
-    const auto slot = co_await free_slots_->async_receive(
-        asio::redirect_error(asio::use_awaitable, ec));
+    const auto slot =
+        co_await free_slots_->async_receive(asio::redirect_error(asio::use_awaitable, ec));
 
     if (ec) {
-        co_return core::error(
-            core::ErrorCode::ResourceExhausted,
-            "SqliteConnectionPool::acquire failed: " + ec.message());
+        co_return core::error(core::ErrorCode::ResourceExhausted,
+                              "SqliteConnectionPool::acquire failed: " + ec.message());
     }
 
     std::shared_ptr<sqlite::database> conn;
@@ -163,12 +162,10 @@ asio::awaitable<core::Result<void>> SqliteConnectionPool::ping() {
         }
         co_return core::Result<void>{};
     } catch (const sqlite::sqlite_exception& ex) {
-        co_return core::error(core::ErrorCode::Database,
-                              std::string{"ping failed: "} + ex.what());
+        co_return core::error(core::ErrorCode::Database, std::string{"ping failed: "} + ex.what());
     } catch (const std::exception& ex) {
-        co_return core::error(core::ErrorCode::Database,
-                              std::string{"ping threw: "} + ex.what());
+        co_return core::error(core::ErrorCode::Database, std::string{"ping threw: "} + ex.what());
     }
 }
 
-}  // namespace cmlb::infrastructure::persistence
+} // namespace cmlb::infrastructure::persistence

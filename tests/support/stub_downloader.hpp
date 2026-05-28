@@ -21,15 +21,14 @@ namespace cmlb::test_support {
 /// unit tests. Every call is recorded and any subsequent `status()` call
 /// returns from a queue of pre-staged snapshots so the mirror/leech poll
 /// loop can be exercised deterministically.
-class StubDownloader final
-    : public cmlb::infrastructure::download::DownloaderInterface {
+class StubDownloader final : public cmlb::infrastructure::download::DownloaderInterface {
 public:
     struct AddCall {
         std::string uri;
         cmlb::infrastructure::download::DownloadOptions options;
     };
 
-    StubDownloader()  = default;
+    StubDownloader() = default;
     ~StubDownloader() override = default;
 
     // ---- programming surface ------------------------------------------
@@ -58,23 +57,25 @@ public:
         std::lock_guard lk{mutex_};
         return add_calls_;
     }
+
     [[nodiscard]] int pause_calls() const {
         std::lock_guard lk{mutex_};
         return pause_calls_;
     }
+
     [[nodiscard]] int resume_calls() const {
         std::lock_guard lk{mutex_};
         return resume_calls_;
     }
+
     [[nodiscard]] int remove_calls() const {
         std::lock_guard lk{mutex_};
         return remove_calls_;
     }
 
     // ---- DownloaderInterface ------------------------------------------
-    boost::asio::awaitable<cmlb::core::Result<cmlb::domain::Gid>>
-    add_uri(std::string_view uri,
-            cmlb::infrastructure::download::DownloadOptions options) override {
+    boost::asio::awaitable<cmlb::core::Result<cmlb::domain::Gid>> add_uri(
+        std::string_view uri, cmlb::infrastructure::download::DownloadOptions options) override {
         {
             std::lock_guard lk{mutex_};
             add_calls_.push_back(AddCall{std::string{uri}, std::move(options)});
@@ -86,35 +87,30 @@ public:
         co_return next_gid_;
     }
 
-    boost::asio::awaitable<cmlb::core::Result<cmlb::domain::Gid>>
-    add_torrent(std::span<const std::byte>,
-                cmlb::infrastructure::download::DownloadOptions) override {
+    boost::asio::awaitable<cmlb::core::Result<cmlb::domain::Gid>> add_torrent(
+        std::span<const std::byte>, cmlb::infrastructure::download::DownloadOptions) override {
         co_return next_gid_;
     }
 
-    boost::asio::awaitable<cmlb::core::Result<void>>
-    pause(cmlb::domain::Gid) override {
+    boost::asio::awaitable<cmlb::core::Result<void>> pause(cmlb::domain::Gid) override {
         std::lock_guard lk{mutex_};
         ++pause_calls_;
         co_return cmlb::core::Result<void>{};
     }
 
-    boost::asio::awaitable<cmlb::core::Result<void>>
-    resume(cmlb::domain::Gid) override {
+    boost::asio::awaitable<cmlb::core::Result<void>> resume(cmlb::domain::Gid) override {
         std::lock_guard lk{mutex_};
         ++resume_calls_;
         co_return cmlb::core::Result<void>{};
     }
 
-    boost::asio::awaitable<cmlb::core::Result<void>>
-    remove(cmlb::domain::Gid, bool) override {
+    boost::asio::awaitable<cmlb::core::Result<void>> remove(cmlb::domain::Gid, bool) override {
         std::lock_guard lk{mutex_};
         ++remove_calls_;
         co_return cmlb::core::Result<void>{};
     }
 
-    boost::asio::awaitable<cmlb::core::Result<
-        cmlb::infrastructure::download::DownloadStatus>>
+    boost::asio::awaitable<cmlb::core::Result<cmlb::infrastructure::download::DownloadStatus>>
     status(cmlb::domain::Gid) override {
         std::lock_guard lk{mutex_};
         if (status_error_) {
@@ -133,20 +129,21 @@ public:
         co_return front;
     }
 
-    boost::asio::awaitable<cmlb::core::Result<
-        std::vector<cmlb::infrastructure::download::DownloadStatus>>>
+    boost::asio::awaitable<
+        cmlb::core::Result<std::vector<cmlb::infrastructure::download::DownloadStatus>>>
     active() override {
         std::lock_guard lk{mutex_};
         co_return statuses_;
     }
 
-    boost::asio::awaitable<cmlb::core::Result<
-        cmlb::infrastructure::download::GlobalStats>>
+    boost::asio::awaitable<cmlb::core::Result<cmlb::infrastructure::download::GlobalStats>>
     global_stats() override {
         co_return cmlb::infrastructure::download::GlobalStats{};
     }
 
-    [[nodiscard]] bool is_connected() const noexcept override { return true; }
+    [[nodiscard]] bool is_connected() const noexcept override {
+        return true;
+    }
 
     [[nodiscard]] std::string_view client_name() const noexcept override {
         return "stub";
@@ -154,15 +151,14 @@ public:
 
 private:
     mutable std::mutex mutex_;
-    cmlb::domain::Gid                                    next_gid_{
-        std::string{"stub-gid"}};
-    std::optional<cmlb::core::AppError>                  add_error_;
-    std::optional<cmlb::core::AppError>                  status_error_;
+    cmlb::domain::Gid next_gid_{std::string{"stub-gid"}};
+    std::optional<cmlb::core::AppError> add_error_;
+    std::optional<cmlb::core::AppError> status_error_;
     std::vector<cmlb::infrastructure::download::DownloadStatus> statuses_;
-    std::vector<AddCall>                                 add_calls_;
-    int                                                  pause_calls_{0};
-    int                                                  resume_calls_{0};
-    int                                                  remove_calls_{0};
+    std::vector<AddCall> add_calls_;
+    int pause_calls_{0};
+    int resume_calls_{0};
+    int remove_calls_{0};
 };
 
-}  // namespace cmlb::test_support
+} // namespace cmlb::test_support

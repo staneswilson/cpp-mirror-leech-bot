@@ -62,8 +62,8 @@ public:
     /// Runs the full pipeline and returns the assigned `TaskId`. On any
     /// non-recoverable failure the task is persisted in `Failed`/`Cancelled`
     /// state and the user is notified through `messenger`.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>>
-    execute(MirrorRequest request);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> execute(
+        MirrorRequest request);
 
 private:
     cmlb::infrastructure::download::DownloaderInterface& aria2_;
@@ -79,4 +79,4 @@ private:
     int upload_pool_size_;
 };
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

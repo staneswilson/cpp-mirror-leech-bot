@@ -97,17 +97,16 @@ public:
     /// On a clean exit (even with non-zero `exit_code`) the function returns
     /// a populated `SubprocessResult`; callers are responsible for treating
     /// non-zero exits as errors when appropriate.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<SubprocessResult>>
-        run(SubprocessRequest request);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<SubprocessResult>> run(
+        SubprocessRequest request);
 
     /// Runs `executable version_flag` and returns the trimmed first line of
     /// stdout. Convenience for startup self-checks (e.g. `aria2c --version`).
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<std::string>>
-        version_of(std::filesystem::path executable,
-                   std::string version_flag = "--version");
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<std::string>> version_of(
+        std::filesystem::path executable, std::string version_flag = "--version");
 
 private:
     boost::asio::any_io_executor exec_;
 };
 
-}  // namespace cmlb::infrastructure::system
+} // namespace cmlb::infrastructure::system

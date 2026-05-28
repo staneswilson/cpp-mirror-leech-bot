@@ -4,9 +4,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <catch2/catch_test_macros.hpp>
 #include <fmt/format.h>
 
+#include <catch2/catch_test_macros.hpp>
 #include <cmlb/domain/identifiers.hpp>
 
 using cmlb::domain::CallbackQueryId;
@@ -27,8 +27,7 @@ static_assert(!std::equality_comparable_with<ChatId, MessageId>,
               "ChatId and MessageId must not be interchangeably comparable");
 static_assert(!std::equality_comparable_with<UserId, MessageId>,
               "UserId and MessageId must not be interchangeably comparable");
-static_assert(!std::same_as<ChatId, UserId>,
-              "ChatId and UserId must be distinct types");
+static_assert(!std::same_as<ChatId, UserId>, "ChatId and UserId must be distinct types");
 static_assert(std::is_default_constructible_v<ChatId>);
 static_assert(std::is_default_constructible_v<Gid>);
 static_assert(std::equality_comparable<ChatId>);

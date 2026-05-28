@@ -2,19 +2,18 @@
 // delete_drive_resource.cpp — DeleteDriveResource use case.
 // ---------------------------------------------------------------------------
 
-#include <cmlb/application/delete_drive_resource.hpp>
-
 #include <regex>
 #include <string>
 #include <utility>
 
 #include <fmt/format.h>
 
+#include <cmlb/application/delete_drive_resource.hpp>
 #include <cmlb/core/logger.hpp>
 
 namespace cmlb::application {
 
-namespace asio  = boost::asio;
+namespace asio = boost::asio;
 namespace tg_ns = cmlb::infrastructure::telegram;
 
 namespace {
@@ -24,23 +23,26 @@ namespace {
     static const std::regex folder_re(R"(/folders/([a-zA-Z0-9_-]+))");
     static const std::regex query_re(R"([?&]id=([a-zA-Z0-9_-]+))");
     std::smatch m;
-    if (std::regex_search(input, m, file_re))   return m[1].str();
-    if (std::regex_search(input, m, folder_re)) return m[1].str();
-    if (std::regex_search(input, m, query_re))  return m[1].str();
+    if (std::regex_search(input, m, file_re))
+        return m[1].str();
+    if (std::regex_search(input, m, folder_re))
+        return m[1].str();
+    if (std::regex_search(input, m, query_re))
+        return m[1].str();
     return input;
 }
 
-}  // namespace
+} // namespace
 
-DeleteDriveResource::DeleteDriveResource(
-    cmlb::infrastructure::upload::GoogleDriveUploader& gdrive,
-    tg_ns::MessengerInterface& messenger) noexcept
-    : gdrive_{gdrive}, messenger_{messenger} {}
+DeleteDriveResource::DeleteDriveResource(cmlb::infrastructure::upload::GoogleDriveUploader& gdrive,
+                                         tg_ns::MessengerInterface& messenger) noexcept
+    : gdrive_{gdrive}, messenger_{messenger} {
+}
 
-asio::awaitable<cmlb::core::Result<void>>
-DeleteDriveResource::execute(DeleteDriveRequest request) {
+asio::awaitable<cmlb::core::Result<void>> DeleteDriveResource::execute(DeleteDriveRequest request) {
     cmlb::core::Logger::info("delete_drive: user={} chat={} source={}",
-                             request.user.value(), request.chat.value(),
+                             request.user.value(),
+                             request.chat.value(),
                              request.source_url);
 
     if (request.source_url.empty()) {
@@ -52,16 +54,15 @@ DeleteDriveResource::execute(DeleteDriveRequest request) {
     auto removed = co_await gdrive_.remove(file_id);
     if (!removed) {
         (void)co_await messenger_.send_html(
-            request.chat,
-            fmt::format("<b>Delete failed</b>: {}", removed.error().message));
+            request.chat, fmt::format("<b>Delete failed</b>: {}", removed.error().message));
         cmlb::core::Logger::warn("delete_drive: {}", removed.error().message);
         co_return std::unexpected(removed.error());
     }
 
-    (void)co_await messenger_.send_html(
-        request.chat, fmt::format("<b>Deleted</b>: <code>{}</code>", file_id));
+    (void)co_await messenger_.send_html(request.chat,
+                                        fmt::format("<b>Deleted</b>: <code>{}</code>", file_id));
     cmlb::core::Logger::info("delete_drive: removed id={}", file_id);
     co_return cmlb::core::Result<void>{};
 }
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

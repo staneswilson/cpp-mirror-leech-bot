@@ -15,8 +15,8 @@
 ///        `infrastructure::telegram::Messenger`.
 
 namespace cmlb::infrastructure::telegram {
-class MessengerInterface;  // forward decl — no `<td/...>` reaches this header.
-}
+class MessengerInterface; // forward decl — no `<td/...>` reaches this header.
+} // namespace cmlb::infrastructure::telegram
 
 namespace cmlb::infrastructure::upload {
 
@@ -36,30 +36,32 @@ public:
     /// Borrows `messenger` and `telegram_config`; both must outlive this
     /// uploader. `telegram_config.upload_parallelism` controls how many split
     /// parts are kept in flight when a file exceeds `UploadConfig.split_size`.
-    explicit TelegramUploader(
-        cmlb::infrastructure::telegram::MessengerInterface& messenger,
-        const cmlb::core::TelegramConfig& telegram_config) noexcept;
+    explicit TelegramUploader(cmlb::infrastructure::telegram::MessengerInterface& messenger,
+                              const cmlb::core::TelegramConfig& telegram_config) noexcept;
 
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<UploadResult>>
-    upload_file(std::filesystem::path path,
-                UploadConfig config,
-                UploadProgressHandler on_progress) override;
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<UploadResult>> upload_file(
+        std::filesystem::path path,
+        UploadConfig config,
+        UploadProgressHandler on_progress) override;
 
-    [[nodiscard]] boost::asio::awaitable<
-        cmlb::core::Result<std::vector<UploadResult>>>
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<std::vector<UploadResult>>>
     upload_directory(std::filesystem::path path,
                      UploadConfig config,
                      UploadProgressHandler on_progress) override;
 
-    [[nodiscard]] std::string_view name() const noexcept override { return "telegram"; }
+    [[nodiscard]] std::string_view name() const noexcept override {
+        return "telegram";
+    }
 
     /// Always returns true — readiness is owned by the underlying gateway,
     /// not by this uploader. Health probes belong on the gateway.
-    [[nodiscard]] bool is_ready() const noexcept override { return true; }
+    [[nodiscard]] bool is_ready() const noexcept override {
+        return true;
+    }
 
 private:
     cmlb::infrastructure::telegram::MessengerInterface& messenger_;
-    const cmlb::core::TelegramConfig&                   telegram_config_;
+    const cmlb::core::TelegramConfig& telegram_config_;
 };
 
-}  // namespace cmlb::infrastructure::upload
+} // namespace cmlb::infrastructure::upload

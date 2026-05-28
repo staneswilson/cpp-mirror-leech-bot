@@ -6,8 +6,6 @@
 // exponential-backoff reconnect on disconnect.
 // ---------------------------------------------------------------------------
 
-#include <cmlb/infrastructure/download/aria2_downloader.hpp>
-
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -43,26 +41,28 @@
 #include <boost/beast/websocket.hpp>
 #include <boost/beast/websocket/ssl.hpp>
 #include <boost/system/error_code.hpp>
+
 #include <nlohmann/json.hpp>
 
 #include <cmlb/core/cancellation.hpp>
 #include <cmlb/core/error.hpp>
 #include <cmlb/core/logger.hpp>
+#include <cmlb/infrastructure/download/aria2_downloader.hpp>
 
 namespace cmlb::infrastructure::download {
 
 namespace {
 
-namespace asio  = boost::asio;
+namespace asio = boost::asio;
 namespace beast = boost::beast;
-namespace ws    = boost::beast::websocket;
-using tcp       = boost::asio::ip::tcp;
-using json      = nlohmann::json;
+namespace ws = boost::beast::websocket;
+using tcp = boost::asio::ip::tcp;
+using json = nlohmann::json;
 using cmlb::core::AppError;
+using cmlb::core::error;
 using cmlb::core::ErrorCode;
 using cmlb::core::Logger;
 using cmlb::core::Result;
-using cmlb::core::error;
 using cmlb::domain::Gid;
 
 constexpr std::chrono::seconds kReconnectInitial{1};
@@ -77,22 +77,22 @@ constexpr std::chrono::seconds kReconnectMax{30};
 [[nodiscard]] inline nlohmann::json build_global_throughput_options() {
     nlohmann::json out = nlohmann::json::object();
     out["max-connection-per-server"] = "16";
-    out["split"]                     = "16";
-    out["min-split-size"]            = "1M";
-    out["disk-cache"]                = "128M";
-    out["max-tries"]                 = "5";
-    out["retry-wait"]                = "5";
-    out["max-overall-download-limit"] = "0";  // unlimited
-    out["max-overall-upload-limit"]   = "0";  // unlimited (seeding)
-    out["max-file-not-found"]         = "10";
-    out["max-concurrent-downloads"]   = "16";
+    out["split"] = "16";
+    out["min-split-size"] = "1M";
+    out["disk-cache"] = "128M";
+    out["max-tries"] = "5";
+    out["retry-wait"] = "5";
+    out["max-overall-download-limit"] = "0"; // unlimited
+    out["max-overall-upload-limit"] = "0";   // unlimited (seeding)
+    out["max-file-not-found"] = "10";
+    out["max-concurrent-downloads"] = "16";
     return out;
 }
 
 /// Parses the scheme/host/port/target out of a `ws://host:port/path` or
 /// `wss://host:port/path` URL. Returns `nullopt` on malformed input.
 struct ParsedWsUrl {
-    bool        tls{false};
+    bool tls{false};
     std::string host;
     std::string port;
     std::string target;
@@ -103,21 +103,19 @@ struct ParsedWsUrl {
     std::string_view rest;
     if (url.starts_with("wss://")) {
         out.tls = true;
-        rest    = url.substr(6);
+        rest = url.substr(6);
     } else if (url.starts_with("ws://")) {
         out.tls = false;
-        rest    = url.substr(5);
+        rest = url.substr(5);
     } else {
         return std::nullopt;
     }
 
     const auto slash = rest.find('/');
-    const std::string_view authority = (slash == std::string_view::npos)
-                                           ? rest
-                                           : rest.substr(0, slash);
-    out.target = (slash == std::string_view::npos)
-                     ? std::string{"/"}
-                     : std::string{rest.substr(slash)};
+    const std::string_view authority =
+        (slash == std::string_view::npos) ? rest : rest.substr(0, slash);
+    out.target =
+        (slash == std::string_view::npos) ? std::string{"/"} : std::string{rest.substr(slash)};
 
     const auto colon = authority.rfind(':');
     if (colon == std::string_view::npos) {
@@ -137,8 +135,7 @@ struct ParsedWsUrl {
 /// back unchanged in the response's `id` field.
 [[nodiscard]] std::string make_request_id() {
     static thread_local std::mt19937_64 rng{std::random_device{}()};
-    static constexpr std::string_view alphabet =
-        "abcdefghijklmnopqrstuvwxyz0123456789";
+    static constexpr std::string_view alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
     std::string out;
     out.reserve(12);
     std::uniform_int_distribution<std::size_t> dist(0, alphabet.size() - 1);
@@ -182,12 +179,18 @@ struct ParsedWsUrl {
 
 /// Maps an aria2 textual status to our normalized enum.
 [[nodiscard]] DownloadState parse_state(std::string_view text) noexcept {
-    if (text == "active")    return DownloadState::Downloading;
-    if (text == "waiting")   return DownloadState::Queued;
-    if (text == "paused")    return DownloadState::Paused;
-    if (text == "complete")  return DownloadState::Complete;
-    if (text == "error")     return DownloadState::Error;
-    if (text == "removed")   return DownloadState::Removed;
+    if (text == "active")
+        return DownloadState::Downloading;
+    if (text == "waiting")
+        return DownloadState::Queued;
+    if (text == "paused")
+        return DownloadState::Paused;
+    if (text == "complete")
+        return DownloadState::Complete;
+    if (text == "error")
+        return DownloadState::Error;
+    if (text == "removed")
+        return DownloadState::Removed;
     return DownloadState::Queued;
 }
 
@@ -215,11 +218,11 @@ struct ParsedWsUrl {
     if (j.contains("status") && j["status"].is_string()) {
         s.state = parse_state(j["status"].get<std::string>());
     }
-    s.total_bytes        = json_str_int64(j.value("totalLength", json{}));
-    s.downloaded_bytes   = json_str_int64(j.value("completedLength", json{}));
-    s.uploaded_bytes     = json_str_int64(j.value("uploadLength", json{}));
+    s.total_bytes = json_str_int64(j.value("totalLength", json{}));
+    s.downloaded_bytes = json_str_int64(j.value("completedLength", json{}));
+    s.uploaded_bytes = json_str_int64(j.value("uploadLength", json{}));
     s.download_speed_bps = json_str_int64(j.value("downloadSpeed", json{}));
-    s.upload_speed_bps   = json_str_int64(j.value("uploadSpeed", json{}));
+    s.upload_speed_bps = json_str_int64(j.value("uploadSpeed", json{}));
 
     if (s.download_speed_bps > 0 && s.total_bytes > 0) {
         const auto remaining = s.total_bytes - s.downloaded_bytes;
@@ -244,8 +247,8 @@ struct ParsedWsUrl {
     }
     if (j.contains("bittorrent") && j["bittorrent"].is_object()) {
         const auto& bt = j["bittorrent"];
-        if (bt.contains("info") && bt["info"].is_object()
-            && bt["info"].contains("name") && bt["info"]["name"].is_string()) {
+        if (bt.contains("info") && bt["info"].is_object() && bt["info"].contains("name")
+            && bt["info"]["name"].is_string()) {
             s.name = bt["info"]["name"].get<std::string>();
         }
         if (j.contains("numSeeders")) {
@@ -255,21 +258,19 @@ struct ParsedWsUrl {
             s.num_leechers = static_cast<int>(json_str_int64(j["connections"]));
         }
         if (s.uploaded_bytes > 0 && s.downloaded_bytes > 0) {
-            s.seed_ratio = static_cast<float>(
-                static_cast<double>(s.uploaded_bytes) /
-                static_cast<double>(s.downloaded_bytes));
+            s.seed_ratio = static_cast<float>(static_cast<double>(s.uploaded_bytes)
+                                              / static_cast<double>(s.downloaded_bytes));
         }
     }
     return s;
 }
 
-}  // namespace
+} // namespace
 
 // ===========================================================================
 // Aria2Downloader::Impl
 // ===========================================================================
-class Aria2Downloader::Impl
-    : public std::enable_shared_from_this<Aria2Downloader::Impl> {
+class Aria2Downloader::Impl : public std::enable_shared_from_this<Aria2Downloader::Impl> {
 public:
     Impl(cmlb::core::Executor& exec, cmlb::core::Aria2Config config)
         : executor_{exec},
@@ -312,11 +313,12 @@ public:
     void start() {
         // Kick off the reader/connection coroutine on the strand.
         auto self = shared_from_this();
-        asio::co_spawn(strand_,
-                       [self]() -> asio::awaitable<void> {
-                           co_await self->run_loop();
-                       },
-                       asio::detached);
+        asio::co_spawn(
+            strand_,
+            [self]() -> asio::awaitable<void> {
+                co_await self->run_loop();
+            },
+            asio::detached);
     }
 
     [[nodiscard]] bool connected() const noexcept {
@@ -339,44 +341,39 @@ public:
         }
 
         const std::string id = make_request_id();
-        json req             = {
-            {"jsonrpc", "2.0"},
-            {"id", id},
-            {"method", method},
-            {"params", std::move(params)}
-        };
+        json req = {
+            {"jsonrpc", "2.0"}, {"id", id}, {"method", method}, {"params", std::move(params)}};
 
         auto op = call_with_correlation(id, std::move(req));
         co_return co_await cmlb::core::with_timeout<json>(
             std::move(op),
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                config_.request_timeout));
+            std::chrono::duration_cast<std::chrono::milliseconds>(config_.request_timeout));
     }
 
-    [[nodiscard]] cmlb::core::Executor& executor() noexcept { return executor_; }
+    [[nodiscard]] cmlb::core::Executor& executor() noexcept {
+        return executor_;
+    }
 
 private:
     using WsPlain = ws::stream<beast::tcp_stream>;
-    using WsTls   = ws::stream<asio::ssl::stream<beast::tcp_stream>>;
+    using WsTls = ws::stream<asio::ssl::stream<beast::tcp_stream>>;
 
     struct PendingCall {
         // Filled by the reader coroutine.
-        std::optional<json>        response;
-        std::optional<AppError>    failure;
+        std::optional<json> response;
+        std::optional<AppError> failure;
         // Triggered to wake the awaiting call().
         std::shared_ptr<asio::steady_timer> wake;
     };
 
-    asio::awaitable<Result<json>>
-    call_with_correlation(std::string id, json req) {
+    asio::awaitable<Result<json>> call_with_correlation(std::string id, json req) {
         // Slot setup must happen on the strand to avoid racing with the reader.
         // The wake timer also lives on the strand so cross-thread cancel() is
         // serialized through the strand.
         co_await asio::post(asio::bind_executor(strand_, asio::use_awaitable));
 
         auto pending = std::make_shared<PendingCall>();
-        pending->wake =
-            std::make_shared<asio::steady_timer>(strand_);
+        pending->wake = std::make_shared<asio::steady_timer>(strand_);
         pending->wake->expires_at(std::chrono::steady_clock::time_point::max());
         pending_.emplace(id, pending);
 
@@ -384,13 +381,12 @@ private:
         // when the stream is ready, false when we should bail with Network.
         if (!connected_.load(std::memory_order_acquire)) {
             pending_.erase(id);
-            co_return error(ErrorCode::Network,
-                            "aria2 WebSocket not connected");
+            co_return error(ErrorCode::Network, "aria2 WebSocket not connected");
         }
 
         // Serialize the JSON request and send it.
         const std::string payload = req.dump();
-        auto send_res             = co_await send_text(payload);
+        auto send_res = co_await send_text(payload);
         if (!send_res) {
             pending_.erase(id);
             co_return std::unexpected(send_res.error());
@@ -400,8 +396,7 @@ private:
         // expired) when the response is delivered, which surfaces as
         // operation_aborted — that is success, not failure.
         boost::system::error_code wait_ec;
-        co_await pending->wake->async_wait(
-            asio::redirect_error(asio::use_awaitable, wait_ec));
+        co_await pending->wake->async_wait(asio::redirect_error(asio::use_awaitable, wait_ec));
 
         // Pull the result off the slot under the strand.
         co_await asio::post(asio::bind_executor(strand_, asio::use_awaitable));
@@ -413,8 +408,7 @@ private:
         if (pending->failure.has_value()) {
             co_return std::unexpected(std::move(*pending->failure));
         }
-        co_return error(ErrorCode::Aria2Rpc,
-                        "aria2 RPC slot abandoned without response");
+        co_return error(ErrorCode::Aria2Rpc, "aria2 RPC slot abandoned without response");
     }
 
     asio::awaitable<Result<void>> send_text(std::string payload) {
@@ -423,14 +417,11 @@ private:
 
         try {
             if (tls_stream_) {
-                co_await tls_stream_->async_write(
-                    asio::buffer(payload), asio::use_awaitable);
+                co_await tls_stream_->async_write(asio::buffer(payload), asio::use_awaitable);
             } else if (plain_stream_) {
-                co_await plain_stream_->async_write(
-                    asio::buffer(payload), asio::use_awaitable);
+                co_await plain_stream_->async_write(asio::buffer(payload), asio::use_awaitable);
             } else {
-                co_return error(ErrorCode::Network,
-                                "aria2 WebSocket stream not initialized");
+                co_return error(ErrorCode::Network, "aria2 WebSocket stream not initialized");
             }
         } catch (const boost::system::system_error& ex) {
             Logger::warn("aria2 write failed: {}", ex.what());
@@ -453,27 +444,25 @@ private:
                 // the same strand: the call suspends on the response, the
                 // read loop (started below) routes the reply back.
                 auto self_for_tuning = shared_from_this();
-                asio::co_spawn(strand_,
+                asio::co_spawn(
+                    strand_,
                     [self_for_tuning]() -> asio::awaitable<void> {
                         json params = json::array();
                         params.push_back(build_global_throughput_options());
-                        auto r = co_await self_for_tuning->call(
-                            "aria2.changeGlobalOption", std::move(params));
+                        auto r = co_await self_for_tuning->call("aria2.changeGlobalOption",
+                                                                std::move(params));
                         if (!r.has_value()) {
-                            Logger::warn("aria2 changeGlobalOption failed: {}",
-                                         r.error().message);
+                            Logger::warn("aria2 changeGlobalOption failed: {}", r.error().message);
                         } else {
-                            Logger::info(
-                                "aria2 throughput options applied "
-                                "(max-conn-per-server=16, split=16, "
-                                "disk-cache=128M)");
+                            Logger::info("aria2 throughput options applied "
+                                         "(max-conn-per-server=16, split=16, "
+                                         "disk-cache=128M)");
                         }
                     },
                     asio::detached);
                 co_await read_until_disconnect();
             } else {
-                Logger::warn("aria2 connect failed: {}",
-                             connect_res.error().message);
+                Logger::warn("aria2 connect failed: {}", connect_res.error().message);
             }
 
             if (shutdown_requested_.load(std::memory_order_acquire)) {
@@ -502,8 +491,8 @@ private:
 
         try {
             tcp::resolver resolver{strand_};
-            auto endpoints = co_await resolver.async_resolve(
-                parsed->host, parsed->port, asio::use_awaitable);
+            auto endpoints =
+                co_await resolver.async_resolve(parsed->host, parsed->port, asio::use_awaitable);
 
             if (parsed->tls) {
                 tls_stream_ = std::make_unique<WsTls>(strand_, ssl_ctx_);
@@ -514,36 +503,32 @@ private:
                 // SNI is required by most TLS terminators. The OpenSSL macro
                 // expands to an old-style cast to `void*`; suppress the
                 // warning for this single call.
-#               pragma GCC diagnostic push
-#               pragma GCC diagnostic ignored "-Wold-style-cast"
-                if (!SSL_set_tlsext_host_name(
-                        tls_stream_->next_layer().native_handle(),
-                        parsed->host.c_str())) {
-#                   pragma GCC diagnostic pop
-                    co_return error(ErrorCode::Network,
-                                    "failed to set TLS SNI hostname");
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+                if (!SSL_set_tlsext_host_name(tls_stream_->next_layer().native_handle(),
+                                              parsed->host.c_str())) {
+#pragma GCC diagnostic pop
+                    co_return error(ErrorCode::Network, "failed to set TLS SNI hostname");
                 }
-#               pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 
-                co_await tls_stream_->next_layer().async_handshake(
-                    asio::ssl::stream_base::client, asio::use_awaitable);
+                co_await tls_stream_->next_layer().async_handshake(asio::ssl::stream_base::client,
+                                                                   asio::use_awaitable);
                 beast::get_lowest_layer(*tls_stream_).expires_never();
-                tls_stream_->set_option(ws::stream_base::timeout::suggested(
-                    beast::role_type::client));
+                tls_stream_->set_option(
+                    ws::stream_base::timeout::suggested(beast::role_type::client));
                 co_await tls_stream_->async_handshake(
-                    parsed->host + ":" + parsed->port, parsed->target,
-                    asio::use_awaitable);
+                    parsed->host + ":" + parsed->port, parsed->target, asio::use_awaitable);
             } else {
                 plain_stream_ = std::make_unique<WsPlain>(strand_);
-                auto& lowest  = beast::get_lowest_layer(*plain_stream_);
+                auto& lowest = beast::get_lowest_layer(*plain_stream_);
                 lowest.expires_after(std::chrono::seconds{15});
                 co_await lowest.async_connect(endpoints, asio::use_awaitable);
                 lowest.expires_never();
-                plain_stream_->set_option(ws::stream_base::timeout::suggested(
-                    beast::role_type::client));
+                plain_stream_->set_option(
+                    ws::stream_base::timeout::suggested(beast::role_type::client));
                 co_await plain_stream_->async_handshake(
-                    parsed->host + ":" + parsed->port, parsed->target,
-                    asio::use_awaitable);
+                    parsed->host + ":" + parsed->port, parsed->target, asio::use_awaitable);
             }
 
             connected_.store(true, std::memory_order_release);
@@ -602,25 +587,23 @@ private:
             return;
         }
         const std::string id = doc["id"].get<std::string>();
-        auto it              = pending_.find(id);
+        auto it = pending_.find(id);
         if (it == pending_.end()) {
             return;
         }
         auto pending = it->second;
 
         if (doc.contains("error")) {
-            const auto& e   = doc["error"];
-            const int code  = e.value("code", -1);
-            const std::string msg =
-                "aria2 RPC error " + std::to_string(code) + ": "
-                + e.value("message", std::string{"unknown"});
+            const auto& e = doc["error"];
+            const int code = e.value("code", -1);
+            const std::string msg = "aria2 RPC error " + std::to_string(code) + ": "
+                                    + e.value("message", std::string{"unknown"});
             pending->failure = AppError{ErrorCode::Aria2Rpc, msg};
         } else if (doc.contains("result")) {
             pending->response = doc["result"];
         } else {
-            pending->failure = AppError{
-                ErrorCode::Aria2Rpc,
-                "aria2 response missing both result and error"};
+            pending->failure =
+                AppError{ErrorCode::Aria2Rpc, "aria2 response missing both result and error"};
         }
         pending->wake->cancel();
     }
@@ -657,26 +640,25 @@ private:
         }
     }
 
-    cmlb::core::Executor&      executor_;
+    cmlb::core::Executor& executor_;
     asio::strand<asio::any_io_executor> strand_;
-    asio::ssl::context         ssl_ctx_;
-    asio::steady_timer         reconnect_timer_;
-    cmlb::core::Aria2Config    config_;
+    asio::ssl::context ssl_ctx_;
+    asio::steady_timer reconnect_timer_;
+    cmlb::core::Aria2Config config_;
 
-    std::unique_ptr<WsPlain>   plain_stream_;
-    std::unique_ptr<WsTls>     tls_stream_;
+    std::unique_ptr<WsPlain> plain_stream_;
+    std::unique_ptr<WsTls> tls_stream_;
 
     std::unordered_map<std::string, std::shared_ptr<PendingCall>> pending_;
-    std::atomic<bool>          connected_{false};
-    std::atomic<bool>          shutdown_requested_{false};
+    std::atomic<bool> connected_{false};
+    std::atomic<bool> shutdown_requested_{false};
 };
 
 // ===========================================================================
 // Aria2Downloader public API
 // ===========================================================================
 
-Aria2Downloader::Aria2Downloader(cmlb::core::Executor& executor,
-                                 cmlb::core::Aria2Config config)
+Aria2Downloader::Aria2Downloader(cmlb::core::Executor& executor, cmlb::core::Aria2Config config)
     : impl_{std::make_shared<Impl>(executor, std::move(config))} {
     impl_->start();
 }
@@ -708,31 +690,31 @@ namespace {
 [[nodiscard]] json build_options(const DownloadOptions& opts) {
     json out = json::object();
     out["max-connection-per-server"] = "16";
-    out["split"]                     = "16";
-    out["min-split-size"]            = "1M";
-    out["max-tries"]                 = "5";
-    out["retry-wait"]                = "5";
-    out["continue"]                  = "true";
-    out["file-allocation"]           = "falloc";
-    out["piece-length"]              = "1M";
-    out["check-integrity"]           = "false";
-    out["allow-overwrite"]           = "false";
-    out["auto-file-renaming"]        = "true";
-    out["always-resume"]             = "true";
+    out["split"] = "16";
+    out["min-split-size"] = "1M";
+    out["max-tries"] = "5";
+    out["retry-wait"] = "5";
+    out["continue"] = "true";
+    out["file-allocation"] = "falloc";
+    out["piece-length"] = "1M";
+    out["check-integrity"] = "false";
+    out["allow-overwrite"] = "false";
+    out["auto-file-renaming"] = "true";
+    out["always-resume"] = "true";
 
     if (opts.save_directory.has_value()) {
         out["dir"] = opts.save_directory->generic_string();
     }
     for (const auto& [k, v] : opts.extras) {
-        out[k] = v;  // user/task-level override beats throughput defaults
+        out[k] = v; // user/task-level override beats throughput defaults
     }
     return out;
 }
 
-}  // namespace
+} // namespace
 
-asio::awaitable<Result<Gid>>
-Aria2Downloader::add_uri(std::string_view uri, DownloadOptions options) {
+asio::awaitable<Result<Gid>> Aria2Downloader::add_uri(std::string_view uri,
+                                                      DownloadOptions options) {
     json params = json::array();
     params.push_back(json::array({std::string{uri}}));
     params.push_back(build_options(options));
@@ -742,18 +724,16 @@ Aria2Downloader::add_uri(std::string_view uri, DownloadOptions options) {
         co_return std::unexpected(res.error());
     }
     if (!res->is_string()) {
-        co_return error(ErrorCode::Aria2Rpc,
-                        "aria2.addUri returned non-string gid");
+        co_return error(ErrorCode::Aria2Rpc, "aria2.addUri returned non-string gid");
     }
     co_return Gid{res->get<std::string>()};
 }
 
-asio::awaitable<Result<Gid>>
-Aria2Downloader::add_torrent(std::span<const std::byte> torrent_data,
-                             DownloadOptions options) {
+asio::awaitable<Result<Gid>> Aria2Downloader::add_torrent(std::span<const std::byte> torrent_data,
+                                                          DownloadOptions options) {
     json params = json::array();
     params.push_back(base64_encode(torrent_data));
-    params.push_back(json::array());           // uris (empty)
+    params.push_back(json::array()); // uris (empty)
     params.push_back(build_options(options));
 
     auto res = co_await impl_->call("aria2.addTorrent", std::move(params));
@@ -761,8 +741,7 @@ Aria2Downloader::add_torrent(std::span<const std::byte> torrent_data,
         co_return std::unexpected(res.error());
     }
     if (!res->is_string()) {
-        co_return error(ErrorCode::Aria2Rpc,
-                        "aria2.addTorrent returned non-string gid");
+        co_return error(ErrorCode::Aria2Rpc, "aria2.addTorrent returned non-string gid");
     }
     co_return Gid{res->get<std::string>()};
 }
@@ -771,7 +750,8 @@ asio::awaitable<Result<void>> Aria2Downloader::pause(Gid id) {
     json params = json::array();
     params.push_back(id.value());
     auto res = co_await impl_->call("aria2.pause", std::move(params));
-    if (!res) co_return std::unexpected(res.error());
+    if (!res)
+        co_return std::unexpected(res.error());
     co_return Result<void>{};
 }
 
@@ -779,12 +759,12 @@ asio::awaitable<Result<void>> Aria2Downloader::resume(Gid id) {
     json params = json::array();
     params.push_back(id.value());
     auto res = co_await impl_->call("aria2.unpause", std::move(params));
-    if (!res) co_return std::unexpected(res.error());
+    if (!res)
+        co_return std::unexpected(res.error());
     co_return Result<void>{};
 }
 
-asio::awaitable<Result<void>>
-Aria2Downloader::remove(Gid id, bool delete_files) {
+asio::awaitable<Result<void>> Aria2Downloader::remove(Gid id, bool delete_files) {
     std::vector<std::filesystem::path> files;
 
     if (delete_files) {
@@ -792,10 +772,8 @@ Aria2Downloader::remove(Gid id, bool delete_files) {
         json status_params = json::array();
         status_params.push_back(id.value());
         status_params.push_back(json::array({"files"}));
-        auto status_res = co_await impl_->call("aria2.tellStatus",
-                                               std::move(status_params));
-        if (status_res && status_res->is_object()
-            && status_res->contains("files")
+        auto status_res = co_await impl_->call("aria2.tellStatus", std::move(status_params));
+        if (status_res && status_res->is_object() && status_res->contains("files")
             && (*status_res)["files"].is_array()) {
             for (const auto& f : (*status_res)["files"]) {
                 if (f.contains("path") && f["path"].is_string()) {
@@ -818,8 +796,7 @@ Aria2Downloader::remove(Gid id, bool delete_files) {
             std::error_code ec;
             std::filesystem::remove_all(path, ec);
             if (ec) {
-                Logger::warn("aria2: failed to unlink {}: {}",
-                             path.generic_string(), ec.message());
+                Logger::warn("aria2: failed to unlink {}: {}", path.generic_string(), ec.message());
             }
         }
     }
@@ -830,21 +807,20 @@ asio::awaitable<Result<DownloadStatus>> Aria2Downloader::status(Gid id) {
     json params = json::array();
     params.push_back(id.value());
     auto res = co_await impl_->call("aria2.tellStatus", std::move(params));
-    if (!res) co_return std::unexpected(res.error());
+    if (!res)
+        co_return std::unexpected(res.error());
     if (!res->is_object()) {
-        co_return error(ErrorCode::Aria2Rpc,
-                        "aria2.tellStatus returned non-object");
+        co_return error(ErrorCode::Aria2Rpc, "aria2.tellStatus returned non-object");
     }
     co_return to_status(*res);
 }
 
-asio::awaitable<Result<std::vector<DownloadStatus>>>
-Aria2Downloader::active() {
+asio::awaitable<Result<std::vector<DownloadStatus>>> Aria2Downloader::active() {
     auto res = co_await impl_->call("aria2.tellActive", json::array());
-    if (!res) co_return std::unexpected(res.error());
+    if (!res)
+        co_return std::unexpected(res.error());
     if (!res->is_array()) {
-        co_return error(ErrorCode::Aria2Rpc,
-                        "aria2.tellActive returned non-array");
+        co_return error(ErrorCode::Aria2Rpc, "aria2.tellActive returned non-array");
     }
     std::vector<DownloadStatus> out;
     out.reserve(res->size());
@@ -856,21 +832,18 @@ Aria2Downloader::active() {
 
 asio::awaitable<Result<GlobalStats>> Aria2Downloader::global_stats() {
     auto res = co_await impl_->call("aria2.getGlobalStat", json::array());
-    if (!res) co_return std::unexpected(res.error());
+    if (!res)
+        co_return std::unexpected(res.error());
     if (!res->is_object()) {
-        co_return error(ErrorCode::Aria2Rpc,
-                        "aria2.getGlobalStat returned non-object");
+        co_return error(ErrorCode::Aria2Rpc, "aria2.getGlobalStat returned non-object");
     }
     GlobalStats stats;
     stats.download_speed_bps = json_str_int64(res->value("downloadSpeed", json{}));
-    stats.upload_speed_bps   = json_str_int64(res->value("uploadSpeed", json{}));
-    stats.active_count       = static_cast<int>(
-        json_str_int64(res->value("numActive", json{})));
-    stats.waiting_count      = static_cast<int>(
-        json_str_int64(res->value("numWaiting", json{})));
-    stats.stopped_count      = static_cast<int>(
-        json_str_int64(res->value("numStopped", json{})));
+    stats.upload_speed_bps = json_str_int64(res->value("uploadSpeed", json{}));
+    stats.active_count = static_cast<int>(json_str_int64(res->value("numActive", json{})));
+    stats.waiting_count = static_cast<int>(json_str_int64(res->value("numWaiting", json{})));
+    stats.stopped_count = static_cast<int>(json_str_int64(res->value("numStopped", json{})));
     co_return stats;
 }
 
-}  // namespace cmlb::infrastructure::download
+} // namespace cmlb::infrastructure::download

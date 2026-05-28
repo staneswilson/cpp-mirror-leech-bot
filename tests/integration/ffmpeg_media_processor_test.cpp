@@ -18,7 +18,6 @@
 #include <boost/asio/use_future.hpp>
 
 #include <catch2/catch_test_macros.hpp>
-
 #include <cmlb/core/executor.hpp>
 #include <cmlb/infrastructure/media/ffmpeg_media_processor.hpp>
 #include <cmlb/infrastructure/system/subprocess.hpp>
@@ -34,7 +33,7 @@ namespace {
     return std::system(cmd.c_str()) == 0;
 }
 
-}  // namespace
+} // namespace
 
 TEST_CASE("FfmpegMediaProcessor probes a fixture file when ffmpeg is available",
           "[integration][media][ffmpeg][.]") {

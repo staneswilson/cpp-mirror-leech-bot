@@ -90,4 +90,4 @@ public:
     }
 };
 
-}  // namespace cmlb::core
+} // namespace cmlb::core

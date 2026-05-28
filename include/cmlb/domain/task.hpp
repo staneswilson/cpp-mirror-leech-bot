@@ -15,22 +15,22 @@ namespace cmlb::domain {
 
 /// Lifecycle state of a single download/upload task.
 enum class TaskState {
-    Queued,        ///< Newly created, awaiting downloader pickup.
-    Downloading,   ///< Downloader is fetching bytes.
-    Processing,    ///< Archive extraction / media processing intermediate phase.
-    Uploading,     ///< Uploader is pushing bytes to the configured destination.
-    Completed,     ///< Terminal: upload finished successfully.
-    Failed,        ///< Terminal: aborted with an error message.
-    Cancelled,     ///< Terminal: cancelled by user or system.
+    Queued,      ///< Newly created, awaiting downloader pickup.
+    Downloading, ///< Downloader is fetching bytes.
+    Processing,  ///< Archive extraction / media processing intermediate phase.
+    Uploading,   ///< Uploader is pushing bytes to the configured destination.
+    Completed,   ///< Terminal: upload finished successfully.
+    Failed,      ///< Terminal: aborted with an error message.
+    Cancelled,   ///< Terminal: cancelled by user or system.
 };
 
 [[nodiscard]] std::string_view to_string(TaskState state) noexcept;
 
 /// What the task is supposed to do with the downloaded payload.
 enum class TaskKind {
-    Mirror,   ///< Download then upload to cloud storage (rclone / GDrive).
-    Leech,    ///< Download then upload to Telegram.
-    Clone,    ///< Server-side GDrive copy (no local download/upload).
+    Mirror, ///< Download then upload to cloud storage (rclone / GDrive).
+    Leech,  ///< Download then upload to Telegram.
+    Clone,  ///< Server-side GDrive copy (no local download/upload).
 };
 
 /// Which downloader backend a Task is bound to. `None` indicates that the
@@ -46,12 +46,12 @@ enum class DownloaderKind {
 
 /// Immutable identifying / contextual metadata for a task.
 struct TaskMetadata {
-    TaskId    id;
-    UserId    user;
-    ChatId    chat;
-    MessageId status_message;  ///< Bot's live progress message in @p chat.
-    TaskKind  kind;
-    std::string source_url;    ///< Original URL or magnet the user sent.
+    TaskId id;
+    UserId user;
+    ChatId chat;
+    MessageId status_message; ///< Bot's live progress message in @p chat.
+    TaskKind kind;
+    std::string source_url; ///< Original URL or magnet the user sent.
     std::chrono::system_clock::time_point created_at;
     std::chrono::system_clock::time_point updated_at;
 };
@@ -62,9 +62,16 @@ class Task {
 public:
     explicit Task(TaskMetadata metadata);
 
-    [[nodiscard]] const TaskMetadata& metadata() const noexcept { return metadata_; }
-    [[nodiscard]] TaskState state() const noexcept { return state_; }
+    [[nodiscard]] const TaskMetadata& metadata() const noexcept {
+        return metadata_;
+    }
+
+    [[nodiscard]] TaskState state() const noexcept {
+        return state_;
+    }
+
     [[nodiscard]] std::optional<std::string_view> error_message() const noexcept;
+
     [[nodiscard]] std::chrono::system_clock::time_point updated_at() const noexcept {
         return metadata_.updated_at;
     }
@@ -108,12 +115,12 @@ public:
 
 private:
     TaskMetadata metadata_;
-    TaskState    state_{TaskState::Queued};
+    TaskState state_{TaskState::Queued};
     std::optional<std::string> error_message_;
-    std::optional<Gid>         downloader_id_;
-    DownloaderKind             downloader_kind_{DownloaderKind::None};
+    std::optional<Gid> downloader_id_;
+    DownloaderKind downloader_kind_{DownloaderKind::None};
 
     void touch_() noexcept;
 };
 
-}  // namespace cmlb::domain
+} // namespace cmlb::domain

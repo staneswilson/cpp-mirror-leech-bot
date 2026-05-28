@@ -40,15 +40,15 @@ class ResumeTask;
 class UpdateUserSettings;
 class UpdateBotSettings;
 class RssSubscription;
-}  // namespace cmlb::application
+} // namespace cmlb::application
 
 namespace cmlb::infrastructure::telegram {
 class MessengerInterface;
-}  // namespace cmlb::infrastructure::telegram
+} // namespace cmlb::infrastructure::telegram
 
 namespace cmlb::infrastructure::system {
 class SystemMetrics;
-}  // namespace cmlb::infrastructure::system
+} // namespace cmlb::infrastructure::system
 
 namespace cmlb::presentation {
 
@@ -61,30 +61,30 @@ public:
     /// referenced object outlives the dispatcher (typically: bot process
     /// lifetime).
     struct Dependencies {
-        cmlb::domain::Authority                              authority;
-        cmlb::application::MirrorUrl&                        mirror_url;
-        cmlb::application::LeechUrl&                         leech_url;
-        cmlb::application::CloneDriveResource&               clone;
-        cmlb::application::CountDriveResource&               count;
-        cmlb::application::DeleteDriveResource&              delete_resource;
-        cmlb::application::CancelTask&                       cancel_task;
-        cmlb::application::PauseTask&                        pause_task;
-        cmlb::application::ResumeTask&                       resume_task;
-        cmlb::application::UpdateUserSettings&               update_user;
-        cmlb::application::UpdateBotSettings&                update_bot;
-        cmlb::application::RssSubscription&                  rss;
-        cmlb::infrastructure::telegram::MessengerInterface&  messenger;
-        cmlb::infrastructure::system::SystemMetrics&         metrics;
-        std::chrono::steady_clock::time_point                bot_start_time;
+        cmlb::domain::Authority authority;
+        cmlb::application::MirrorUrl& mirror_url;
+        cmlb::application::LeechUrl& leech_url;
+        cmlb::application::CloneDriveResource& clone;
+        cmlb::application::CountDriveResource& count;
+        cmlb::application::DeleteDriveResource& delete_resource;
+        cmlb::application::CancelTask& cancel_task;
+        cmlb::application::PauseTask& pause_task;
+        cmlb::application::ResumeTask& resume_task;
+        cmlb::application::UpdateUserSettings& update_user;
+        cmlb::application::UpdateBotSettings& update_bot;
+        cmlb::application::RssSubscription& rss;
+        cmlb::infrastructure::telegram::MessengerInterface& messenger;
+        cmlb::infrastructure::system::SystemMetrics& metrics;
+        std::chrono::steady_clock::time_point bot_start_time;
     };
 
     explicit CommandDispatcher(Dependencies deps);
     ~CommandDispatcher();
 
-    CommandDispatcher(const CommandDispatcher&)            = delete;
+    CommandDispatcher(const CommandDispatcher&) = delete;
     CommandDispatcher& operator=(const CommandDispatcher&) = delete;
-    CommandDispatcher(CommandDispatcher&&)                 = delete;
-    CommandDispatcher& operator=(CommandDispatcher&&)      = delete;
+    CommandDispatcher(CommandDispatcher&&) = delete;
+    CommandDispatcher& operator=(CommandDispatcher&&) = delete;
 
     /// Dispatches a parsed @p request.
     ///
@@ -94,19 +94,17 @@ public:
     ///    sent via `messenger` and `ErrorCode::PermissionDenied` is returned.
     ///  - Otherwise the registered handler is invoked and its `Result<void>`
     ///    is returned verbatim.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>>
-        dispatch(CommandRequest request);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>> dispatch(CommandRequest request);
 
 private:
     /// Handler signature for an individual command.
-    using Handler = std::function<
-        boost::asio::awaitable<cmlb::core::Result<void>>(CommandRequest)>;
+    using Handler = std::function<boost::asio::awaitable<cmlb::core::Result<void>>(CommandRequest)>;
 
     /// Registered command entry.
     struct Entry {
         cmlb::domain::Permission required;
-        Handler                  handler;
-        std::string              description;
+        Handler handler;
+        std::string description;
     };
 
     /// Populates `commands_` and `aliases_` with the bot's built-in command
@@ -115,17 +113,17 @@ private:
 
     /// Helper used by `register_builtins_` to install a single command. The
     /// @p description is shown in `/help` next to the command name.
-    void register_(std::string                name,
-                   cmlb::domain::Permission   required,
-                   std::string                description,
-                   Handler                    handler);
+    void register_(std::string name,
+                   cmlb::domain::Permission required,
+                   std::string description,
+                   Handler handler);
 
     /// Helper that wires up an alias pointing at an existing command.
     void register_alias_(std::string alias, std::string canonical);
 
-    Dependencies                                  deps_;
-    std::unordered_map<std::string, Entry>        commands_;
-    std::unordered_map<std::string, std::string>  aliases_;
+    Dependencies deps_;
+    std::unordered_map<std::string, Entry> commands_;
+    std::unordered_map<std::string, std::string> aliases_;
 };
 
-}  // namespace cmlb::presentation
+} // namespace cmlb::presentation

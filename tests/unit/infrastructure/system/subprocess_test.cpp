@@ -8,20 +8,19 @@
 #include <string>
 #include <vector>
 
-#include <catch2/catch_test_macros.hpp>
-#include <catch2/matchers/catch_matchers.hpp>
-#include <catch2/matchers/catch_matchers_string.hpp>
-
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/use_future.hpp>
 
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 #include <cmlb/infrastructure/system/subprocess.hpp>
 
+using Catch::Matchers::ContainsSubstring;
 using cmlb::infrastructure::system::Subprocess;
 using cmlb::infrastructure::system::SubprocessRequest;
 using cmlb::infrastructure::system::SubprocessResult;
-using Catch::Matchers::ContainsSubstring;
 
 namespace {
 
@@ -33,7 +32,7 @@ constexpr const char* kShellExe = "/bin/sh";
 const std::vector<std::string> kEchoArgs{"-c", "echo hello-cmlb"};
 #endif
 
-}  // namespace
+} // namespace
 
 TEST_CASE("Subprocess runs a trivial echo command", "[infrastructure][system][subprocess]") {
     boost::asio::io_context io;
@@ -41,8 +40,8 @@ TEST_CASE("Subprocess runs a trivial echo command", "[infrastructure][system][su
 
     SubprocessRequest req;
     req.executable = kShellExe;
-    req.arguments  = kEchoArgs;
-    req.timeout    = std::chrono::seconds(10);
+    req.arguments = kEchoArgs;
+    req.timeout = std::chrono::seconds(10);
 
     auto fut = boost::asio::co_spawn(
         io.get_executor(),
@@ -60,7 +59,8 @@ TEST_CASE("Subprocess runs a trivial echo command", "[infrastructure][system][su
     CHECK_THAT(result->stdout_data, ContainsSubstring("hello-cmlb"));
 }
 
-TEST_CASE("Subprocess returns NotFound for missing executables", "[infrastructure][system][subprocess]") {
+TEST_CASE("Subprocess returns NotFound for missing executables",
+          "[infrastructure][system][subprocess]") {
     boost::asio::io_context io;
     Subprocess sub{io.get_executor()};
 
@@ -85,8 +85,8 @@ TEST_CASE("Subprocess on_stdout_line fires once per newline-terminated line",
     boost::asio::io_context io;
     Subprocess sub{io.get_executor()};
 
-    std::mutex                mu;
-    std::vector<std::string>  lines;
+    std::mutex mu;
+    std::vector<std::string> lines;
 
     SubprocessRequest req;
     req.executable = kShellExe;

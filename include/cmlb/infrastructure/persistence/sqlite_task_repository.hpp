@@ -18,25 +18,24 @@ namespace cmlb::infrastructure::persistence {
 /// and safe to share across coroutines.
 class SqliteTaskRepository final : public TaskRepository {
 public:
-    explicit SqliteTaskRepository(SqliteConnectionPool& pool) noexcept : pool_{pool} {}
+    explicit SqliteTaskRepository(SqliteConnectionPool& pool) noexcept : pool_{pool} {
+    }
 
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-    save(domain::Task task) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> save(domain::Task task) override;
 
-    [[nodiscard]] boost::asio::awaitable<core::Result<std::optional<domain::Task>>>
-    find(domain::TaskId id) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<std::optional<domain::Task>>> find(
+        domain::TaskId id) override;
 
-    [[nodiscard]] boost::asio::awaitable<core::Result<std::vector<domain::Task>>>
-    incomplete() override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<std::vector<domain::Task>>> incomplete()
+        override;
 
-    [[nodiscard]] boost::asio::awaitable<core::Result<std::vector<domain::Task>>>
-    for_user(domain::UserId user) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<std::vector<domain::Task>>> for_user(
+        domain::UserId user) override;
 
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-    remove(domain::TaskId id) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> remove(domain::TaskId id) override;
 
 private:
     SqliteConnectionPool& pool_;
 };
 
-}  // namespace cmlb::infrastructure::persistence
+} // namespace cmlb::infrastructure::persistence

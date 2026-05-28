@@ -16,33 +16,33 @@ namespace cmlb::core {
 /// Telegram / TDLib client configuration.
 struct TelegramConfig {
     std::int32_t api_id{0};
-    std::string  api_hash;
-    std::string  bot_token;
+    std::string api_hash;
+    std::string bot_token;
     std::filesystem::path database_directory{"tdlib"};
     std::int64_t owner_id{0};
     std::vector<std::int64_t> sudo_users;
     std::vector<std::int64_t> authorized_chats;
     /// TDLib `upload_chunk_size_kb` option. Larger chunks = fewer round-trips
     /// per file, higher throughput. TDLib clamps server-side.
-    int  upload_chunk_size_kb{2048};
+    int upload_chunk_size_kb{2048};
     /// TDLib `download_chunk_size_kb` option.
-    int  download_chunk_size_kb{1024};
+    int download_chunk_size_kb{1024};
     /// TDLib `connection_retry_count_max` option. Number of reconnect attempts
     /// before giving up on a stale connection.
-    int  connection_retry_count_max{5};
+    int connection_retry_count_max{5};
     /// Prefer IPv6 endpoints when both are available.
     bool prefer_ipv6{false};
     /// Number of file parts kept in-flight in `TelegramUploader::upload_file`
     /// when a file is large enough to be split. Each part is a separate
     /// `messages.sendMedia` over TDLib.
-    int  upload_parallelism{4};
+    int upload_parallelism{4};
 
     /// Number of distinct files kept in-flight by
     /// `TelegramUploader::upload_directory`. TDLib pipelines its own upload
     /// sessions, so multiple concurrent `sendMedia` calls saturate the link
     /// more fully than a strict per-file loop. Defaults to a conservative `2`;
     /// raise on directories with many small files.
-    int  upload_files_parallelism{2};
+    int upload_files_parallelism{2};
 };
 
 /// aria2 JSON-RPC client configuration.
@@ -54,18 +54,18 @@ struct TelegramConfig {
 struct Aria2Config {
     std::string rpc_url{"ws://localhost:6800/jsonrpc"};
     std::string secret;
-    int         max_concurrent_downloads{5};
+    int max_concurrent_downloads{5};
     std::chrono::seconds request_timeout{30};
     /// aria2 `max-connection-per-server`. Hard upper bound 16.
-    int          max_connection_per_server{16};
+    int max_connection_per_server{16};
     /// aria2 `split`. Hard upper bound 16.
-    int          split{16};
+    int split{16};
     /// aria2 `min-split-size`. Uses aria2 size syntax (`1M`, `512K`...).
-    std::string  min_split_size{"1M"};
+    std::string min_split_size{"1M"};
     /// aria2 `disk-cache`. Larger reduces SSD write amplification.
-    std::string  disk_cache{"128M"};
+    std::string disk_cache{"128M"};
     /// aria2 `max-tries`. Per-URL retry count.
-    int          max_tries{5};
+    int max_tries{5};
     /// aria2 `retry-wait`. Wait between retries.
     std::chrono::seconds retry_wait{5};
     /// aria2 `max-overall-download-limit`. 0 = unlimited.
@@ -73,13 +73,13 @@ struct Aria2Config {
     /// aria2 `max-overall-upload-limit`. 0 = unlimited.
     std::int64_t max_overall_upload_limit{0};
     /// BitTorrent: enable DHT.
-    bool         enable_dht{true};
+    bool enable_dht{true};
     /// BitTorrent: enable PeerEXchange.
-    bool         enable_pex{true};
+    bool enable_pex{true};
     /// BitTorrent: maximum peers per torrent.
-    int          bt_max_peers{55};
+    int bt_max_peers{55};
     /// User-Agent reported on HTTP(S) downloads.
-    std::string  user_agent{"aria2/1.37.0"};
+    std::string user_agent{"aria2/1.37.0"};
 };
 
 /// qBittorrent Web API configuration.
@@ -91,7 +91,7 @@ struct QbittorrentConfig {
     std::string url{"http://localhost:8080"};
     std::string username{"admin"};
     std::string password;
-    double      seed_ratio_limit{1.0};
+    double seed_ratio_limit{1.0};
     std::chrono::minutes seed_time_limit{60};
     /// `max_active_downloads` preference.
     int max_active_downloads{8};
@@ -132,25 +132,25 @@ struct RcloneConfig {
     std::filesystem::path executable{"rclone"};
     std::filesystem::path config_path;
     /// `--transfers`. Number of parallel file transfers.
-    int          transfers{8};
+    int transfers{8};
     /// `--checkers`. Parallelism for hash/size checks.
-    int          checkers{16};
+    int checkers{16};
     /// `--multi-thread-streams`. Streams per large file.
-    int          multi_thread_streams{4};
+    int multi_thread_streams{4};
     /// `--multi-thread-cutoff`. Threshold above which multi-thread kicks in.
-    std::string  multi_thread_cutoff{"250M"};
+    std::string multi_thread_cutoff{"250M"};
     /// `--drive-chunk-size`. GDrive remote chunk; clamped to 256K alignment.
-    std::string  drive_chunk_size{"64M"};
+    std::string drive_chunk_size{"64M"};
     /// `--buffer-size`. Per-transfer read-ahead buffer. RAM cost = N × this.
-    std::string  buffer_size{"32M"};
+    std::string buffer_size{"32M"};
     /// `--use-mmap`. mmap the read buffer (lower RSS, faster on large files).
-    bool         use_mmap{true};
+    bool use_mmap{true};
     /// `--fast-list`. Single API listing per directory tree (saves round-trips).
-    bool         fast_list{true};
+    bool fast_list{true};
     /// `--drive-acknowledge-abuse`. Allow downloads flagged as abusive.
-    bool         drive_acknowledge_abuse{true};
+    bool drive_acknowledge_abuse{true};
     /// `--log-level`. One of `DEBUG`, `INFO`, `NOTICE`, `ERROR`.
-    std::string  log_level{"NOTICE"};
+    std::string log_level{"NOTICE"};
     /// Escape hatch — additional flags appended verbatim to every invocation.
     std::vector<std::string> extra_args;
 };
@@ -161,7 +161,7 @@ struct GoogleDriveConfig {
     std::string parent_folder_id;
     bool use_service_accounts{true};
     std::filesystem::path sa_folder{"accounts"};
-    std::size_t chunk_size{8 * 1024 * 1024};  // 8 MiB
+    std::size_t chunk_size{8 * 1024 * 1024}; // 8 MiB
     /// Number of concurrent chunk PUTs against a single resumable session.
     /// GDrive accepts out-of-order ranges, so fan-out scales near-linearly
     /// until the link saturates.
@@ -197,14 +197,14 @@ struct PathsConfig {
 /// Aggregate of every config section. The single source of truth for
 /// runtime-tunable settings.
 struct AppConfig {
-    TelegramConfig    telegram;
-    Aria2Config       aria2;
+    TelegramConfig telegram;
+    Aria2Config aria2;
     QbittorrentConfig qbittorrent;
-    RcloneConfig      rclone;
+    RcloneConfig rclone;
     GoogleDriveConfig google_drive;
-    DatabaseConfig    database;
-    LoggingConfig     logging;
-    PathsConfig       paths;
+    DatabaseConfig database;
+    LoggingConfig logging;
+    PathsConfig paths;
 };
 
 /// Configuration loader / validator.
@@ -236,4 +236,4 @@ public:
     static void apply_env_overrides(AppConfig& cfg) noexcept;
 };
 
-}  // namespace cmlb::core
+} // namespace cmlb::core

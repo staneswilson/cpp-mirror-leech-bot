@@ -47,12 +47,11 @@ namespace cmlb::core {
 /// unchanged; otherwise it is truncated at the nearest UTF-8 codepoint
 /// boundary (no split sequences) and `...` is appended. Used to bound the
 /// width of user-controlled values rendered into chat messages.
-[[nodiscard]] std::string truncate_for_display(std::string_view text,
-                                               std::size_t      max_bytes);
+[[nodiscard]] std::string truncate_for_display(std::string_view text, std::size_t max_bytes);
 
 /// Returns a short, human-readable label for @p code, suitable for direct
 /// inclusion in user-facing copy. Never returns a raw enumerator name —
 /// for the enumerator name, use `error_code_name` from `core/error.hpp`.
 [[nodiscard]] std::string_view friendly_error_label(ErrorCode code) noexcept;
 
-}  // namespace cmlb::core
+} // namespace cmlb::core

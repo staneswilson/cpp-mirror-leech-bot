@@ -26,26 +26,26 @@ namespace cmlb::application {
 /// decides whether to actually edit the chat.
 class ProgressRendererInterface {
 public:
-    ProgressRendererInterface()          = default;
+    ProgressRendererInterface() = default;
     virtual ~ProgressRendererInterface() = default;
 
-    ProgressRendererInterface(const ProgressRendererInterface&)            = delete;
+    ProgressRendererInterface(const ProgressRendererInterface&) = delete;
     ProgressRendererInterface& operator=(const ProgressRendererInterface&) = delete;
-    ProgressRendererInterface(ProgressRendererInterface&&)                 = delete;
-    ProgressRendererInterface& operator=(ProgressRendererInterface&&)      = delete;
+    ProgressRendererInterface(ProgressRendererInterface&&) = delete;
+    ProgressRendererInterface& operator=(ProgressRendererInterface&&) = delete;
 
     /// Updates (or creates) the per-chat status message based on @p active.
     /// Implementations may no-op when called inside their throttle window or
     /// when the rendered HTML is unchanged.
-    [[nodiscard]] virtual boost::asio::awaitable<cmlb::core::Result<void>>
-    render(cmlb::domain::ChatId chat,
-           std::span<const cmlb::infrastructure::download::DownloadStatus> active) = 0;
+    [[nodiscard]] virtual boost::asio::awaitable<cmlb::core::Result<void>> render(
+        cmlb::domain::ChatId chat,
+        std::span<const cmlb::infrastructure::download::DownloadStatus> active) = 0;
 
     /// Bypasses throttle + dedup and emits a fresh message. Used by the
     /// presentation layer when the user explicitly presses "Refresh".
-    [[nodiscard]] virtual boost::asio::awaitable<cmlb::core::Result<void>>
-    force_refresh(cmlb::domain::ChatId chat,
-                  std::span<const cmlb::infrastructure::download::DownloadStatus> active) = 0;
+    [[nodiscard]] virtual boost::asio::awaitable<cmlb::core::Result<void>> force_refresh(
+        cmlb::domain::ChatId chat,
+        std::span<const cmlb::infrastructure::download::DownloadStatus> active) = 0;
 };
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

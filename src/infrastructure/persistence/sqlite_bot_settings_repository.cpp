@@ -1,4 +1,4 @@
-#include <cmlb/infrastructure/persistence/sqlite_bot_settings_repository.hpp>
+#include "time_codec.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -11,12 +11,12 @@
 #include <boost/asio/awaitable.hpp>
 
 #include <nlohmann/json.hpp>
+
 #include <sqlite_modern_cpp.h>
 
 #include <cmlb/core/error.hpp>
 #include <cmlb/infrastructure/persistence/bot_settings_repository.hpp>
-
-#include "time_codec.hpp"
+#include <cmlb/infrastructure/persistence/sqlite_bot_settings_repository.hpp>
 
 namespace cmlb::infrastructure::persistence {
 
@@ -52,10 +52,9 @@ using detail::to_iso8601;
     }
 }
 
-}  // namespace
+} // namespace
 
-boost::asio::awaitable<core::Result<BotSettingsRecord>>
-SqliteBotSettingsRepository::load() {
+boost::asio::awaitable<core::Result<BotSettingsRecord>> SqliteBotSettingsRepository::load() {
     auto acquired = co_await pool_.acquire();
     if (!acquired.has_value()) {
         co_return std::unexpected{acquired.error()};
@@ -63,9 +62,9 @@ SqliteBotSettingsRepository::load() {
     auto& db = acquired->database();
 
     try {
-        BotSettingsRecord       record{};
-        core::Result<void>      parse_status{};
-        bool                    any_row = false;
+        BotSettingsRecord record{};
+        core::Result<void> parse_status{};
+        bool any_row = false;
 
         db << R"SQL(
             SELECT owner_id, sudo_users, authorized_chats, download_dir,
@@ -74,35 +73,44 @@ SqliteBotSettingsRepository::load() {
               FROM bot_settings
              WHERE id = 1;
         )SQL"
-           >> [&](std::int64_t owner,
-                  std::string  sudo_json,
-                  std::string  chats_json,
-                  std::string  dl_dir,
-                  std::int64_t split_size,
-                  std::int64_t up_limit,
-                  std::int64_t status_ms,
-                  std::int64_t rss_ms,
-                  std::string  updated_at) {
-               any_row = true;
+            >> [&](std::int64_t owner,
+                   std::string sudo_json,
+                   std::string chats_json,
+                   std::string dl_dir,
+                   std::int64_t split_size,
+                   std::int64_t up_limit,
+                   std::int64_t status_ms,
+                   std::int64_t rss_ms,
+                   std::string updated_at) {
+                  any_row = true;
 
-               auto sudo   = decode_id_array(sudo_json);
-               auto chats  = decode_id_array(chats_json);
-               auto ts     = parse_iso8601(updated_at);
+                  auto sudo = decode_id_array(sudo_json);
+                  auto chats = decode_id_array(chats_json);
+                  auto ts = parse_iso8601(updated_at);
 
-               if (!sudo)  { parse_status = std::unexpected{sudo.error()};  return; }
-               if (!chats) { parse_status = std::unexpected{chats.error()}; return; }
-               if (!ts)    { parse_status = std::unexpected{ts.error()};    return; }
+                  if (!sudo) {
+                      parse_status = std::unexpected{sudo.error()};
+                      return;
+                  }
+                  if (!chats) {
+                      parse_status = std::unexpected{chats.error()};
+                      return;
+                  }
+                  if (!ts) {
+                      parse_status = std::unexpected{ts.error()};
+                      return;
+                  }
 
-               record.owner_id               = owner;
-               record.sudo_users             = std::move(*sudo);
-               record.authorized_chats       = std::move(*chats);
-               record.download_dir           = std::filesystem::path{dl_dir};
-               record.leech_split_size       = split_size;
-               record.upload_limit_bytes     = up_limit;
-               record.status_update_interval = std::chrono::milliseconds{status_ms};
-               record.rss_poll_interval      = std::chrono::milliseconds{rss_ms};
-               record.updated_at             = *ts;
-           };
+                  record.owner_id = owner;
+                  record.sudo_users = std::move(*sudo);
+                  record.authorized_chats = std::move(*chats);
+                  record.download_dir = std::filesystem::path{dl_dir};
+                  record.leech_split_size = split_size;
+                  record.upload_limit_bytes = up_limit;
+                  record.status_update_interval = std::chrono::milliseconds{status_ms};
+                  record.rss_poll_interval = std::chrono::milliseconds{rss_ms};
+                  record.updated_at = *ts;
+              };
 
         if (!parse_status.has_value()) {
             co_return std::unexpected{parse_status.error()};
@@ -121,8 +129,8 @@ SqliteBotSettingsRepository::load() {
     }
 }
 
-boost::asio::awaitable<core::Result<void>>
-SqliteBotSettingsRepository::save(BotSettingsRecord record) {
+boost::asio::awaitable<core::Result<void>> SqliteBotSettingsRepository::save(
+    BotSettingsRecord record) {
     auto acquired = co_await pool_.acquire();
     if (!acquired.has_value()) {
         co_return std::unexpected{acquired.error()};
@@ -139,14 +147,10 @@ SqliteBotSettingsRepository::save(BotSettingsRecord record) {
                  status_update_interval_ms, rss_poll_interval_ms, updated_at)
             VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         )SQL"
-           << record.owner_id
-           << encode_id_array(record.sudo_users)
-           << encode_id_array(record.authorized_chats)
-           << record.download_dir.string()
-           << record.leech_split_size
-           << record.upload_limit_bytes
-           << record.status_update_interval.count()
-           << record.rss_poll_interval.count()
+           << record.owner_id << encode_id_array(record.sudo_users)
+           << encode_id_array(record.authorized_chats) << record.download_dir.string()
+           << record.leech_split_size << record.upload_limit_bytes
+           << record.status_update_interval.count() << record.rss_poll_interval.count()
            << to_iso8601(record.updated_at);
         co_return core::Result<void>{};
     } catch (const sqlite::sqlite_exception& ex) {
@@ -158,4 +162,4 @@ SqliteBotSettingsRepository::save(BotSettingsRecord record) {
     }
 }
 
-}  // namespace cmlb::infrastructure::persistence
+} // namespace cmlb::infrastructure::persistence

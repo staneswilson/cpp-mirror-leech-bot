@@ -20,11 +20,11 @@ class CancelTask;
 class PauseTask;
 class ResumeTask;
 class UpdateUserSettings;
-}  // namespace cmlb::application
+} // namespace cmlb::application
 
 namespace cmlb::infrastructure::telegram {
 class MessengerInterface;
-}  // namespace cmlb::infrastructure::telegram
+} // namespace cmlb::infrastructure::telegram
 
 namespace cmlb::presentation {
 
@@ -47,35 +47,35 @@ class CallbackDispatcher {
 public:
     /// External collaborators. References must outlive the dispatcher.
     struct Dependencies {
-        cmlb::application::CancelTask&                      cancel_task;
-        cmlb::application::PauseTask&                       pause_task;
-        cmlb::application::ResumeTask&                      resume_task;
-        cmlb::application::UpdateUserSettings&              update_user;
+        cmlb::application::CancelTask& cancel_task;
+        cmlb::application::PauseTask& pause_task;
+        cmlb::application::ResumeTask& resume_task;
+        cmlb::application::UpdateUserSettings& update_user;
         cmlb::infrastructure::telegram::MessengerInterface& messenger;
     };
 
     explicit CallbackDispatcher(Dependencies deps) noexcept;
     ~CallbackDispatcher();
 
-    CallbackDispatcher(const CallbackDispatcher&)            = delete;
+    CallbackDispatcher(const CallbackDispatcher&) = delete;
     CallbackDispatcher& operator=(const CallbackDispatcher&) = delete;
-    CallbackDispatcher(CallbackDispatcher&&)                 = delete;
-    CallbackDispatcher& operator=(CallbackDispatcher&&)      = delete;
+    CallbackDispatcher(CallbackDispatcher&&) = delete;
+    CallbackDispatcher& operator=(CallbackDispatcher&&) = delete;
 
     /// Dispatches @p data to the appropriate handler.
     ///
     /// Always answers the callback query (via the messenger) before returning,
     /// even when the payload is unknown or a handler fails. A failing
     /// acknowledgement is returned only when no other error already exists.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>>
-        dispatch(cmlb::domain::ChatId          chat,
-                 cmlb::domain::UserId          sender,
-                 cmlb::domain::MessageId       msg_id,
-                 cmlb::domain::CallbackQueryId query_id,
-                 std::string                   data);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>> dispatch(
+        cmlb::domain::ChatId chat,
+        cmlb::domain::UserId sender,
+        cmlb::domain::MessageId msg_id,
+        cmlb::domain::CallbackQueryId query_id,
+        std::string data);
 
 private:
     Dependencies deps_;
 };
 
-}  // namespace cmlb::presentation
+} // namespace cmlb::presentation

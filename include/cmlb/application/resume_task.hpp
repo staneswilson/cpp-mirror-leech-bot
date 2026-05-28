@@ -25,8 +25,8 @@ public:
                cmlb::infrastructure::download::DownloaderInterface& qbit,
                cmlb::infrastructure::telegram::MessengerInterface& messenger) noexcept;
 
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>>
-    execute(ResumeTaskRequest request);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>> execute(
+        ResumeTaskRequest request);
 
 private:
     cmlb::infrastructure::persistence::TaskRepository& tasks_;
@@ -35,4 +35,4 @@ private:
     cmlb::infrastructure::telegram::MessengerInterface& messenger_;
 };
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

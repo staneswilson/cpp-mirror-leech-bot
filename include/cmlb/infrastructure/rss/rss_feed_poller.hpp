@@ -8,16 +8,16 @@
 
 namespace cmlb::core {
 class Executor;
-}  // namespace cmlb::core
+} // namespace cmlb::core
 
 namespace cmlb::infrastructure::http {
 class BeastHttpClient;
-}  // namespace cmlb::infrastructure::http
+} // namespace cmlb::infrastructure::http
 
 namespace cmlb::infrastructure::persistence {
 struct RssFeed;
 class RssFeedRepository;
-}  // namespace cmlb::infrastructure::persistence
+} // namespace cmlb::infrastructure::persistence
 
 namespace cmlb::infrastructure::rss {
 
@@ -30,9 +30,8 @@ class RssFeedPoller {
 public:
     /// Async callback fired once per new matching entry. The poller awaits
     /// the callback so handlers can apply back-pressure (e.g. queue depth).
-    using NewEntryHandler = std::function<
-        boost::asio::awaitable<void>(cmlb::infrastructure::persistence::RssFeed,
-                                     RssEntry)>;
+    using NewEntryHandler = std::function<boost::asio::awaitable<void>(
+        cmlb::infrastructure::persistence::RssFeed, RssEntry)>;
 
     RssFeedPoller(cmlb::core::Executor& exec,
                   cmlb::infrastructure::http::BeastHttpClient& http_client,
@@ -41,10 +40,10 @@ public:
 
     ~RssFeedPoller() = default;
 
-    RssFeedPoller(const RssFeedPoller&)            = delete;
+    RssFeedPoller(const RssFeedPoller&) = delete;
     RssFeedPoller& operator=(const RssFeedPoller&) = delete;
-    RssFeedPoller(RssFeedPoller&&)                 = delete;
-    RssFeedPoller& operator=(RssFeedPoller&&)      = delete;
+    RssFeedPoller(RssFeedPoller&&) = delete;
+    RssFeedPoller& operator=(RssFeedPoller&&) = delete;
 
     /// Main loop. Sleeps 1 minute between scans; respects co_await
     /// `this_coro::cancellation_state()` so a parent `co_spawn` with a
@@ -53,13 +52,12 @@ public:
 
 private:
     boost::asio::awaitable<void> poll_once();
-    boost::asio::awaitable<void> process_feed(
-        cmlb::infrastructure::persistence::RssFeed feed);
+    boost::asio::awaitable<void> process_feed(cmlb::infrastructure::persistence::RssFeed feed);
 
-    cmlb::core::Executor*                                exec_;
-    cmlb::infrastructure::http::BeastHttpClient*         http_client_;
+    cmlb::core::Executor* exec_;
+    cmlb::infrastructure::http::BeastHttpClient* http_client_;
     cmlb::infrastructure::persistence::RssFeedRepository* repo_;
-    NewEntryHandler                                      on_new_entry_;
+    NewEntryHandler on_new_entry_;
 };
 
-}  // namespace cmlb::infrastructure::rss
+} // namespace cmlb::infrastructure::rss

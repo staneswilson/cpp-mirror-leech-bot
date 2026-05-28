@@ -38,4 +38,4 @@ private:
     cmlb::infrastructure::persistence::UserSettingsRepository& repo_;
 };
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

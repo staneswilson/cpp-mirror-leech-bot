@@ -60,9 +60,9 @@ private:
     // exposed here so the header stays platform-agnostic.
     struct CpuState;
     mutable std::mutex cpu_mutex_;
-    mutable std::uint64_t prev_idle_ticks_  = 0;
+    mutable std::uint64_t prev_idle_ticks_ = 0;
     mutable std::uint64_t prev_total_ticks_ = 0;
-    mutable bool          has_prev_sample_  = false;
+    mutable bool has_prev_sample_ = false;
 };
 
-}  // namespace cmlb::infrastructure::system
+} // namespace cmlb::infrastructure::system

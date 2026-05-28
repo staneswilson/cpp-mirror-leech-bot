@@ -27,11 +27,16 @@ public:
 
     constexpr explicit StrongId(Underlying value) noexcept(
         std::is_nothrow_move_constructible_v<Underlying>)
-        : value_{std::move(value)} {}
+        : value_{std::move(value)} {
+    }
 
-    [[nodiscard]] constexpr const Underlying& value() const noexcept { return value_; }
+    [[nodiscard]] constexpr const Underlying& value() const noexcept {
+        return value_;
+    }
 
-    [[nodiscard]] constexpr Underlying&& take() && noexcept { return std::move(value_); }
+    [[nodiscard]] constexpr Underlying&& take() && noexcept {
+        return std::move(value_);
+    }
 
     [[nodiscard]] constexpr auto operator<=>(const StrongId&) const noexcept = default;
     [[nodiscard]] constexpr bool operator==(const StrongId&) const noexcept = default;
@@ -61,7 +66,7 @@ using FileId = StrongId<struct FileIdTag, std::int32_t>;
 /// Telegram callback query identifier delivered alongside inline button presses.
 using CallbackQueryId = StrongId<struct CallbackQueryIdTag, std::int64_t>;
 
-}  // namespace cmlb::domain
+} // namespace cmlb::domain
 
 // --------------------------------------------------------------------------
 // std::hash specialization — chained through hash<Underlying> so any StrongId
@@ -71,14 +76,13 @@ namespace std {
 
 template <typename Tag, typename Underlying>
 struct hash<::cmlb::domain::StrongId<Tag, Underlying>> {
-    [[nodiscard]] std::size_t operator()(
-        const ::cmlb::domain::StrongId<Tag, Underlying>& id) const
+    [[nodiscard]] std::size_t operator()(const ::cmlb::domain::StrongId<Tag, Underlying>& id) const
         noexcept(noexcept(std::hash<Underlying>{}(id.value()))) {
         return std::hash<Underlying>{}(id.value());
     }
 };
 
-}  // namespace std
+} // namespace std
 
 // --------------------------------------------------------------------------
 // fmt::formatter specialization — forwards to the underlying value's formatter
@@ -87,13 +91,11 @@ struct hash<::cmlb::domain::StrongId<Tag, Underlying>> {
 namespace fmt {
 
 template <typename Tag, typename Underlying, typename CharT>
-struct formatter<::cmlb::domain::StrongId<Tag, Underlying>, CharT>
-    : formatter<Underlying, CharT> {
+struct formatter<::cmlb::domain::StrongId<Tag, Underlying>, CharT> : formatter<Underlying, CharT> {
     template <typename FormatContext>
-    auto format(const ::cmlb::domain::StrongId<Tag, Underlying>& id,
-                FormatContext& ctx) const {
+    auto format(const ::cmlb::domain::StrongId<Tag, Underlying>& id, FormatContext& ctx) const {
         return formatter<Underlying, CharT>::format(id.value(), ctx);
     }
 };
 
-}  // namespace fmt
+} // namespace fmt

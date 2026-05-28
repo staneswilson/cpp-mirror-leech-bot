@@ -50,11 +50,10 @@ public:
     /// @param throttle         Minimum interval between edits per-chat. Updates
     ///                         issued within this window are coalesced.
     ProgressRenderer(cmlb::infrastructure::telegram::MessengerInterface& messenger,
-                     cmlb::infrastructure::system::SystemMetrics&        metrics,
-                     std::chrono::steady_clock::time_point               bot_start_time,
-                     boost::asio::any_io_executor                        executor,
-                     std::chrono::milliseconds                           throttle =
-                         std::chrono::seconds{3});
+                     cmlb::infrastructure::system::SystemMetrics& metrics,
+                     std::chrono::steady_clock::time_point bot_start_time,
+                     boost::asio::any_io_executor executor,
+                     std::chrono::milliseconds throttle = std::chrono::seconds{3});
 
     ~ProgressRenderer() override;
 
@@ -86,16 +85,15 @@ private:
     /// clicked Refresh and dropping is bad UX). Release is `try_send` from an
     /// RAII guard — `try_send` is non-blocking and always succeeds on a
     /// previously-acquired channel of capacity 1.
-    using RenderSemaphore =
-        boost::asio::experimental::channel<void(boost::system::error_code)>;
+    using RenderSemaphore = boost::asio::experimental::channel<void(boost::system::error_code)>;
 
     /// Cached per-chat state. All mutable fields except `strand` and `sem`
     /// are accessed only while the calling coroutine is dispatched on
     /// `strand`, so they need no further synchronization.
     struct ChatState {
-        cmlb::domain::MessageId                status_message_id{0};
-        std::chrono::steady_clock::time_point  last_edit{};
-        std::string                            last_rendered_html;
+        cmlb::domain::MessageId status_message_id{0};
+        std::chrono::steady_clock::time_point last_edit{};
+        std::string last_rendered_html;
         /// Per-chat serialization strand. shared_ptr so the strand keeps the
         /// chat's `any_io_executor` alive for as long as any render coroutine
         /// suspended on it. Lifetime is otherwise bounded by ProgressRenderer.
@@ -105,7 +103,7 @@ private:
         /// "unlocked" state by `try_send`-ing one token during chat_state()
         /// initialization. heap-allocated so the address survives map
         /// rehashes (callers cache the parent `ChatState*`).
-        std::unique_ptr<RenderSemaphore>       sem;
+        std::unique_ptr<RenderSemaphore> sem;
     };
 
     /// Returns the ChatState for `chat`, creating it on first access. The
@@ -119,23 +117,23 @@ private:
     /// on the strand, making `state` field reads/writes between awaits
     /// strand-serialized. Coalesces against `state.render_in_progress`.
     [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>> do_render_impl(
-        ChatState&                                                      state,
-        cmlb::domain::ChatId                                            chat,
+        ChatState& state,
+        cmlb::domain::ChatId chat,
         std::span<const cmlb::infrastructure::download::DownloadStatus> active);
 
     /// Body of `force_refresh()`, co_spawned on the chat's strand. Waits
     /// for any in-flight render to complete instead of coalescing, because
     /// a user pressing Refresh expects a visible response.
     [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>> do_force_refresh_impl(
-        ChatState&                                                      state,
-        cmlb::domain::ChatId                                            chat,
+        ChatState& state,
+        cmlb::domain::ChatId chat,
         std::span<const cmlb::infrastructure::download::DownloadStatus> active);
 
     cmlb::infrastructure::telegram::MessengerInterface& messenger_;
-    cmlb::infrastructure::system::SystemMetrics&        metrics_;
-    std::chrono::steady_clock::time_point        bot_start_time_;
-    boost::asio::any_io_executor                 executor_;
-    std::chrono::milliseconds                    throttle_;
+    cmlb::infrastructure::system::SystemMetrics& metrics_;
+    std::chrono::steady_clock::time_point bot_start_time_;
+    boost::asio::any_io_executor executor_;
+    std::chrono::milliseconds throttle_;
 
     /// Guards `chats_` insertion / lookup only — per-chat state mutations
     /// happen on the chat's strand. ChatState is heap-allocated so that the
@@ -144,7 +142,8 @@ private:
     std::mutex mutex_;
     std::unordered_map<cmlb::domain::ChatId,
                        std::unique_ptr<ChatState>,
-                       std::hash<cmlb::domain::ChatId>> chats_;
+                       std::hash<cmlb::domain::ChatId>>
+        chats_;
 };
 
-}  // namespace cmlb::presentation
+} // namespace cmlb::presentation

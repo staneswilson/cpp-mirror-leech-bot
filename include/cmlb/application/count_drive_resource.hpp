@@ -34,4 +34,4 @@ private:
     cmlb::infrastructure::telegram::MessengerInterface& messenger_;
 };
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

@@ -36,35 +36,30 @@ public:
 
     ~QbittorrentDownloader() override;
 
-    QbittorrentDownloader(const QbittorrentDownloader&)            = delete;
+    QbittorrentDownloader(const QbittorrentDownloader&) = delete;
     QbittorrentDownloader& operator=(const QbittorrentDownloader&) = delete;
-    QbittorrentDownloader(QbittorrentDownloader&&)                 = delete;
-    QbittorrentDownloader& operator=(QbittorrentDownloader&&)      = delete;
+    QbittorrentDownloader(QbittorrentDownloader&&) = delete;
+    QbittorrentDownloader& operator=(QbittorrentDownloader&&) = delete;
 
-    boost::asio::awaitable<cmlb::core::Result<cmlb::domain::Gid>>
-        add_uri(std::string_view uri, DownloadOptions options) override;
+    boost::asio::awaitable<cmlb::core::Result<cmlb::domain::Gid>> add_uri(
+        std::string_view uri, DownloadOptions options) override;
 
-    boost::asio::awaitable<cmlb::core::Result<cmlb::domain::Gid>>
-        add_torrent(std::span<const std::byte> torrent_data,
-                    DownloadOptions options) override;
+    boost::asio::awaitable<cmlb::core::Result<cmlb::domain::Gid>> add_torrent(
+        std::span<const std::byte> torrent_data, DownloadOptions options) override;
 
-    boost::asio::awaitable<cmlb::core::Result<void>>
-        pause(cmlb::domain::Gid id) override;
+    boost::asio::awaitable<cmlb::core::Result<void>> pause(cmlb::domain::Gid id) override;
 
-    boost::asio::awaitable<cmlb::core::Result<void>>
-        resume(cmlb::domain::Gid id) override;
+    boost::asio::awaitable<cmlb::core::Result<void>> resume(cmlb::domain::Gid id) override;
 
-    boost::asio::awaitable<cmlb::core::Result<void>>
-        remove(cmlb::domain::Gid id, bool delete_files) override;
+    boost::asio::awaitable<cmlb::core::Result<void>> remove(cmlb::domain::Gid id,
+                                                            bool delete_files) override;
 
-    boost::asio::awaitable<cmlb::core::Result<DownloadStatus>>
-        status(cmlb::domain::Gid id) override;
+    boost::asio::awaitable<cmlb::core::Result<DownloadStatus>> status(
+        cmlb::domain::Gid id) override;
 
-    boost::asio::awaitable<cmlb::core::Result<std::vector<DownloadStatus>>>
-        active() override;
+    boost::asio::awaitable<cmlb::core::Result<std::vector<DownloadStatus>>> active() override;
 
-    boost::asio::awaitable<cmlb::core::Result<GlobalStats>>
-        global_stats() override;
+    boost::asio::awaitable<cmlb::core::Result<GlobalStats>> global_stats() override;
 
     [[nodiscard]] bool is_connected() const noexcept override;
     [[nodiscard]] std::string_view client_name() const noexcept override;
@@ -76,4 +71,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace cmlb::infrastructure::download
+} // namespace cmlb::infrastructure::download

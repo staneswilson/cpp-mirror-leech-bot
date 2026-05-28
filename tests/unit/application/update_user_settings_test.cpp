@@ -2,6 +2,8 @@
 // update_user_settings_test.cpp - unit tests for UpdateUserSettings.
 // ---------------------------------------------------------------------------
 
+#include "in_memory_user_settings_repository.hpp"
+
 #include <string>
 #include <utility>
 
@@ -11,10 +13,7 @@
 #include <boost/asio/use_future.hpp>
 
 #include <catch2/catch_test_macros.hpp>
-
 #include <cmlb/application/update_user_settings.hpp>
-
-#include "in_memory_user_settings_repository.hpp"
 
 namespace asio = boost::asio;
 
@@ -37,22 +36,19 @@ auto run_on(asio::io_context& ctx, Factory&& f) {
     return value;
 }
 
-}  // namespace
+} // namespace
 
-TEST_CASE("UpdateUserSettings creates a record on first use",
-          "[application][user_settings]") {
+TEST_CASE("UpdateUserSettings creates a record on first use", "[application][user_settings]") {
     InMemoryUserSettingsRepository repo;
     UpdateUserSettings uc{repo};
 
     asio::io_context ctx;
-    auto result = run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<UserSettingsRecord>> {
-        co_return co_await uc.execute(UpdateUserSettingsRequest{
-            UserId{42},
-            [](UserSettingsRecord& r) {
-                r.upload_as_document = true;
-                r.rclone_remote      = "gdrive:Backups";
-            }});
+    auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<UserSettingsRecord>> {
+        co_return co_await uc.execute(
+            UpdateUserSettingsRequest{UserId{42}, [](UserSettingsRecord& r) {
+                                          r.upload_as_document = true;
+                                          r.rclone_remote = "gdrive:Backups";
+                                      }});
     });
 
     REQUIRE(result.has_value());
@@ -69,22 +65,18 @@ TEST_CASE("UpdateUserSettings updates an existing record in place",
     UpdateUserSettings uc{repo};
 
     asio::io_context ctx;
-    (void)run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<UserSettingsRecord>> {
-        co_return co_await uc.execute(UpdateUserSettingsRequest{
-            UserId{7},
-            [](UserSettingsRecord& r) {
-                r.mirror_destination = UploadDestination::Rclone;
-            }});
+    (void)run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<UserSettingsRecord>> {
+        co_return co_await uc.execute(
+            UpdateUserSettingsRequest{UserId{7}, [](UserSettingsRecord& r) {
+                                          r.mirror_destination = UploadDestination::Rclone;
+                                      }});
     });
 
-    auto result = run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<UserSettingsRecord>> {
-        co_return co_await uc.execute(UpdateUserSettingsRequest{
-            UserId{7},
-            [](UserSettingsRecord& r) {
-                r.gdrive_folder_id = "FOLDER123";
-            }});
+    auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<UserSettingsRecord>> {
+        co_return co_await uc.execute(
+            UpdateUserSettingsRequest{UserId{7}, [](UserSettingsRecord& r) {
+                                          r.gdrive_folder_id = "FOLDER123";
+                                      }});
     });
 
     REQUIRE(result.has_value());
@@ -94,16 +86,13 @@ TEST_CASE("UpdateUserSettings updates an existing record in place",
     CHECK(repo.size() == 1);
 }
 
-TEST_CASE("UpdateUserSettings rejects null mutators",
-          "[application][user_settings]") {
+TEST_CASE("UpdateUserSettings rejects null mutators", "[application][user_settings]") {
     InMemoryUserSettingsRepository repo;
     UpdateUserSettings uc{repo};
 
     asio::io_context ctx;
-    auto result = run_on(ctx, [&]() -> asio::awaitable<
-        cmlb::core::Result<UserSettingsRecord>> {
-        co_return co_await uc.execute(
-            UpdateUserSettingsRequest{UserId{1}, {}});
+    auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<UserSettingsRecord>> {
+        co_return co_await uc.execute(UpdateUserSettingsRequest{UserId{1}, {}});
     });
 
     REQUIRE_FALSE(result.has_value());

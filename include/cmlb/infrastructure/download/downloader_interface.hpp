@@ -112,44 +112,39 @@ class DownloaderInterface {
 public:
     virtual ~DownloaderInterface() = default;
 
-    DownloaderInterface(const DownloaderInterface&)            = delete;
+    DownloaderInterface(const DownloaderInterface&) = delete;
     DownloaderInterface& operator=(const DownloaderInterface&) = delete;
-    DownloaderInterface(DownloaderInterface&&)                 = delete;
-    DownloaderInterface& operator=(DownloaderInterface&&)      = delete;
+    DownloaderInterface(DownloaderInterface&&) = delete;
+    DownloaderInterface& operator=(DownloaderInterface&&) = delete;
 
     /// Enqueues a URL (HTTP/FTP/magnet) for download. Returns the new id.
-    virtual boost::asio::awaitable<cmlb::core::Result<cmlb::domain::Gid>>
-        add_uri(std::string_view uri, DownloadOptions options) = 0;
+    virtual boost::asio::awaitable<cmlb::core::Result<cmlb::domain::Gid>> add_uri(
+        std::string_view uri, DownloadOptions options) = 0;
 
     /// Enqueues a torrent given its raw `.torrent` bytes.
-    virtual boost::asio::awaitable<cmlb::core::Result<cmlb::domain::Gid>>
-        add_torrent(std::span<const std::byte> torrent_data,
-                    DownloadOptions options) = 0;
+    virtual boost::asio::awaitable<cmlb::core::Result<cmlb::domain::Gid>> add_torrent(
+        std::span<const std::byte> torrent_data, DownloadOptions options) = 0;
 
     /// Pauses an active download.
-    virtual boost::asio::awaitable<cmlb::core::Result<void>>
-        pause(cmlb::domain::Gid id) = 0;
+    virtual boost::asio::awaitable<cmlb::core::Result<void>> pause(cmlb::domain::Gid id) = 0;
 
     /// Resumes a paused download.
-    virtual boost::asio::awaitable<cmlb::core::Result<void>>
-        resume(cmlb::domain::Gid id) = 0;
+    virtual boost::asio::awaitable<cmlb::core::Result<void>> resume(cmlb::domain::Gid id) = 0;
 
     /// Removes a download. When `delete_files` is true the on-disk payload
     /// is also unlinked.
-    virtual boost::asio::awaitable<cmlb::core::Result<void>>
-        remove(cmlb::domain::Gid id, bool delete_files) = 0;
+    virtual boost::asio::awaitable<cmlb::core::Result<void>> remove(cmlb::domain::Gid id,
+                                                                    bool delete_files) = 0;
 
     /// Fetches the latest status snapshot for a single download.
-    virtual boost::asio::awaitable<cmlb::core::Result<DownloadStatus>>
-        status(cmlb::domain::Gid id) = 0;
+    virtual boost::asio::awaitable<cmlb::core::Result<DownloadStatus>> status(
+        cmlb::domain::Gid id) = 0;
 
     /// Fetches every currently active (non-terminal) download.
-    virtual boost::asio::awaitable<cmlb::core::Result<std::vector<DownloadStatus>>>
-        active() = 0;
+    virtual boost::asio::awaitable<cmlb::core::Result<std::vector<DownloadStatus>>> active() = 0;
 
     /// Backend-wide stats (aggregate rates, queue lengths).
-    virtual boost::asio::awaitable<cmlb::core::Result<GlobalStats>>
-        global_stats() = 0;
+    virtual boost::asio::awaitable<cmlb::core::Result<GlobalStats>> global_stats() = 0;
 
     /// True when the underlying transport is connected and ready to issue
     /// RPCs.
@@ -164,10 +159,12 @@ public:
     /// here; qBittorrent returns false because torrents need to seed after
     /// the payload completes — kicking off uploads mid-download breaks the
     /// seed-to-ratio guarantee. Defaults to `false`; adapters opt in.
-    [[nodiscard]] virtual bool supports_pipelining() const noexcept { return false; }
+    [[nodiscard]] virtual bool supports_pipelining() const noexcept {
+        return false;
+    }
 
 protected:
     DownloaderInterface() = default;
 };
 
-}  // namespace cmlb::infrastructure::download
+} // namespace cmlb::infrastructure::download

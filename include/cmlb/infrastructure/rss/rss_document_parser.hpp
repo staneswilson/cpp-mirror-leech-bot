@@ -55,4 +55,4 @@ public:
     [[nodiscard]] static cmlb::core::Result<RssDocument> parse(std::string_view xml);
 };
 
-}  // namespace cmlb::infrastructure::rss
+} // namespace cmlb::infrastructure::rss

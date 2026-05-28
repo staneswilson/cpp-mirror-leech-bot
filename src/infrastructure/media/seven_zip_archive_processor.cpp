@@ -1,5 +1,3 @@
-#include <cmlb/infrastructure/media/seven_zip_archive_processor.hpp>
-
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -15,6 +13,7 @@
 
 #include <cmlb/core/error.hpp>
 #include <cmlb/core/logger.hpp>
+#include <cmlb/infrastructure/media/seven_zip_archive_processor.hpp>
 #include <cmlb/infrastructure/system/subprocess.hpp>
 
 namespace cmlb::infrastructure::media {
@@ -22,10 +21,10 @@ namespace cmlb::infrastructure::media {
 namespace {
 
 namespace asio = boost::asio;
-using cmlb::core::ErrorCode;
-using cmlb::core::Result;
 using cmlb::core::error;
+using cmlb::core::ErrorCode;
 using cmlb::core::Logger;
+using cmlb::core::Result;
 using cmlb::infrastructure::system::Subprocess;
 using cmlb::infrastructure::system::SubprocessRequest;
 using cmlb::infrastructure::system::SubprocessResult;
@@ -42,12 +41,21 @@ using cmlb::infrastructure::system::SubprocessResult;
 /// (`.tar.gz`, etc.) must be matched against the *full* filename, not just
 /// `path.extension()`, so we keep them separate.
 constexpr std::array kSingleExtensions{
-    ".zip", ".rar", ".7z", ".tar", ".gz", ".tgz",
-    ".bz2", ".xz",  ".iso",
+    ".zip",
+    ".rar",
+    ".7z",
+    ".tar",
+    ".gz",
+    ".tgz",
+    ".bz2",
+    ".xz",
+    ".iso",
 };
 
 constexpr std::array kCompoundSuffixes{
-    ".tar.gz", ".tar.bz2", ".tar.xz",
+    ".tar.gz",
+    ".tar.bz2",
+    ".tar.xz",
 };
 
 [[nodiscard]] bool ends_with(std::string_view text, std::string_view suffix) noexcept {
@@ -55,38 +63,39 @@ constexpr std::array kCompoundSuffixes{
            && text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-asio::awaitable<Result<SubprocessResult>> run_subprocess(
-    Subprocess& subprocess,
-    SubprocessRequest req,
-    ErrorCode failure_code) {
+asio::awaitable<Result<SubprocessResult>> run_subprocess(Subprocess& subprocess,
+                                                         SubprocessRequest req,
+                                                         ErrorCode failure_code) {
     auto result = co_await subprocess.run(std::move(req));
     if (!result) {
         co_return std::unexpected(result.error());
     }
     if (result->exit_code != 0) {
-        Logger::warn("[archive] 7z exited with code {}: {}",
-                     result->exit_code, result->stderr_data);
+        Logger::warn(
+            "[archive] 7z exited with code {}: {}", result->exit_code, result->stderr_data);
         co_return error(failure_code,
-                        "7z exited with code "
-                            + std::to_string(result->exit_code)
-                            + ": " + result->stderr_data);
+                        "7z exited with code " + std::to_string(result->exit_code) + ": "
+                            + result->stderr_data);
     }
     co_return std::move(*result);
 }
 
-}  // namespace
+} // namespace
 
 SevenZipArchiveProcessor::SevenZipArchiveProcessor(Subprocess& subprocess,
                                                    std::filesystem::path seven_zip_path)
-    : subprocess_{&subprocess}, seven_zip_path_{std::move(seven_zip_path)} {}
+    : subprocess_{&subprocess}, seven_zip_path_{std::move(seven_zip_path)} {
+}
 
 bool SevenZipArchiveProcessor::can_handle(std::filesystem::path archive) const noexcept {
     const auto name = ascii_lower(archive.filename().string());
     for (const auto& suf : kCompoundSuffixes) {
-        if (ends_with(name, suf)) return true;
+        if (ends_with(name, suf))
+            return true;
     }
     for (const auto& ext : kSingleExtensions) {
-        if (ends_with(name, ext)) return true;
+        if (ends_with(name, ext))
+            return true;
     }
     return false;
 }
@@ -95,7 +104,6 @@ asio::awaitable<Result<std::vector<std::filesystem::path>>> SevenZipArchiveProce
     std::filesystem::path archive,
     std::filesystem::path output_dir,
     ArchiveExtractOptions options) {
-
     std::error_code ec;
     std::filesystem::create_directories(output_dir, ec);
     if (ec) {
@@ -120,8 +128,8 @@ asio::awaitable<Result<std::vector<std::filesystem::path>>> SevenZipArchiveProce
     }
     req.arguments.emplace_back(archive.string());
 
-    auto run_result = co_await run_subprocess(*subprocess_, std::move(req),
-                                              ErrorCode::ArchiveProcessing);
+    auto run_result =
+        co_await run_subprocess(*subprocess_, std::move(req), ErrorCode::ArchiveProcessing);
     if (!run_result) {
         co_return std::unexpected(run_result.error());
     }
@@ -132,7 +140,8 @@ asio::awaitable<Result<std::vector<std::filesystem::path>>> SevenZipArchiveProce
              output_dir, std::filesystem::directory_options::skip_permission_denied, ec);
          !ec && it != std::filesystem::recursive_directory_iterator{};
          it.increment(ec)) {
-        if (ec) break;
+        if (ec)
+            break;
         if (it->is_regular_file(ec)) {
             produced.emplace_back(it->path());
         }
@@ -144,7 +153,6 @@ asio::awaitable<Result<std::filesystem::path>> SevenZipArchiveProcessor::create_
     std::filesystem::path output,
     std::vector<std::filesystem::path> inputs,
     ArchiveCreateOptions options) {
-
     if (inputs.empty()) {
         co_return error(ErrorCode::InvalidArgument,
                         "create_archive requires at least one input path");
@@ -163,8 +171,7 @@ asio::awaitable<Result<std::filesystem::path>> SevenZipArchiveProcessor::create_
         }
     }
     if (options.split_volume_size) {
-        req.arguments.emplace_back(
-            "-v" + std::to_string(options.split_volume_size->bytes()) + "b");
+        req.arguments.emplace_back("-v" + std::to_string(options.split_volume_size->bytes()) + "b");
     }
     req.arguments.emplace_back("-mx=" + std::to_string(level));
     req.arguments.emplace_back(output.string());
@@ -172,8 +179,8 @@ asio::awaitable<Result<std::filesystem::path>> SevenZipArchiveProcessor::create_
         req.arguments.emplace_back(input.string());
     }
 
-    auto run_result = co_await run_subprocess(*subprocess_, std::move(req),
-                                              ErrorCode::ArchiveProcessing);
+    auto run_result =
+        co_await run_subprocess(*subprocess_, std::move(req), ErrorCode::ArchiveProcessing);
     if (!run_result) {
         co_return std::unexpected(run_result.error());
     }
@@ -181,19 +188,17 @@ asio::awaitable<Result<std::filesystem::path>> SevenZipArchiveProcessor::create_
 }
 
 asio::awaitable<Result<std::vector<std::string>>> SevenZipArchiveProcessor::list_contents(
-    std::filesystem::path archive,
-    std::optional<std::string> password) {
-
+    std::filesystem::path archive, std::optional<std::string> password) {
     SubprocessRequest req{};
     req.executable = seven_zip_path_;
-    req.arguments  = {"l", "-slt", "-y"};
+    req.arguments = {"l", "-slt", "-y"};
     if (password) {
         req.arguments.emplace_back("-p" + *password);
     }
     req.arguments.emplace_back(archive.string());
 
-    auto run_result = co_await run_subprocess(*subprocess_, std::move(req),
-                                              ErrorCode::ArchiveProcessing);
+    auto run_result =
+        co_await run_subprocess(*subprocess_, std::move(req), ErrorCode::ArchiveProcessing);
     if (!run_result) {
         co_return std::unexpected(run_result.error());
     }
@@ -209,7 +214,8 @@ asio::awaitable<Result<std::vector<std::string>>> SevenZipArchiveProcessor::list
         const auto eol = text.find('\n', pos);
         const auto line_end = (eol == std::string_view::npos) ? text.size() : eol;
         std::string_view line = text.substr(pos, line_end - pos);
-        if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
+        if (!line.empty() && line.back() == '\r')
+            line.remove_suffix(1);
 
         constexpr std::string_view kPrefix = "Path = ";
         if (line.starts_with(kPrefix)) {
@@ -226,4 +232,4 @@ asio::awaitable<Result<std::vector<std::string>>> SevenZipArchiveProcessor::list
     co_return entries;
 }
 
-}  // namespace cmlb::infrastructure::media
+} // namespace cmlb::infrastructure::media

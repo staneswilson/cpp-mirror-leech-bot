@@ -10,17 +10,16 @@ namespace cmlb::infrastructure::persistence {
 
 class SqliteBotSettingsRepository final : public BotSettingsRepository {
 public:
-    explicit SqliteBotSettingsRepository(SqliteConnectionPool& pool) noexcept
-        : pool_{pool} {}
+    explicit SqliteBotSettingsRepository(SqliteConnectionPool& pool) noexcept : pool_{pool} {
+    }
 
-    [[nodiscard]] boost::asio::awaitable<core::Result<BotSettingsRecord>>
-    load() override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<BotSettingsRecord>> load() override;
 
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-    save(BotSettingsRecord record) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> save(
+        BotSettingsRecord record) override;
 
 private:
     SqliteConnectionPool& pool_;
 };
 
-}  // namespace cmlb::infrastructure::persistence
+} // namespace cmlb::infrastructure::persistence

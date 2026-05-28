@@ -108,7 +108,8 @@ struct AppError {
     AppError(ErrorCode code_,
              std::string message_,
              std::source_location loc = std::source_location::current()) noexcept
-        : code{code_}, message{std::move(message_)}, location{loc} {}
+        : code{code_}, message{std::move(message_)}, location{loc} {
+    }
 };
 
 /// Stream formatter: `"code(Name): message at file:line"`.
@@ -121,11 +122,10 @@ using Result = std::expected<T, AppError>;
 /// Builds an `std::unexpected<AppError>` capturing the call site.
 ///
 /// Use as: `return cmlb::core::error(ErrorCode::Network, "connect failed");`.
-[[nodiscard]] inline auto error(
-    ErrorCode code,
-    std::string msg,
-    std::source_location loc = std::source_location::current()) {
+[[nodiscard]] inline auto error(ErrorCode code,
+                                std::string msg,
+                                std::source_location loc = std::source_location::current()) {
     return std::unexpected(AppError{code, std::move(msg), loc});
 }
 
-}  // namespace cmlb::core
+} // namespace cmlb::core

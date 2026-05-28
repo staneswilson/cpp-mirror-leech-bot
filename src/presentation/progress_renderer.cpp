@@ -27,8 +27,6 @@
 //     cancellation propagates naturally as an exception from `async_receive`.
 // ---------------------------------------------------------------------------
 
-#include <cmlb/presentation/progress_renderer.hpp>
-
 #include <chrono>
 #include <memory>
 #include <mutex>
@@ -43,6 +41,7 @@
 
 #include <cmlb/core/logger.hpp>
 #include <cmlb/presentation/html_renderer.hpp>
+#include <cmlb/presentation/progress_renderer.hpp>
 
 namespace cmlb::presentation {
 
@@ -52,8 +51,7 @@ using cmlb::core::Result;
 
 namespace {
 
-using SemChannel =
-    boost::asio::experimental::channel<void(boost::system::error_code)>;
+using SemChannel = boost::asio::experimental::channel<void(boost::system::error_code)>;
 
 /// RAII release for the per-chat render semaphore. `try_send` is
 /// non-blocking and always succeeds on a capacity-1 channel whose token we
@@ -61,36 +59,38 @@ using SemChannel =
 /// associated executor IS the strand — no extra synchronization needed.
 struct SemReleaseGuard {
     SemChannel& sem;
-    ~SemReleaseGuard() { sem.try_send(boost::system::error_code{}); }
+
+    ~SemReleaseGuard() {
+        sem.try_send(boost::system::error_code{});
+    }
 };
 
-}  // namespace
+} // namespace
 
-ProgressRenderer::ProgressRenderer(
-    cmlb::infrastructure::telegram::MessengerInterface& messenger,
-    cmlb::infrastructure::system::SystemMetrics&        metrics,
-    std::chrono::steady_clock::time_point               bot_start_time,
-    boost::asio::any_io_executor                        executor,
-    std::chrono::milliseconds                           throttle)
+ProgressRenderer::ProgressRenderer(cmlb::infrastructure::telegram::MessengerInterface& messenger,
+                                   cmlb::infrastructure::system::SystemMetrics& metrics,
+                                   std::chrono::steady_clock::time_point bot_start_time,
+                                   boost::asio::any_io_executor executor,
+                                   std::chrono::milliseconds throttle)
     : messenger_{messenger},
       metrics_{metrics},
       bot_start_time_{bot_start_time},
       executor_{std::move(executor)},
-      throttle_{throttle} {}
+      throttle_{throttle} {
+}
 
 ProgressRenderer::~ProgressRenderer() = default;
 
-ProgressRenderer::ChatState&
-ProgressRenderer::chat_state(cmlb::domain::ChatId chat) {
+ProgressRenderer::ChatState& ProgressRenderer::chat_state(cmlb::domain::ChatId chat) {
     // Get-or-create under the map mutex. ChatState lives on the heap
     // (unique_ptr) so the reference we return remains valid across
     // subsequent rehashes of `chats_` — callers cache it.
     std::scoped_lock guard{mutex_};
     auto& slot = chats_[chat];
     if (!slot) {
-        slot         = std::make_unique<ChatState>();
-        slot->strand = std::make_shared<asio::strand<asio::any_io_executor>>(
-            asio::make_strand(executor_));
+        slot = std::make_unique<ChatState>();
+        slot->strand =
+            std::make_shared<asio::strand<asio::any_io_executor>>(asio::make_strand(executor_));
         // Construct the 1-slot async mutex on the chat's strand and pre-fill
         // its single token so the first acquirer succeeds immediately. Safe
         // to mutate from here: no other coroutine has yet observed `*slot`.
@@ -100,22 +100,19 @@ ProgressRenderer::chat_state(cmlb::domain::ChatId chat) {
     return *slot;
 }
 
-asio::awaitable<Result<void>>
-ProgressRenderer::render(
+asio::awaitable<Result<void>> ProgressRenderer::render(
     cmlb::domain::ChatId chat,
     std::span<const cmlb::infrastructure::download::DownloadStatus> active) {
-    auto& state  = chat_state(chat);
-    auto  strand = state.strand;
+    auto& state = chat_state(chat);
+    auto strand = state.strand;
     co_return co_await asio::co_spawn(
         *strand, do_render_impl(state, chat, active), asio::use_awaitable);
 }
 
-asio::awaitable<Result<void>>
-ProgressRenderer::do_render_impl(
-    ChatState&                                                      state,
-    cmlb::domain::ChatId                                            chat,
+asio::awaitable<Result<void>> ProgressRenderer::do_render_impl(
+    ChatState& state,
+    cmlb::domain::ChatId chat,
     std::span<const cmlb::infrastructure::download::DownloadStatus> active) {
-
     // Running with associated executor = state.strand. All state field
     // reads/writes and every co_await below are strand-serialized.
 
@@ -123,8 +120,8 @@ ProgressRenderer::do_render_impl(
     // Non-blocking acquire: `try_receive` returns true iff it consumed a
     // token. If false, another render is mid-flight — drop and rely on the
     // next polling tick (the throttle window bounds staleness).
-    const bool acquired = state.sem->try_receive(
-        [](boost::system::error_code, auto&&...) {});
+    const bool acquired = state.sem->try_receive([](boost::system::error_code, auto&&...) {
+    });
     if (!acquired) {
         co_return Result<void>{};
     }
@@ -132,14 +129,13 @@ ProgressRenderer::do_render_impl(
 
     // ----- 1. Build the current rendering ---------------------------------
     const auto snapshot = metrics_.snapshot();
-    const auto uptime   = std::chrono::duration_cast<std::chrono::seconds>(
+    const auto uptime = std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::steady_clock::now() - bot_start_time_);
 
-    std::string html = active.empty()
-        ? HtmlRenderer::render_no_active_tasks(snapshot, uptime)
-        : HtmlRenderer::render_status(active, snapshot, uptime);
+    std::string html = active.empty() ? HtmlRenderer::render_no_active_tasks(snapshot, uptime)
+                                      : HtmlRenderer::render_status(active, snapshot, uptime);
 
-    const auto now          = std::chrono::steady_clock::now();
+    const auto now = std::chrono::steady_clock::now();
     const bool have_message = state.status_message_id.value() != 0;
 
     // ----- 2. Throttle: skip if within throttle window --------------------
@@ -155,58 +151,56 @@ ProgressRenderer::do_render_impl(
     // ----- 4. Either edit the existing message or send a new one ----------
     if (!have_message) {
         auto send = co_await messenger_.send_html_with_keyboard(
-            chat, html,
-            cmlb::infrastructure::telegram::Messenger::refresh_close_row(
-                "status:refresh"));
+            chat,
+            html,
+            cmlb::infrastructure::telegram::Messenger::refresh_close_row("status:refresh"));
         if (!send) {
             co_return std::unexpected(send.error());
         }
-        state.status_message_id  = *send;
-        state.last_edit          = now;
+        state.status_message_id = *send;
+        state.last_edit = now;
         state.last_rendered_html = std::move(html);
         co_return Result<void>{};
     }
 
     const auto cached_id = state.status_message_id;
-    auto       edit      = co_await messenger_.edit_html(chat, cached_id, html);
+    auto edit = co_await messenger_.edit_html(chat, cached_id, html);
     if (!edit) {
-        Logger::debug(
-            "progress: edit failed for chat={} (msg={}): {}. Sending fresh message.",
-            chat.value(), cached_id.value(), edit.error().message);
+        Logger::debug("progress: edit failed for chat={} (msg={}): {}. Sending fresh message.",
+                      chat.value(),
+                      cached_id.value(),
+                      edit.error().message);
         auto send = co_await messenger_.send_html_with_keyboard(
-            chat, html,
-            cmlb::infrastructure::telegram::Messenger::refresh_close_row(
-                "status:refresh"));
+            chat,
+            html,
+            cmlb::infrastructure::telegram::Messenger::refresh_close_row("status:refresh"));
         if (!send) {
             co_return std::unexpected(send.error());
         }
-        state.status_message_id  = *send;
-        state.last_edit          = now;
+        state.status_message_id = *send;
+        state.last_edit = now;
         state.last_rendered_html = std::move(html);
         co_return Result<void>{};
     }
 
-    state.last_edit          = now;
+    state.last_edit = now;
     state.last_rendered_html = std::move(html);
     co_return Result<void>{};
 }
 
-asio::awaitable<Result<void>>
-ProgressRenderer::force_refresh(
+asio::awaitable<Result<void>> ProgressRenderer::force_refresh(
     cmlb::domain::ChatId chat,
     std::span<const cmlb::infrastructure::download::DownloadStatus> active) {
-    auto& state  = chat_state(chat);
-    auto  strand = state.strand;
+    auto& state = chat_state(chat);
+    auto strand = state.strand;
     co_return co_await asio::co_spawn(
         *strand, do_force_refresh_impl(state, chat, active), asio::use_awaitable);
 }
 
-asio::awaitable<Result<void>>
-ProgressRenderer::do_force_refresh_impl(
-    ChatState&                                                      state,
-    cmlb::domain::ChatId                                            chat,
+asio::awaitable<Result<void>> ProgressRenderer::do_force_refresh_impl(
+    ChatState& state,
+    cmlb::domain::ChatId chat,
     std::span<const cmlb::infrastructure::download::DownloadStatus> active) {
-
     // Blocking acquire: wait until the in-flight render releases the token.
     // Force-refresh is user-clicked, so dropping is bad UX. The await suspends
     // on the channel rather than busy-polling, and caller-side cancellation
@@ -216,25 +210,22 @@ ProgressRenderer::do_force_refresh_impl(
     SemReleaseGuard guard{*state.sem};
 
     const auto snapshot = metrics_.snapshot();
-    const auto uptime   = std::chrono::duration_cast<std::chrono::seconds>(
+    const auto uptime = std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::steady_clock::now() - bot_start_time_);
 
-    std::string html = active.empty()
-        ? HtmlRenderer::render_no_active_tasks(snapshot, uptime)
-        : HtmlRenderer::render_status(active, snapshot, uptime);
+    std::string html = active.empty() ? HtmlRenderer::render_no_active_tasks(snapshot, uptime)
+                                      : HtmlRenderer::render_status(active, snapshot, uptime);
 
     auto send = co_await messenger_.send_html_with_keyboard(
-        chat, html,
-        cmlb::infrastructure::telegram::Messenger::refresh_close_row(
-            "status:refresh"));
+        chat, html, cmlb::infrastructure::telegram::Messenger::refresh_close_row("status:refresh"));
     if (!send) {
         co_return std::unexpected(send.error());
     }
 
-    state.status_message_id  = *send;
-    state.last_edit          = std::chrono::steady_clock::now();
+    state.status_message_id = *send;
+    state.last_edit = std::chrono::steady_clock::now();
     state.last_rendered_html = std::move(html);
     co_return Result<void>{};
 }
 
-}  // namespace cmlb::presentation
+} // namespace cmlb::presentation

@@ -31,10 +31,10 @@ public:
 
     ~AuthenticationFlow() = default;
 
-    AuthenticationFlow(const AuthenticationFlow&)            = delete;
+    AuthenticationFlow(const AuthenticationFlow&) = delete;
     AuthenticationFlow& operator=(const AuthenticationFlow&) = delete;
-    AuthenticationFlow(AuthenticationFlow&&)                 = delete;
-    AuthenticationFlow& operator=(AuthenticationFlow&&)      = delete;
+    AuthenticationFlow(AuthenticationFlow&&) = delete;
+    AuthenticationFlow& operator=(AuthenticationFlow&&) = delete;
 
     /// Walks the auth state machine to `Ready`. Returns success once the bot
     /// is fully authorised, or an `AppError` carrying the failure reason. The
@@ -47,4 +47,4 @@ private:
     core::TelegramConfig config_;
 };
 
-}  // namespace cmlb::infrastructure::telegram
+} // namespace cmlb::infrastructure::telegram

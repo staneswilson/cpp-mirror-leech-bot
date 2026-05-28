@@ -15,8 +15,6 @@
 // and contributes zero rather than aborting the snapshot.
 // ---------------------------------------------------------------------------
 
-#include <cmlb/infrastructure/system/system_metrics.hpp>
-
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
@@ -27,18 +25,19 @@
 #include <system_error>
 
 #include <cmlb/core/logger.hpp>
+#include <cmlb/infrastructure/system/system_metrics.hpp>
 
 #if defined(__linux__)
-#  include <sys/statvfs.h>
-#  include <sys/sysinfo.h>
-#  include <unistd.h>
+#include <sys/statvfs.h>
+#include <sys/sysinfo.h>
+#include <unistd.h>
 #elif defined(__APPLE__)
-#  include <mach/mach.h>
-#  include <mach/mach_host.h>
-#  include <mach/vm_statistics.h>
-#  include <sys/statvfs.h>
-#  include <sys/sysctl.h>
-#  include <unistd.h>
+#include <mach/mach.h>
+#include <mach/mach_host.h>
+#include <mach/vm_statistics.h>
+#include <sys/statvfs.h>
+#include <sys/sysctl.h>
+#include <unistd.h>
 #elif defined(_WIN32)
 // clang-format off
 #  ifndef WIN32_LEAN_AND_MEAN
@@ -64,8 +63,7 @@ namespace {
 bool read_cpu_ticks(std::uint64_t& idle_out, std::uint64_t& total_out) {
     std::ifstream stat{"/proc/stat"};
     if (!stat) {
-        cmlb::core::Logger::warn(
-            "SystemMetrics: failed to open /proc/stat; reporting zero CPU%");
+        cmlb::core::Logger::warn("SystemMetrics: failed to open /proc/stat; reporting zero CPU%");
         return false;
     }
     std::string label;
@@ -75,9 +73,8 @@ bool read_cpu_ticks(std::uint64_t& idle_out, std::uint64_t& total_out) {
     }
     std::uint64_t user = 0, nice = 0, system = 0, idle = 0;
     std::uint64_t iowait = 0, irq = 0, softirq = 0, steal = 0;
-    stat >> user >> nice >> system >> idle >> iowait
-        >> irq >> softirq >> steal;
-    idle_out  = idle + iowait;
+    stat >> user >> nice >> system >> idle >> iowait >> irq >> softirq >> steal;
+    idle_out = idle + iowait;
     total_out = user + nice + system + idle + iowait + irq + softirq + steal;
     return true;
 }
@@ -85,8 +82,7 @@ bool read_cpu_ticks(std::uint64_t& idle_out, std::uint64_t& total_out) {
 void read_memory_linux(std::int64_t& used, std::int64_t& total) {
     std::ifstream f{"/proc/meminfo"};
     if (!f) {
-        cmlb::core::Logger::warn(
-            "SystemMetrics: failed to open /proc/meminfo");
+        cmlb::core::Logger::warn("SystemMetrics: failed to open /proc/meminfo");
         return;
     }
     std::int64_t total_kb = 0;
@@ -102,7 +98,7 @@ void read_memory_linux(std::int64_t& used, std::int64_t& total) {
         }
     }
     total = total_kb * 1024;
-    used  = (total_kb - avail_kb) * 1024;
+    used = (total_kb - avail_kb) * 1024;
     if (used < 0) {
         used = 0;
     }
@@ -123,17 +119,14 @@ std::chrono::seconds read_system_uptime_linux() {
 bool read_cpu_ticks_mac(std::uint64_t& idle_out, std::uint64_t& total_out) {
     host_cpu_load_info_data_t info;
     mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
-    if (host_statistics(mach_host_self(),
-                        HOST_CPU_LOAD_INFO,
-                        reinterpret_cast<host_info_t>(&info),
-                        &count) != KERN_SUCCESS) {
+    if (host_statistics(
+            mach_host_self(), HOST_CPU_LOAD_INFO, reinterpret_cast<host_info_t>(&info), &count)
+        != KERN_SUCCESS) {
         return false;
     }
     idle_out = info.cpu_ticks[CPU_STATE_IDLE];
-    total_out = info.cpu_ticks[CPU_STATE_USER]
-                + info.cpu_ticks[CPU_STATE_SYSTEM]
-                + info.cpu_ticks[CPU_STATE_NICE]
-                + info.cpu_ticks[CPU_STATE_IDLE];
+    total_out = info.cpu_ticks[CPU_STATE_USER] + info.cpu_ticks[CPU_STATE_SYSTEM]
+                + info.cpu_ticks[CPU_STATE_NICE] + info.cpu_ticks[CPU_STATE_IDLE];
     return true;
 }
 
@@ -147,12 +140,11 @@ void read_memory_mac(std::int64_t& used, std::int64_t& total) {
     host_page_size(mach_host_self(), &page_size);
     vm_statistics64_data_t vm;
     mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
-    if (host_statistics64(mach_host_self(),
-                          HOST_VM_INFO64,
-                          reinterpret_cast<host_info64_t>(&vm),
-                          &count) == KERN_SUCCESS) {
-        const std::int64_t free_pages = static_cast<std::int64_t>(vm.free_count)
-                                        + vm.inactive_count;
+    if (host_statistics64(
+            mach_host_self(), HOST_VM_INFO64, reinterpret_cast<host_info64_t>(&vm), &count)
+        == KERN_SUCCESS) {
+        const std::int64_t free_pages =
+            static_cast<std::int64_t>(vm.free_count) + vm.inactive_count;
         used = total - free_pages * static_cast<std::int64_t>(page_size);
         if (used < 0) {
             used = 0;
@@ -162,6 +154,7 @@ void read_memory_mac(std::int64_t& used, std::int64_t& total) {
 
 std::chrono::seconds read_system_uptime_mac() {
     struct timeval boot {};
+
     int mib[2] = {CTL_KERN, KERN_BOOTTIME};
     std::size_t size = sizeof(boot);
     if (sysctl(mib, 2, &boot, &size, nullptr, 0) != 0) {
@@ -176,7 +169,7 @@ std::chrono::seconds read_system_uptime_mac() {
 
 std::uint64_t filetime_to_uint64(const FILETIME& ft) {
     ULARGE_INTEGER u;
-    u.LowPart  = ft.dwLowDateTime;
+    u.LowPart = ft.dwLowDateTime;
     u.HighPart = ft.dwHighDateTime;
     return u.QuadPart;
 }
@@ -184,15 +177,14 @@ std::uint64_t filetime_to_uint64(const FILETIME& ft) {
 bool read_cpu_ticks_win(std::uint64_t& idle_out, std::uint64_t& total_out) {
     FILETIME idle_ft{}, kernel_ft{}, user_ft{};
     if (!GetSystemTimes(&idle_ft, &kernel_ft, &user_ft)) {
-        cmlb::core::Logger::warn(
-            "SystemMetrics: GetSystemTimes failed; reporting zero CPU%");
+        cmlb::core::Logger::warn("SystemMetrics: GetSystemTimes failed; reporting zero CPU%");
         return false;
     }
-    const auto idle   = filetime_to_uint64(idle_ft);
+    const auto idle = filetime_to_uint64(idle_ft);
     const auto kernel = filetime_to_uint64(kernel_ft);
-    const auto user   = filetime_to_uint64(user_ft);
-    idle_out  = idle;
-    total_out = kernel + user;  // kernel includes idle on Windows
+    const auto user = filetime_to_uint64(user_ft);
+    idle_out = idle;
+    total_out = kernel + user; // kernel includes idle on Windows
     return true;
 }
 
@@ -200,12 +192,11 @@ void read_memory_win(std::int64_t& used, std::int64_t& total) {
     MEMORYSTATUSEX ms;
     ms.dwLength = sizeof(ms);
     if (!GlobalMemoryStatusEx(&ms)) {
-        cmlb::core::Logger::warn(
-            "SystemMetrics: GlobalMemoryStatusEx failed");
+        cmlb::core::Logger::warn("SystemMetrics: GlobalMemoryStatusEx failed");
         return;
     }
     total = static_cast<std::int64_t>(ms.ullTotalPhys);
-    used  = static_cast<std::int64_t>(ms.ullTotalPhys - ms.ullAvailPhys);
+    used = static_cast<std::int64_t>(ms.ullTotalPhys - ms.ullAvailPhys);
 }
 
 std::chrono::seconds read_system_uptime_win() {
@@ -224,26 +215,23 @@ void read_disk(std::int64_t& used, std::int64_t& total) {
     auto info = std::filesystem::space(cwd, ec);
     if (ec) {
         cmlb::core::Logger::warn(
-            "SystemMetrics: filesystem::space failed for '{}': {}",
-            cwd.string(),
-            ec.message());
+            "SystemMetrics: filesystem::space failed for '{}': {}", cwd.string(), ec.message());
         return;
     }
     total = static_cast<std::int64_t>(info.capacity);
-    used  = static_cast<std::int64_t>(info.capacity - info.available);
+    used = static_cast<std::int64_t>(info.capacity - info.available);
     if (used < 0) {
         used = 0;
     }
 }
 
-}  // namespace
+} // namespace
 
 // ---------------------------------------------------------------------------
 // SystemMetrics
 // ---------------------------------------------------------------------------
 
-SystemMetrics::SystemMetrics()
-    : start_time_{std::chrono::steady_clock::now()} {
+SystemMetrics::SystemMetrics() : start_time_{std::chrono::steady_clock::now()} {
     // Prime the CPU baseline so the next snapshot returns a real delta.
     std::lock_guard lock{cpu_mutex_};
 #if defined(__linux__)
@@ -265,9 +253,12 @@ SystemSnapshot SystemMetrics::snapshot() const {
 #if defined(__linux__) || defined(__APPLE__)
     double loads[3] = {0.0, 0.0, 0.0};
     const int n = ::getloadavg(loads, 3);
-    if (n >= 1) snap.load_average_1m  = loads[0];
-    if (n >= 2) snap.load_average_5m  = loads[1];
-    if (n >= 3) snap.load_average_15m = loads[2];
+    if (n >= 1)
+        snap.load_average_1m = loads[0];
+    if (n >= 2)
+        snap.load_average_5m = loads[1];
+    if (n >= 3)
+        snap.load_average_15m = loads[2];
 #endif
 
 #if defined(__linux__)
@@ -275,16 +266,15 @@ SystemSnapshot SystemMetrics::snapshot() const {
         std::lock_guard lock{cpu_mutex_};
         std::uint64_t idle = 0, total = 0;
         if (read_cpu_ticks(idle, total) && has_prev_sample_) {
-            const auto d_idle  = idle  - prev_idle_ticks_;
+            const auto d_idle = idle - prev_idle_ticks_;
             const auto d_total = total - prev_total_ticks_;
             if (d_total > 0) {
                 snap.cpu_usage_percent =
-                    100.0 * static_cast<double>(d_total - d_idle)
-                          / static_cast<double>(d_total);
+                    100.0 * static_cast<double>(d_total - d_idle) / static_cast<double>(d_total);
             }
-            prev_idle_ticks_  = idle;
+            prev_idle_ticks_ = idle;
             prev_total_ticks_ = total;
-            has_prev_sample_  = true;
+            has_prev_sample_ = true;
         }
     }
     read_memory_linux(snap.ram_used_bytes, snap.ram_total_bytes);
@@ -294,16 +284,15 @@ SystemSnapshot SystemMetrics::snapshot() const {
         std::lock_guard lock{cpu_mutex_};
         std::uint64_t idle = 0, total = 0;
         if (read_cpu_ticks_mac(idle, total) && has_prev_sample_) {
-            const auto d_idle  = idle  - prev_idle_ticks_;
+            const auto d_idle = idle - prev_idle_ticks_;
             const auto d_total = total - prev_total_ticks_;
             if (d_total > 0) {
                 snap.cpu_usage_percent =
-                    100.0 * static_cast<double>(d_total - d_idle)
-                          / static_cast<double>(d_total);
+                    100.0 * static_cast<double>(d_total - d_idle) / static_cast<double>(d_total);
             }
-            prev_idle_ticks_  = idle;
+            prev_idle_ticks_ = idle;
             prev_total_ticks_ = total;
-            has_prev_sample_  = true;
+            has_prev_sample_ = true;
         }
     }
     read_memory_mac(snap.ram_used_bytes, snap.ram_total_bytes);
@@ -313,16 +302,15 @@ SystemSnapshot SystemMetrics::snapshot() const {
         std::lock_guard lock{cpu_mutex_};
         std::uint64_t idle = 0, total = 0;
         if (read_cpu_ticks_win(idle, total) && has_prev_sample_) {
-            const auto d_idle  = idle  - prev_idle_ticks_;
+            const auto d_idle = idle - prev_idle_ticks_;
             const auto d_total = total - prev_total_ticks_;
             if (d_total > 0) {
                 snap.cpu_usage_percent =
-                    100.0 * static_cast<double>(d_total - d_idle)
-                          / static_cast<double>(d_total);
+                    100.0 * static_cast<double>(d_total - d_idle) / static_cast<double>(d_total);
             }
-            prev_idle_ticks_  = idle;
+            prev_idle_ticks_ = idle;
             prev_total_ticks_ = total;
-            has_prev_sample_  = true;
+            has_prev_sample_ = true;
         }
     }
     read_memory_win(snap.ram_used_bytes, snap.ram_total_bytes);
@@ -334,4 +322,4 @@ SystemSnapshot SystemMetrics::snapshot() const {
     return snap;
 }
 
-}  // namespace cmlb::infrastructure::system
+} // namespace cmlb::infrastructure::system

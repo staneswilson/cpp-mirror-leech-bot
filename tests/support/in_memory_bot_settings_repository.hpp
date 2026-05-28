@@ -13,27 +13,24 @@ namespace cmlb::test_support {
 class InMemoryBotSettingsRepository final
     : public cmlb::infrastructure::persistence::BotSettingsRepository {
 public:
-    InMemoryBotSettingsRepository()  = default;
+    InMemoryBotSettingsRepository() = default;
     ~InMemoryBotSettingsRepository() override = default;
 
-    boost::asio::awaitable<cmlb::core::Result<
-        cmlb::infrastructure::persistence::BotSettingsRecord>>
+    boost::asio::awaitable<cmlb::core::Result<cmlb::infrastructure::persistence::BotSettingsRecord>>
     load() override {
         std::lock_guard lk{mutex_};
         co_return current_;
     }
 
-    boost::asio::awaitable<cmlb::core::Result<void>>
-    save(cmlb::infrastructure::persistence::BotSettingsRecord record)
-        override {
+    boost::asio::awaitable<cmlb::core::Result<void>> save(
+        cmlb::infrastructure::persistence::BotSettingsRecord record) override {
         std::lock_guard lk{mutex_};
         current_ = std::move(record);
         co_return cmlb::core::Result<void>{};
     }
 
     /// Test helper: peek at the latest persisted record.
-    [[nodiscard]] cmlb::infrastructure::persistence::BotSettingsRecord
-    snapshot() const {
+    [[nodiscard]] cmlb::infrastructure::persistence::BotSettingsRecord snapshot() const {
         std::lock_guard lk{mutex_};
         return current_;
     }
@@ -43,4 +40,4 @@ private:
     cmlb::infrastructure::persistence::BotSettingsRecord current_{};
 };
 
-}  // namespace cmlb::test_support
+} // namespace cmlb::test_support

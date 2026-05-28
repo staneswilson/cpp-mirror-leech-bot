@@ -18,14 +18,12 @@
 #include <type_traits>
 
 #include <catch2/catch_test_macros.hpp>
-
 #include <cmlb/domain/identifiers.hpp>
 #include <cmlb/presentation/callback_dispatcher.hpp>
 
 using cmlb::presentation::CallbackDispatcher;
 
-TEST_CASE("CallbackDispatcher::Dependencies is non-copyable",
-          "[presentation][callback]") {
+TEST_CASE("CallbackDispatcher::Dependencies is non-copyable", "[presentation][callback]") {
     // Static compile-time checks against the dispatcher's intended ownership
     // semantics. The dispatcher is move-/copy-disabled by design; if a future
     // change introduces a move constructor, callers depending on stable
@@ -36,8 +34,7 @@ TEST_CASE("CallbackDispatcher::Dependencies is non-copyable",
     STATIC_REQUIRE_FALSE(std::is_move_assignable_v<CallbackDispatcher>);
 }
 
-TEST_CASE("CallbackDispatcher::Dependencies is a plain aggregate",
-          "[presentation][callback]") {
+TEST_CASE("CallbackDispatcher::Dependencies is a plain aggregate", "[presentation][callback]") {
     // The struct must remain an aggregate of references so callers can
     // construct it with brace-init without inventing constructors.
     STATIC_REQUIRE(std::is_aggregate_v<CallbackDispatcher::Dependencies>);

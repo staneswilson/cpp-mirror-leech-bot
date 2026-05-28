@@ -16,9 +16,9 @@ namespace cmlb::domain {
 /// privileges of lower levels (see @ref Authority::can_run).
 enum class Permission {
     Anyone = 0,
-    User   = 1,
-    Admin  = 2,
-    Owner  = 3,
+    User = 1,
+    Admin = 2,
+    Owner = 3,
 };
 
 [[nodiscard]] std::string_view to_string(Permission permission) noexcept;
@@ -46,4 +46,4 @@ private:
     std::vector<ChatId> authorized_chats_;
 };
 
-}  // namespace cmlb::domain
+} // namespace cmlb::domain

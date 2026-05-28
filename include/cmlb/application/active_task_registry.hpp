@@ -25,16 +25,15 @@ namespace cmlb::application {
 class ActiveTaskRegistry {
 public:
     ActiveTaskRegistry() = default;
-    ActiveTaskRegistry(const ActiveTaskRegistry&)            = delete;
+    ActiveTaskRegistry(const ActiveTaskRegistry&) = delete;
     ActiveTaskRegistry& operator=(const ActiveTaskRegistry&) = delete;
-    ActiveTaskRegistry(ActiveTaskRegistry&&)                 = delete;
-    ActiveTaskRegistry& operator=(ActiveTaskRegistry&&)      = delete;
-    ~ActiveTaskRegistry()                                    = default;
+    ActiveTaskRegistry(ActiveTaskRegistry&&) = delete;
+    ActiveTaskRegistry& operator=(ActiveTaskRegistry&&) = delete;
+    ~ActiveTaskRegistry() = default;
 
     /// Registers @p id and returns the cancellation flag. Caller polls the
     /// flag; `CancelTask` sets it. Re-registering an id keeps the same flag.
-    [[nodiscard]] std::shared_ptr<std::atomic<bool>>
-    register_task(cmlb::domain::TaskId id) {
+    [[nodiscard]] std::shared_ptr<std::atomic<bool>> register_task(cmlb::domain::TaskId id) {
         std::lock_guard lk{mu_};
         auto& slot = map_[id];
         if (!slot) {
@@ -59,7 +58,8 @@ public:
         {
             std::lock_guard lk{mu_};
             auto it = map_.find(id);
-            if (it == map_.end()) return false;
+            if (it == map_.end())
+                return false;
             flag = it->second;
         }
         if (flag) {
@@ -70,9 +70,7 @@ public:
 
 private:
     mutable std::mutex mu_;
-    std::unordered_map<cmlb::domain::TaskId,
-                       std::shared_ptr<std::atomic<bool>>>
-        map_;
+    std::unordered_map<cmlb::domain::TaskId, std::shared_ptr<std::atomic<bool>>> map_;
 };
 
 /// RAII helper that registers a task on construction and unregisters it on
@@ -81,32 +79,31 @@ private:
 class ActiveTaskGuard {
 public:
     ActiveTaskGuard(ActiveTaskRegistry& registry, cmlb::domain::TaskId id)
-        : registry_{&registry},
-          id_{id},
-          flag_{registry.register_task(id)} {}
+        : registry_{&registry}, id_{id}, flag_{registry.register_task(id)} {
+    }
 
-    ActiveTaskGuard(const ActiveTaskGuard&)            = delete;
+    ActiveTaskGuard(const ActiveTaskGuard&) = delete;
     ActiveTaskGuard& operator=(const ActiveTaskGuard&) = delete;
-    ActiveTaskGuard(ActiveTaskGuard&&)                 = delete;
-    ActiveTaskGuard& operator=(ActiveTaskGuard&&)      = delete;
+    ActiveTaskGuard(ActiveTaskGuard&&) = delete;
+    ActiveTaskGuard& operator=(ActiveTaskGuard&&) = delete;
 
     ~ActiveTaskGuard() noexcept {
-        if (registry_) registry_->unregister(id_);
+        if (registry_)
+            registry_->unregister(id_);
     }
 
     [[nodiscard]] bool cancelled() const noexcept {
         return flag_ && flag_->load(std::memory_order_acquire);
     }
 
-    [[nodiscard]] const std::shared_ptr<std::atomic<bool>>& flag()
-        const noexcept {
+    [[nodiscard]] const std::shared_ptr<std::atomic<bool>>& flag() const noexcept {
         return flag_;
     }
 
 private:
-    ActiveTaskRegistry*               registry_;
-    cmlb::domain::TaskId              id_;
+    ActiveTaskRegistry* registry_;
+    cmlb::domain::TaskId id_;
     std::shared_ptr<std::atomic<bool>> flag_;
 };
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

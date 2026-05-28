@@ -25,13 +25,12 @@ public:
     /// Constructs the handler and immediately registers `SIGINT`/`SIGTERM`
     /// (and `SIGHUP` on POSIX) against `exec`. `shutdown` must outlive this
     /// object since the handler keeps a reference to it.
-    SignalHandler(boost::asio::any_io_executor exec,
-                  boost::asio::cancellation_signal& shutdown);
+    SignalHandler(boost::asio::any_io_executor exec, boost::asio::cancellation_signal& shutdown);
 
-    SignalHandler(const SignalHandler&)            = delete;
+    SignalHandler(const SignalHandler&) = delete;
     SignalHandler& operator=(const SignalHandler&) = delete;
-    SignalHandler(SignalHandler&&)                 = delete;
-    SignalHandler& operator=(SignalHandler&&)      = delete;
+    SignalHandler(SignalHandler&&) = delete;
+    SignalHandler& operator=(SignalHandler&&) = delete;
 
     ~SignalHandler() = default;
 
@@ -45,4 +44,4 @@ private:
     boost::asio::cancellation_signal& shutdown_;
 };
 
-}  // namespace cmlb::infrastructure::system
+} // namespace cmlb::infrastructure::system

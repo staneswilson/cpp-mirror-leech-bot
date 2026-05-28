@@ -29,31 +29,30 @@ using SysTime = std::chrono::system_clock::time_point;
                            "ISO8601 timestamp too short: " + std::string{s});
     }
     int year = 0;
-    int mon  = 0;
-    int day  = 0;
-    int hh   = 0;
-    int mm   = 0;
-    int ss   = 0;
-    int ms   = 0;
+    int mon = 0;
+    int day = 0;
+    int hh = 0;
+    int mm = 0;
+    int ss = 0;
+    int ms = 0;
 
     auto take_int = [&](std::size_t off, std::size_t len, int& out) -> bool {
-        if (off + len > s.size()) return false;
+        if (off + len > s.size())
+            return false;
         int v = 0;
         for (std::size_t i = 0; i < len; ++i) {
             const char c = s[off + i];
-            if (c < '0' || c > '9') return false;
+            if (c < '0' || c > '9')
+                return false;
             v = v * 10 + (c - '0');
         }
         out = v;
         return true;
     };
 
-    if (!take_int(0, 4, year) || s[4] != '-'
-        || !take_int(5, 2, mon) || s[7] != '-'
-        || !take_int(8, 2, day) || s[10] != 'T'
-        || !take_int(11, 2, hh) || s[13] != ':'
-        || !take_int(14, 2, mm) || s[16] != ':'
-        || !take_int(17, 2, ss)) {
+    if (!take_int(0, 4, year) || s[4] != '-' || !take_int(5, 2, mon) || s[7] != '-'
+        || !take_int(8, 2, day) || s[10] != 'T' || !take_int(11, 2, hh) || s[13] != ':'
+        || !take_int(14, 2, mm) || s[16] != ':' || !take_int(17, 2, ss)) {
         return core::error(core::ErrorCode::Deserialization,
                            "Malformed ISO8601 timestamp: " + std::string{s});
     }
@@ -90,4 +89,4 @@ using SysTime = std::chrono::system_clock::time_point;
     return SysTime{day_point + hours{hh} + minutes{mm} + seconds{ss} + milliseconds{ms}};
 }
 
-}  // namespace cmlb::infrastructure::persistence::detail
+} // namespace cmlb::infrastructure::persistence::detail

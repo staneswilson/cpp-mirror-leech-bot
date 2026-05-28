@@ -8,7 +8,6 @@
 #include <thread>
 
 #include <catch2/catch_test_macros.hpp>
-
 #include <cmlb/infrastructure/system/system_metrics.hpp>
 
 using cmlb::infrastructure::system::SystemMetrics;
@@ -34,10 +33,11 @@ TEST_CASE("SystemMetrics::snapshot returns sane values", "[infrastructure][syste
     CHECK(snap.disk_used_bytes <= snap.disk_total_bytes);
 }
 
-TEST_CASE("SystemMetrics CPU% delta is non-zero on a busy interval", "[infrastructure][system][metrics][!mayfail]") {
+TEST_CASE("SystemMetrics CPU% delta is non-zero on a busy interval",
+          "[infrastructure][system][metrics][!mayfail]") {
     SystemMetrics metrics;
     // Prime by discarding the first sample.
-    (void) metrics.snapshot();
+    (void)metrics.snapshot();
 
     // Burn a little CPU to push the percentage above noise floor.
     auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
@@ -45,7 +45,7 @@ TEST_CASE("SystemMetrics CPU% delta is non-zero on a busy interval", "[infrastru
     while (std::chrono::steady_clock::now() < deadline) {
         ++acc;
     }
-    (void) acc;
+    (void)acc;
 
     auto snap = metrics.snapshot();
     // [!mayfail] above lets the suite tolerate this on idle CI machines.

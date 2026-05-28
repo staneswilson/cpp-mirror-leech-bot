@@ -45,8 +45,7 @@ struct UploadConfig {
     /// Optional message caption / metadata to attach to the upload.
     std::optional<std::string> caption;
     /// Split threshold for backends that need it (Telegram 2 GB by default).
-    cmlb::domain::ByteSize split_size{
-        cmlb::domain::ByteSize::from_unchecked(2'000'000'000)};
+    cmlb::domain::ByteSize split_size{cmlb::domain::ByteSize::from_unchecked(2'000'000'000)};
 };
 
 /// Snapshot delivered to the `UploadProgressHandler`. Throttled to at most one
@@ -95,23 +94,20 @@ public:
     virtual ~UploaderInterface() = default;
 
     UploaderInterface() = default;
-    UploaderInterface(const UploaderInterface&)            = delete;
+    UploaderInterface(const UploaderInterface&) = delete;
     UploaderInterface& operator=(const UploaderInterface&) = delete;
-    UploaderInterface(UploaderInterface&&)                 = delete;
-    UploaderInterface& operator=(UploaderInterface&&)      = delete;
+    UploaderInterface(UploaderInterface&&) = delete;
+    UploaderInterface& operator=(UploaderInterface&&) = delete;
 
     /// Uploads a single file. Honors `co_await this_coro::cancellation_state`.
     /// On cancellation, partial state (e.g. GDrive resumable sessions) is
     /// cleaned up before returning `error(ErrorCode::Cancelled, ...)`.
-    [[nodiscard]] virtual boost::asio::awaitable<cmlb::core::Result<UploadResult>>
-    upload_file(std::filesystem::path path,
-                UploadConfig config,
-                UploadProgressHandler on_progress) = 0;
+    [[nodiscard]] virtual boost::asio::awaitable<cmlb::core::Result<UploadResult>> upload_file(
+        std::filesystem::path path, UploadConfig config, UploadProgressHandler on_progress) = 0;
 
     /// Recursively uploads `path` (must be a directory). Implementations
     /// preserve relative folder structure where the backend supports it.
-    [[nodiscard]] virtual boost::asio::awaitable<
-        cmlb::core::Result<std::vector<UploadResult>>>
+    [[nodiscard]] virtual boost::asio::awaitable<cmlb::core::Result<std::vector<UploadResult>>>
     upload_directory(std::filesystem::path path,
                      UploadConfig config,
                      UploadProgressHandler on_progress) = 0;
@@ -124,4 +120,4 @@ public:
     [[nodiscard]] virtual bool is_ready() const noexcept = 0;
 };
 
-}  // namespace cmlb::infrastructure::upload
+} // namespace cmlb::infrastructure::upload

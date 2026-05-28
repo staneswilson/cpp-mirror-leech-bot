@@ -28,49 +28,6 @@
 #include <boost/asio/detached.hpp>
 #include <boost/asio/use_future.hpp>
 
-#include <cmlb/core/cancellation.hpp>
-#include <cmlb/core/configuration.hpp>
-#include <cmlb/core/error.hpp>
-#include <cmlb/core/executor.hpp>
-#include <cmlb/core/logger.hpp>
-#include <cmlb/version.hpp>
-
-#include <cmlb/domain/authority.hpp>
-#include <cmlb/domain/identifiers.hpp>
-
-#include <cmlb/infrastructure/http/beast_http_client.hpp>
-#include <cmlb/infrastructure/system/signal_handler.hpp>
-#include <cmlb/infrastructure/system/subprocess.hpp>
-#include <cmlb/infrastructure/system/system_metrics.hpp>
-
-#include <cmlb/infrastructure/persistence/bot_settings_repository.hpp>
-#include <cmlb/infrastructure/persistence/rss_feed_repository.hpp>
-#include <cmlb/infrastructure/persistence/schema_migrator.hpp>
-#include <cmlb/infrastructure/persistence/sqlite_bot_settings_repository.hpp>
-#include <cmlb/infrastructure/persistence/sqlite_connection_pool.hpp>
-#include <cmlb/infrastructure/persistence/sqlite_rss_feed_repository.hpp>
-#include <cmlb/infrastructure/persistence/sqlite_task_repository.hpp>
-#include <cmlb/infrastructure/persistence/sqlite_user_settings_repository.hpp>
-#include <cmlb/infrastructure/persistence/task_repository.hpp>
-#include <cmlb/infrastructure/persistence/user_settings_repository.hpp>
-
-#include <cmlb/infrastructure/telegram/authentication_flow.hpp>
-#include <cmlb/infrastructure/telegram/messenger.hpp>
-#include <cmlb/infrastructure/telegram/telegram_gateway.hpp>
-#include <cmlb/infrastructure/telegram/update_router.hpp>
-
-#include <cmlb/infrastructure/download/aria2_downloader.hpp>
-#include <cmlb/infrastructure/download/qbittorrent_downloader.hpp>
-
-#include <cmlb/infrastructure/upload/google_drive_uploader.hpp>
-#include <cmlb/infrastructure/upload/rclone_uploader.hpp>
-#include <cmlb/infrastructure/upload/telegram_uploader.hpp>
-
-#include <cmlb/infrastructure/media/ffmpeg_media_processor.hpp>
-#include <cmlb/infrastructure/media/seven_zip_archive_processor.hpp>
-
-#include <cmlb/infrastructure/rss/rss_feed_poller.hpp>
-
 #include <cmlb/application/cancel_task.hpp>
 #include <cmlb/application/clone_drive_resource.hpp>
 #include <cmlb/application/count_drive_resource.hpp>
@@ -82,12 +39,45 @@
 #include <cmlb/application/rss_subscription.hpp>
 #include <cmlb/application/update_bot_settings.hpp>
 #include <cmlb/application/update_user_settings.hpp>
-
+#include <cmlb/core/cancellation.hpp>
+#include <cmlb/core/configuration.hpp>
+#include <cmlb/core/error.hpp>
+#include <cmlb/core/executor.hpp>
+#include <cmlb/core/logger.hpp>
+#include <cmlb/domain/authority.hpp>
+#include <cmlb/domain/identifiers.hpp>
+#include <cmlb/infrastructure/download/aria2_downloader.hpp>
+#include <cmlb/infrastructure/download/qbittorrent_downloader.hpp>
+#include <cmlb/infrastructure/http/beast_http_client.hpp>
+#include <cmlb/infrastructure/media/ffmpeg_media_processor.hpp>
+#include <cmlb/infrastructure/media/seven_zip_archive_processor.hpp>
+#include <cmlb/infrastructure/persistence/bot_settings_repository.hpp>
+#include <cmlb/infrastructure/persistence/rss_feed_repository.hpp>
+#include <cmlb/infrastructure/persistence/schema_migrator.hpp>
+#include <cmlb/infrastructure/persistence/sqlite_bot_settings_repository.hpp>
+#include <cmlb/infrastructure/persistence/sqlite_connection_pool.hpp>
+#include <cmlb/infrastructure/persistence/sqlite_rss_feed_repository.hpp>
+#include <cmlb/infrastructure/persistence/sqlite_task_repository.hpp>
+#include <cmlb/infrastructure/persistence/sqlite_user_settings_repository.hpp>
+#include <cmlb/infrastructure/persistence/task_repository.hpp>
+#include <cmlb/infrastructure/persistence/user_settings_repository.hpp>
+#include <cmlb/infrastructure/rss/rss_feed_poller.hpp>
+#include <cmlb/infrastructure/system/signal_handler.hpp>
+#include <cmlb/infrastructure/system/subprocess.hpp>
+#include <cmlb/infrastructure/system/system_metrics.hpp>
+#include <cmlb/infrastructure/telegram/authentication_flow.hpp>
+#include <cmlb/infrastructure/telegram/messenger.hpp>
+#include <cmlb/infrastructure/telegram/telegram_gateway.hpp>
+#include <cmlb/infrastructure/telegram/update_router.hpp>
+#include <cmlb/infrastructure/upload/google_drive_uploader.hpp>
+#include <cmlb/infrastructure/upload/rclone_uploader.hpp>
+#include <cmlb/infrastructure/upload/telegram_uploader.hpp>
 #include <cmlb/presentation/callback_dispatcher.hpp>
 #include <cmlb/presentation/command_dispatcher.hpp>
 #include <cmlb/presentation/command_parser.hpp>
 #include <cmlb/presentation/html_renderer.hpp>
 #include <cmlb/presentation/progress_renderer.hpp>
+#include <cmlb/version.hpp>
 
 namespace {
 
@@ -158,8 +148,7 @@ void print_usage(std::ostream& out) {
 // Logger bring-up helper
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] cmlb::core::Result<void>
-init_logger(const cmlb::core::AppConfig& cfg) {
+[[nodiscard]] cmlb::core::Result<void> init_logger(const cmlb::core::AppConfig& cfg) {
     cmlb::core::LogConfig log{
         .logs_dir = cfg.logging.logs_dir,
         .level = cfg.logging.level,
@@ -179,13 +168,11 @@ init_logger(const cmlb::core::AppConfig& cfg) {
     cmlb::core::Executor executor{2};
 
     try {
-        cmlb::infrastructure::persistence::SqliteConnectionPool pool{
-            cfg.database, executor.get_executor()};
+        cmlb::infrastructure::persistence::SqliteConnectionPool pool{cfg.database,
+                                                                     executor.get_executor()};
         cmlb::infrastructure::persistence::SchemaMigrator migrator{pool};
 
-        auto fut = asio::co_spawn(executor.get_executor(),
-                                  migrator.migrate(),
-                                  asio::use_future);
+        auto fut = asio::co_spawn(executor.get_executor(), migrator.migrate(), asio::use_future);
         const auto result = fut.get();
         executor.stop();
         if (!result) {
@@ -204,9 +191,9 @@ init_logger(const cmlb::core::AppConfig& cfg) {
 // Authority from persisted bot settings
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] cmlb::core::Result<cmlb::domain::Authority>
-build_authority(cmlb::infrastructure::persistence::BotSettingsRepository& repo,
-                cmlb::core::Executor& executor) {
+[[nodiscard]] cmlb::core::Result<cmlb::domain::Authority> build_authority(
+    cmlb::infrastructure::persistence::BotSettingsRepository& repo,
+    cmlb::core::Executor& executor) {
     namespace asio = boost::asio;
     auto fut = asio::co_spawn(executor.get_executor(), repo.load(), asio::use_future);
     auto settings = fut.get();
@@ -228,14 +215,12 @@ build_authority(cmlb::infrastructure::persistence::BotSettingsRepository& repo,
     }
     return cmlb::domain::Authority{
         cmlb::domain::UserId{settings->owner_id},
-        std::span<const cmlb::domain::UserId>{sudo_users.data(),
-                                              sudo_users.size()},
-        std::span<const cmlb::domain::ChatId>{authorized_chats.data(),
-                                              authorized_chats.size()},
+        std::span<const cmlb::domain::UserId>{sudo_users.data(), sudo_users.size()},
+        std::span<const cmlb::domain::ChatId>{authorized_chats.data(), authorized_chats.size()},
     };
 }
 
-}  // namespace
+} // namespace
 
 // ----------------------------------------------------------------------------
 // Entry point
@@ -291,8 +276,8 @@ int main(int argc, char* argv[]) try {
     // I/O-bound async work; idle threads cost ~64 KiB of stack each, so we
     // oversubscribe relative to hardware concurrency to keep coroutines moving
     // when one strand is waiting on a syscall (sqlite write, subprocess wait).
-    const std::size_t worker_count = std::max<std::size_t>(
-        4U, 2U * std::thread::hardware_concurrency());
+    const std::size_t worker_count =
+        std::max<std::size_t>(4U, 2U * std::thread::hardware_concurrency());
     cmlb::core::Executor executor{worker_count};
     Logger::info("Executor running with {} worker threads.", worker_count);
 
@@ -301,14 +286,12 @@ int main(int argc, char* argv[]) try {
     cmlb::infrastructure::system::Subprocess subprocess{executor.get_executor()};
 
     // ---- 6. Persistence ----
-    cmlb::infrastructure::persistence::SqliteConnectionPool pool{
-        config.database, executor.get_executor()};
+    cmlb::infrastructure::persistence::SqliteConnectionPool pool{config.database,
+                                                                 executor.get_executor()};
     cmlb::infrastructure::persistence::SchemaMigrator migrator{pool};
 
     {
-        auto fut = asio::co_spawn(executor.get_executor(),
-                                  migrator.migrate(),
-                                  asio::use_future);
+        auto fut = asio::co_spawn(executor.get_executor(), migrator.migrate(), asio::use_future);
         if (auto r = fut.get(); !r) {
             Logger::error("Schema migration failed: {}", r.error().message);
             executor.stop();
@@ -324,16 +307,15 @@ int main(int argc, char* argv[]) try {
     // Seed bot settings from telegram config on first run (owner_id mirrors
     // the JSON-configured owner so an unconfigured DB is still authorised).
     {
-        auto fut = asio::co_spawn(executor.get_executor(),
-                                  bot_settings_repo.load(), asio::use_future);
+        auto fut =
+            asio::co_spawn(executor.get_executor(), bot_settings_repo.load(), asio::use_future);
         auto loaded = fut.get();
         if (loaded && loaded->owner_id == 0 && config.telegram.owner_id != 0) {
             loaded->owner_id = config.telegram.owner_id;
             loaded->sudo_users = config.telegram.sudo_users;
             loaded->authorized_chats = config.telegram.authorized_chats;
-            auto save_fut = asio::co_spawn(executor.get_executor(),
-                                           bot_settings_repo.save(*loaded),
-                                           asio::use_future);
+            auto save_fut = asio::co_spawn(
+                executor.get_executor(), bot_settings_repo.save(*loaded), asio::use_future);
             (void)save_fut.get();
         }
     }
@@ -381,21 +363,32 @@ int main(int argc, char* argv[]) try {
     // include/cmlb/application/active_task_registry.hpp.
     cmlb::application::ActiveTaskRegistry active_tasks;
 
-    cmlb::application::MirrorUrl mirror_url{
-        aria2, qbit, gdrive_uploader, rclone_uploader,
-        tasks_repo, user_settings_repo, messenger,
-        progress_renderer, executor, active_tasks,
-        config.google_drive.parallel_files_per_directory};
-    cmlb::application::LeechUrl leech_url{
-        aria2, qbit, tg_uploader, tasks_repo, user_settings_repo, messenger,
-        progress_renderer, executor, active_tasks,
-        config.telegram.upload_parallelism};
+    cmlb::application::MirrorUrl mirror_url{aria2,
+                                            qbit,
+                                            gdrive_uploader,
+                                            rclone_uploader,
+                                            tasks_repo,
+                                            user_settings_repo,
+                                            messenger,
+                                            progress_renderer,
+                                            executor,
+                                            active_tasks,
+                                            config.google_drive.parallel_files_per_directory};
+    cmlb::application::LeechUrl leech_url{aria2,
+                                          qbit,
+                                          tg_uploader,
+                                          tasks_repo,
+                                          user_settings_repo,
+                                          messenger,
+                                          progress_renderer,
+                                          executor,
+                                          active_tasks,
+                                          config.telegram.upload_parallelism};
     cmlb::application::CloneDriveResource clone_use_case{
         gdrive_uploader, messenger, config.google_drive.parent_folder_id};
     cmlb::application::CountDriveResource count_use_case{gdrive_uploader, messenger};
     cmlb::application::DeleteDriveResource delete_use_case{gdrive_uploader, messenger};
-    cmlb::application::CancelTask cancel_use_case{
-        tasks_repo, aria2, qbit, messenger, active_tasks};
+    cmlb::application::CancelTask cancel_use_case{tasks_repo, aria2, qbit, messenger, active_tasks};
     cmlb::application::PauseTask pause_use_case{tasks_repo, aria2, qbit, messenger};
     cmlb::application::ResumeTask resume_use_case{tasks_repo, aria2, qbit, messenger};
     cmlb::application::UpdateUserSettings update_user_use_case{user_settings_repo};
@@ -405,30 +398,30 @@ int main(int argc, char* argv[]) try {
     // ---- 11. Presentation ----
     cmlb::presentation::CommandDispatcher command_dispatcher{
         cmlb::presentation::CommandDispatcher::Dependencies{
-            .authority       = std::move(*authority_result),
-            .mirror_url      = mirror_url,
-            .leech_url       = leech_url,
-            .clone           = clone_use_case,
-            .count           = count_use_case,
+            .authority = std::move(*authority_result),
+            .mirror_url = mirror_url,
+            .leech_url = leech_url,
+            .clone = clone_use_case,
+            .count = count_use_case,
             .delete_resource = delete_use_case,
-            .cancel_task     = cancel_use_case,
-            .pause_task      = pause_use_case,
-            .resume_task     = resume_use_case,
-            .update_user     = update_user_use_case,
-            .update_bot      = update_bot_use_case,
-            .rss             = rss_use_case,
-            .messenger       = messenger,
-            .metrics         = metrics,
-            .bot_start_time  = bot_start_time,
+            .cancel_task = cancel_use_case,
+            .pause_task = pause_use_case,
+            .resume_task = resume_use_case,
+            .update_user = update_user_use_case,
+            .update_bot = update_bot_use_case,
+            .rss = rss_use_case,
+            .messenger = messenger,
+            .metrics = metrics,
+            .bot_start_time = bot_start_time,
         }};
 
     cmlb::presentation::CallbackDispatcher callback_dispatcher{
         cmlb::presentation::CallbackDispatcher::Dependencies{
             .cancel_task = cancel_use_case,
-            .pause_task  = pause_use_case,
+            .pause_task = pause_use_case,
             .resume_task = resume_use_case,
             .update_user = update_user_use_case,
-            .messenger   = messenger,
+            .messenger = messenger,
         }};
 
     // ---- 12. RSS poller (auto-enqueues matching entries as mirror tasks) ----
@@ -439,91 +432,96 @@ int main(int argc, char* argv[]) try {
     // on a schema bump (V0004) adding `user_id` to `rss_feeds`.
     const cmlb::domain::UserId rss_owner_attribution{config.telegram.owner_id};
     cmlb::infrastructure::rss::RssFeedPoller rss_poller{
-        executor, http_client, rss_feed_repo,
+        executor,
+        http_client,
+        rss_feed_repo,
         [&mirror_url, rss_owner_attribution](
             cmlb::infrastructure::persistence::RssFeed feed,
-            cmlb::infrastructure::rss::RssEntry entry)
-            -> asio::awaitable<void> {
+            cmlb::infrastructure::rss::RssEntry entry) -> asio::awaitable<void> {
             cmlb::application::MirrorRequest request{
-                .url             = entry.magnet.value_or(
-                                       entry.torrent_url.value_or(entry.link)),
-                .user            = rss_owner_attribution,
-                .chat            = feed.chat,
-                .source_message  = cmlb::domain::MessageId{0},
+                .url = entry.magnet.value_or(entry.torrent_url.value_or(entry.link)),
+                .user = rss_owner_attribution,
+                .chat = feed.chat,
+                .source_message = cmlb::domain::MessageId{0},
                 .use_qbittorrent = false,
                 .override_destination = std::nullopt,
             };
             auto r = co_await mirror_url.execute(std::move(request));
             if (!r) {
                 Logger::warn("RSS auto-mirror for feed {} entry '{}' failed: {}",
-                             feed.feed_id, entry.title, r.error().message);
+                             feed.feed_id,
+                             entry.title,
+                             r.error().message);
             }
             co_return;
         }};
 
     // ---- 13. Wire TDLib update handlers through the dispatchers ----
-    update_router.on_new_message(
-        [&](cmlb::domain::ChatId chat, cmlb::domain::UserId sender,
-            cmlb::domain::MessageId msg, std::string text)
-            -> asio::awaitable<void> {
-            auto request = cmlb::presentation::CommandParser::parse(
-                text, sender, chat, msg);
-            if (!request) co_return;
-            auto r = co_await command_dispatcher.dispatch(std::move(*request));
-            if (!r) {
-                Logger::debug("Command dispatch returned: {}", r.error().message);
-            }
+    update_router.on_new_message([&](cmlb::domain::ChatId chat,
+                                     cmlb::domain::UserId sender,
+                                     cmlb::domain::MessageId msg,
+                                     std::string text) -> asio::awaitable<void> {
+        auto request = cmlb::presentation::CommandParser::parse(text, sender, chat, msg);
+        if (!request)
             co_return;
-        });
+        auto r = co_await command_dispatcher.dispatch(std::move(*request));
+        if (!r) {
+            Logger::debug("Command dispatch returned: {}", r.error().message);
+        }
+        co_return;
+    });
 
-    update_router.on_callback_query(
-        [&](cmlb::domain::ChatId chat, cmlb::domain::UserId sender,
-            cmlb::domain::MessageId msg_id,
-            cmlb::domain::CallbackQueryId query_id, std::string data)
-            -> asio::awaitable<void> {
-            auto r = co_await callback_dispatcher.dispatch(
-                chat, sender, msg_id, query_id, std::move(data));
-            if (!r) {
-                Logger::debug("Callback dispatch returned: {}", r.error().message);
-            }
-            co_return;
-        });
+    update_router.on_callback_query([&](cmlb::domain::ChatId chat,
+                                        cmlb::domain::UserId sender,
+                                        cmlb::domain::MessageId msg_id,
+                                        cmlb::domain::CallbackQueryId query_id,
+                                        std::string data) -> asio::awaitable<void> {
+        auto r =
+            co_await callback_dispatcher.dispatch(chat, sender, msg_id, query_id, std::move(data));
+        if (!r) {
+            Logger::debug("Callback dispatch returned: {}", r.error().message);
+        }
+        co_return;
+    });
 
-    update_router.on_file_update(
-        [&](cmlb::domain::FileId, std::int64_t, std::int64_t, std::int64_t,
-            bool, bool, bool, bool) noexcept {
-            // File progress events are surfaced through downloader/uploader
-            // status polls; the dedicated streaming path lands in v1.1.
-        });
+    update_router.on_file_update([&](cmlb::domain::FileId,
+                                     std::int64_t,
+                                     std::int64_t,
+                                     std::int64_t,
+                                     bool,
+                                     bool,
+                                     bool,
+                                     bool) noexcept {
+        // File progress events are surfaced through downloader/uploader
+        // status polls; the dedicated streaming path lands in v1.1.
+    });
 
     // ---- 14. Signal handling for graceful shutdown ----
     asio::cancellation_signal shutdown_signal;
-    cmlb::infrastructure::system::SignalHandler signal_handler{
-        executor.get_executor(), shutdown_signal};
+    cmlb::infrastructure::system::SignalHandler signal_handler{executor.get_executor(),
+                                                               shutdown_signal};
 
     // ---- 15. Spawn long-lived coroutines ----
-    auto gateway_run = asio::co_spawn(
-        executor.get_executor(),
-        gateway.run(),
-        asio::bind_cancellation_slot(shutdown_signal.slot(), asio::use_future));
+    auto gateway_run =
+        asio::co_spawn(executor.get_executor(),
+                       gateway.run(),
+                       asio::bind_cancellation_slot(shutdown_signal.slot(), asio::use_future));
 
-    auto auth_run = asio::co_spawn(
-        executor.get_executor(),
-        auth.authenticate(),
-        asio::bind_cancellation_slot(shutdown_signal.slot(), asio::use_future));
+    auto auth_run =
+        asio::co_spawn(executor.get_executor(),
+                       auth.authenticate(),
+                       asio::bind_cancellation_slot(shutdown_signal.slot(), asio::use_future));
 
-    auto rss_run = asio::co_spawn(
-        executor.get_executor(),
-        rss_poller.run(),
-        asio::bind_cancellation_slot(shutdown_signal.slot(), asio::use_future));
+    auto rss_run =
+        asio::co_spawn(executor.get_executor(),
+                       rss_poller.run(),
+                       asio::bind_cancellation_slot(shutdown_signal.slot(), asio::use_future));
 
     Logger::info("Bot ready. Awaiting Telegram updates.");
 
     // ---- 16. Block until a signal arrives ----
-    auto signal_future = asio::co_spawn(
-        executor.get_executor(),
-        signal_handler.wait_for_signal(),
-        asio::use_future);
+    auto signal_future =
+        asio::co_spawn(executor.get_executor(), signal_handler.wait_for_signal(), asio::use_future);
 
     (void)signal_future.get();
     Logger::info("Shutdown requested. Stopping coroutines.");

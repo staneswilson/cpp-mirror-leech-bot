@@ -17,11 +17,11 @@
 
 namespace cmlb::core {
 class Executor;
-}
+} // namespace cmlb::core
 
 namespace cmlb::infrastructure::system {
 class Subprocess;
-}
+} // namespace cmlb::infrastructure::system
 
 namespace cmlb::infrastructure::upload {
 
@@ -41,18 +41,19 @@ public:
                    cmlb::core::RcloneConfig config,
                    cmlb::infrastructure::system::Subprocess& subprocess);
 
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<UploadResult>>
-    upload_file(std::filesystem::path path,
-                UploadConfig config,
-                UploadProgressHandler on_progress) override;
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<UploadResult>> upload_file(
+        std::filesystem::path path,
+        UploadConfig config,
+        UploadProgressHandler on_progress) override;
 
-    [[nodiscard]] boost::asio::awaitable<
-        cmlb::core::Result<std::vector<UploadResult>>>
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<std::vector<UploadResult>>>
     upload_directory(std::filesystem::path path,
                      UploadConfig config,
                      UploadProgressHandler on_progress) override;
 
-    [[nodiscard]] std::string_view name() const noexcept override { return "rclone"; }
+    [[nodiscard]] std::string_view name() const noexcept override {
+        return "rclone";
+    }
 
     /// Cached result of `rclone --version` (probed lazily on the first call).
     [[nodiscard]] bool is_ready() const noexcept override;
@@ -62,16 +63,14 @@ private:
     [[nodiscard]] boost::asio::awaitable<bool> probe_rclone() const;
 
     /// Common driver shared by `upload_file` / `upload_directory`.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<UploadResult>>
-    run_rclone(std::vector<std::string> args,
-               std::string display_name,
-               UploadProgressHandler on_progress);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<UploadResult>> run_rclone(
+        std::vector<std::string> args, std::string display_name, UploadProgressHandler on_progress);
 
-    cmlb::core::Executor&                    exec_;
-    cmlb::core::RcloneConfig                 config_;
+    cmlb::core::Executor& exec_;
+    cmlb::core::RcloneConfig config_;
     cmlb::infrastructure::system::Subprocess& subprocess_;
 
-    mutable std::atomic<int> readiness_{-1};  // -1=unprobed, 0=not ready, 1=ready
+    mutable std::atomic<int> readiness_{-1}; // -1=unprobed, 0=not ready, 1=ready
 };
 
-}  // namespace cmlb::infrastructure::upload
+} // namespace cmlb::infrastructure::upload

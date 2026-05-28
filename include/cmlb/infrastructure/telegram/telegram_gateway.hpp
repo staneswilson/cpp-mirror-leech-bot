@@ -58,10 +58,10 @@ public:
     /// freed PIMPL state.
     ~TelegramGateway();
 
-    TelegramGateway(const TelegramGateway&)            = delete;
+    TelegramGateway(const TelegramGateway&) = delete;
     TelegramGateway& operator=(const TelegramGateway&) = delete;
-    TelegramGateway(TelegramGateway&&)                 = delete;
-    TelegramGateway& operator=(TelegramGateway&&)      = delete;
+    TelegramGateway(TelegramGateway&&) = delete;
+    TelegramGateway& operator=(TelegramGateway&&) = delete;
 
     /// Runs the TDLib receive loop until `request_stop()` is invoked or
     /// cancellation is propagated. Call once at startup via `co_spawn`.
@@ -76,53 +76,48 @@ public:
     // ------------------------------------------------------------------
 
     /// Sends a plain-text message. Returns the assigned message id.
-    [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>>
-        send_text_message(domain::ChatId chat, std::string text);
+    [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>> send_text_message(
+        domain::ChatId chat, std::string text);
 
     /// Sends an HTML-formatted message. Supports `<b>`, `<i>`, `<code>`,
     /// `<pre>`. Malformed HTML falls back to plain text — the send is *not*
     /// failed by parse errors.
-    [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>>
-        send_formatted_message(domain::ChatId chat, std::string html);
+    [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>> send_formatted_message(
+        domain::ChatId chat, std::string html);
 
     /// Replaces the text content of an existing message with new HTML.
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-        edit_formatted_message(domain::ChatId chat,
-                               domain::MessageId msg,
-                               std::string html);
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> edit_formatted_message(
+        domain::ChatId chat, domain::MessageId msg, std::string html);
 
     /// Sends an HTML message with an attached inline keyboard. Each cell is
     /// `(label, callback_data)`.
     [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>>
-        send_message_with_inline_keyboard(
-            domain::ChatId chat,
-            std::string html,
-            std::vector<std::vector<std::pair<std::string, std::string>>> rows);
+    send_message_with_inline_keyboard(
+        domain::ChatId chat,
+        std::string html,
+        std::vector<std::vector<std::pair<std::string, std::string>>> rows);
 
     /// Replaces the inline keyboard attached to a message.
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-        edit_message_inline_keyboard(
-            domain::ChatId chat,
-            domain::MessageId msg,
-            std::vector<std::vector<std::pair<std::string, std::string>>> rows);
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> edit_message_inline_keyboard(
+        domain::ChatId chat,
+        domain::MessageId msg,
+        std::vector<std::vector<std::pair<std::string, std::string>>> rows);
 
     /// Answers a callback query. `show_alert` controls whether Telegram
     /// renders the text in a modal.
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-        answer_callback_query(domain::CallbackQueryId id,
-                              std::string text,
-                              bool show_alert);
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> answer_callback_query(
+        domain::CallbackQueryId id, std::string text, bool show_alert);
 
     /// Deletes a message in the given chat.
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-        delete_message(domain::ChatId chat, domain::MessageId msg);
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> delete_message(domain::ChatId chat,
+                                                                            domain::MessageId msg);
 
     /// Uploads a local file as a document. Optional thumbnail attached.
-    [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>>
-        send_file(domain::ChatId chat,
-                  std::filesystem::path file_path,
-                  std::string caption,
-                  std::optional<std::filesystem::path> thumbnail);
+    [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>> send_file(
+        domain::ChatId chat,
+        std::filesystem::path file_path,
+        std::string caption,
+        std::optional<std::filesystem::path> thumbnail);
 
     // ------------------------------------------------------------------
     // Update plumbing
@@ -133,10 +128,8 @@ public:
     /// **must** be non-blocking — schedule heavy work onto the executor.
     struct UpdateHandlers {
         /// Fired for every incoming text message.
-        std::function<void(domain::ChatId chat,
-                           domain::UserId sender,
-                           domain::MessageId msg_id,
-                           std::string text)>
+        std::function<void(
+            domain::ChatId chat, domain::UserId sender, domain::MessageId msg_id, std::string text)>
             on_new_message;
 
         /// Fired for every inline-keyboard callback press. `msg_id` identifies
@@ -232,4 +225,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace cmlb::infrastructure::telegram
+} // namespace cmlb::infrastructure::telegram

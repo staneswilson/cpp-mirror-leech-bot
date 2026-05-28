@@ -22,14 +22,15 @@ namespace cmlb::infrastructure::persistence {
 
 /// A single migration entry in the registry.
 struct Migration {
-    int               version;  ///< Strictly increasing; gaps are not permitted.
-    std::string_view  name;     ///< e.g. "V0001__initial_schema".
-    std::string_view  sql;      ///< Raw SQL, may contain multiple statements.
+    int version;           ///< Strictly increasing; gaps are not permitted.
+    std::string_view name; ///< e.g. "V0001__initial_schema".
+    std::string_view sql;  ///< Raw SQL, may contain multiple statements.
 };
 
 class SchemaMigrator {
 public:
-    explicit SchemaMigrator(SqliteConnectionPool& pool) noexcept : pool_{pool} {}
+    explicit SchemaMigrator(SqliteConnectionPool& pool) noexcept : pool_{pool} {
+    }
 
     /// Applies every registered migration whose version is greater than the
     /// max version currently recorded in `schema_version`. Each migration runs
@@ -49,4 +50,4 @@ private:
     SqliteConnectionPool& pool_;
 };
 
-}  // namespace cmlb::infrastructure::persistence
+} // namespace cmlb::infrastructure::persistence

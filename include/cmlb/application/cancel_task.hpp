@@ -38,15 +38,15 @@ public:
                ActiveTaskRegistry& active_tasks) noexcept;
 
     /// Cancels a single task by id.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>>
-    execute(CancelTaskRequest request);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>> execute(
+        CancelTaskRequest request);
 
     /// Cancels every non-terminal task. Failures on individual tasks are
     /// logged and accumulated in `CancelAllResult::failed`; a global error
     /// (e.g. repository unreachable) is returned via the outer `Result`.
     /// A single summary message is sent to @p chat at the end.
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<CancelAllResult>>
-    cancel_all(cmlb::domain::ChatId chat);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<CancelAllResult>> cancel_all(
+        cmlb::domain::ChatId chat);
 
 private:
     cmlb::infrastructure::persistence::TaskRepository& tasks_;
@@ -56,4 +56,4 @@ private:
     ActiveTaskRegistry& active_tasks_;
 };
 
-}  // namespace cmlb::application
+} // namespace cmlb::application

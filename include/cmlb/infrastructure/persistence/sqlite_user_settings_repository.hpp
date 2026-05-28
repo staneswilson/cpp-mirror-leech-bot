@@ -13,20 +13,19 @@ namespace cmlb::infrastructure::persistence {
 
 class SqliteUserSettingsRepository final : public UserSettingsRepository {
 public:
-    explicit SqliteUserSettingsRepository(SqliteConnectionPool& pool) noexcept
-        : pool_{pool} {}
+    explicit SqliteUserSettingsRepository(SqliteConnectionPool& pool) noexcept : pool_{pool} {
+    }
 
-    [[nodiscard]] boost::asio::awaitable<core::Result<std::optional<UserSettingsRecord>>>
-    get(domain::UserId user) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<std::optional<UserSettingsRecord>>> get(
+        domain::UserId user) override;
 
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-    save(UserSettingsRecord record) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> save(
+        UserSettingsRecord record) override;
 
-    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
-    remove(domain::UserId user) override;
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> remove(domain::UserId user) override;
 
 private:
     SqliteConnectionPool& pool_;
 };
 
-}  // namespace cmlb::infrastructure::persistence
+} // namespace cmlb::infrastructure::persistence

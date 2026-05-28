@@ -1,5 +1,3 @@
-#include <cmlb/infrastructure/rss/rss_feed_poller.hpp>
-
 #include <chrono>
 #include <regex>
 #include <string>
@@ -18,6 +16,7 @@
 #include <cmlb/core/logger.hpp>
 #include <cmlb/infrastructure/http/beast_http_client.hpp>
 #include <cmlb/infrastructure/persistence/rss_feed_repository.hpp>
+#include <cmlb/infrastructure/rss/rss_feed_poller.hpp>
 
 namespace cmlb::infrastructure::rss {
 
@@ -35,7 +34,8 @@ using cmlb::infrastructure::persistence::RssFeed;
 [[nodiscard]] bool matches_optional_regex(const std::optional<std::string>& pattern,
                                           const std::string& text,
                                           bool default_when_unset) {
-    if (!pattern || pattern->empty()) return default_when_unset;
+    if (!pattern || pattern->empty())
+        return default_when_unset;
     try {
         std::regex r{*pattern, std::regex::icase};
         return std::regex_search(text, r);
@@ -57,7 +57,7 @@ using cmlb::infrastructure::persistence::RssFeed;
     return true;
 }
 
-}  // namespace
+} // namespace
 
 RssFeedPoller::RssFeedPoller(cmlb::core::Executor& exec,
                              cmlb::infrastructure::http::BeastHttpClient& http_client,
@@ -66,7 +66,8 @@ RssFeedPoller::RssFeedPoller(cmlb::core::Executor& exec,
     : exec_{&exec},
       http_client_{&http_client},
       repo_{&repo},
-      on_new_entry_{std::move(on_new_entry)} {}
+      on_new_entry_{std::move(on_new_entry)} {
+}
 
 asio::awaitable<void> RssFeedPoller::run() {
     using namespace std::chrono_literals;
@@ -111,7 +112,8 @@ asio::awaitable<void> RssFeedPoller::poll_once() {
     for (auto& feed : *feeds_result) {
         if (feed.last_checked_at.has_value()) {
             const auto since = now - *feed.last_checked_at;
-            if (since < kDefaultInterval) continue;
+            if (since < kDefaultInterval)
+                continue;
         }
 
         const auto cancel_state = co_await asio::this_coro::cancellation_state;
@@ -128,20 +130,17 @@ asio::awaitable<void> RssFeedPoller::process_feed(RssFeed feed) {
 
     auto http_result = co_await http_client_->get(feed.url);
     if (!http_result) {
-        Logger::warn("[rss] feed {} fetch failed: {}", feed.feed_id,
-                     http_result.error().message);
+        Logger::warn("[rss] feed {} fetch failed: {}", feed.feed_id, http_result.error().message);
         co_return;
     }
     if (http_result->status_code < 200 || http_result->status_code >= 300) {
-        Logger::warn("[rss] feed {} returned HTTP {}", feed.feed_id,
-                     http_result->status_code);
+        Logger::warn("[rss] feed {} returned HTTP {}", feed.feed_id, http_result->status_code);
         co_return;
     }
 
     auto parsed = RssDocumentParser::parse(http_result->body);
     if (!parsed) {
-        Logger::warn("[rss] feed {} parse failed: {}", feed.feed_id,
-                     parsed.error().message);
+        Logger::warn("[rss] feed {} parse failed: {}", feed.feed_id, parsed.error().message);
         co_return;
     }
 
@@ -153,27 +152,28 @@ asio::awaitable<void> RssFeedPoller::process_feed(RssFeed feed) {
         // GUID ordering: only entries strictly greater than the previously
         // seen GUID are considered new. When no previous GUID has been
         // recorded, every entry is new.
-        const bool is_new = previous_guid.empty()
-                            || entry.guid > previous_guid;
-        if (!is_new) continue;
-        if (entry.guid > newest_guid) newest_guid = entry.guid;
+        const bool is_new = previous_guid.empty() || entry.guid > previous_guid;
+        if (!is_new)
+            continue;
+        if (entry.guid > newest_guid)
+            newest_guid = entry.guid;
 
-        if (!entry_passes_filters(feed, entry)) continue;
+        if (!entry_passes_filters(feed, entry))
+            continue;
 
         try {
             co_await on_new_entry_(feed, entry);
         } catch (const std::exception& e) {
-            Logger::error("[rss] handler threw for feed {}: {}",
-                          feed.feed_id, e.what());
+            Logger::error("[rss] handler threw for feed {}: {}", feed.feed_id, e.what());
         }
     }
 
     const auto now = std::chrono::system_clock::now();
     auto upd = co_await repo_->update_state(feed.feed_id, newest_guid, now);
     if (!upd) {
-        Logger::warn("[rss] update_state failed for feed {}: {}",
-                     feed.feed_id, upd.error().message);
+        Logger::warn(
+            "[rss] update_state failed for feed {}: {}", feed.feed_id, upd.error().message);
     }
 }
 
-}  // namespace cmlb::infrastructure::rss
+} // namespace cmlb::infrastructure::rss
