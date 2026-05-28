@@ -39,7 +39,12 @@ public:
     }
 
     /// Validated factory: returns InvalidArgument if @p bytes is negative.
-    [[nodiscard]] static constexpr cmlb::core::Result<ByteSize> make(
+    /// Note: not `constexpr` — `cmlb::core::Result<ByteSize>` is
+    /// `std::expected<ByteSize, AppError>`, and `AppError` carries a
+    /// `std::string`, which is not a literal type on Apple Clang 15. The
+    /// factory is `inline` so the compiler can still constant-fold the
+    /// positive path at the call site.
+    [[nodiscard]] static inline cmlb::core::Result<ByteSize> make(
         std::int64_t bytes, std::source_location loc = std::source_location::current()) {
         if (bytes < 0) {
             return cmlb::core::error(
