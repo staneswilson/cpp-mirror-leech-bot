@@ -1,0 +1,145 @@
+# CMLB clang-format configuration.
+# Format: clang-format >= 17 (matches our minimum Clang toolchain).
+# Run `clang-format -i <file>` or rely on the pre-commit hook.
+
+---
+Language:        Cpp
+BasedOnStyle:    LLVM
+Standard:        c++20  # closest token clang-format accepts; we compile -std=c++23
+
+# Indentation and width
+IndentWidth:                  4
+TabWidth:                     4
+UseTab:                       Never
+ContinuationIndentWidth:      4
+ConstructorInitializerIndentWidth: 4
+AccessModifierOffset:        -4
+NamespaceIndentation:         None
+ColumnLimit:                  100
+
+# Braces stay on the same line as their declaration (K&R / Attach style).
+BreakBeforeBraces:            Attach
+Cpp11BracedListStyle:         true
+
+# Pointer / reference alignment: `T* ptr`, `T& ref`.
+PointerAlignment:             Left
+ReferenceAlignment:           Left
+DerivePointerAlignment:       false
+
+# Function and statement formatting
+AllowShortFunctionsOnASingleLine:   None
+AllowShortLambdasOnASingleLine:     None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine:       false
+AllowShortBlocksOnASingleLine:      Never
+AllowShortCaseLabelsOnASingleLine:  false
+AllowShortEnumsOnASingleLine:       false
+
+# Function declarations / definitions
+AlwaysBreakAfterReturnType:         None
+AlwaysBreakTemplateDeclarations:    Yes
+BinPackArguments:                   false
+BinPackParameters:                  false
+AllowAllArgumentsOnNextLine:        true
+AllowAllParametersOfDeclarationOnNextLine: true
+
+# Operators and expressions
+BreakBeforeBinaryOperators:         NonAssignment
+BreakBeforeTernaryOperators:        true
+BreakConstructorInitializers:       BeforeColon
+BreakInheritanceList:               BeforeColon
+PackConstructorInitializers:        NextLine
+
+# Alignment
+AlignAfterOpenBracket:              Align
+AlignConsecutiveAssignments:        None
+AlignConsecutiveDeclarations:       None
+AlignConsecutiveMacros:             AcrossEmptyLines
+AlignEscapedNewlines:               Left
+AlignOperands:                      Align
+AlignTrailingComments:              true
+
+# Spacing
+SpaceAfterCStyleCast:               false
+SpaceAfterLogicalNot:               false
+SpaceAfterTemplateKeyword:          true
+SpaceBeforeAssignmentOperators:     true
+SpaceBeforeCpp11BracedList:         false
+SpaceBeforeCtorInitializerColon:    true
+SpaceBeforeInheritanceColon:        true
+SpaceBeforeParens:                  ControlStatements
+SpaceBeforeRangeBasedForLoopColon:  true
+SpaceInEmptyParentheses:            false
+SpacesBeforeTrailingComments:       1
+SpacesInAngles:                     Never
+SpacesInCStyleCastParentheses:      false
+SpacesInContainerLiterals:          false
+SpacesInParentheses:                false
+SpacesInSquareBrackets:             false
+
+# Comments and strings
+ReflowComments:                     true
+FixNamespaceComments:               true
+ShortNamespaceLines:                0
+
+# Include sorting -- grouped by ecosystem (lowest priority numbers come first).
+SortIncludes:                       CaseSensitive
+IncludeBlocks:                      Regroup
+IncludeCategories:
+    # 1) Paired header / project private (handled by clang-format as priority 0
+    #    via the IncludeIsMainRegex below; explicit groups start at 2).
+    - Regex:           '^"cmlb/.*"$'
+      Priority:        2
+      SortPriority:    2
+    - Regex:           '^".*"$'
+      Priority:        3
+      SortPriority:    3
+    # 4) C / C++ standard library (angle brackets, no slash).
+    - Regex:           '^<[a-z_]+>$'
+      Priority:        4
+      SortPriority:    4
+    # 5) Boost
+    - Regex:           '^<boost/.*>$'
+      Priority:        5
+      SortPriority:    5
+    # 6) nlohmann::json
+    - Regex:           '^<nlohmann/.*>$'
+      Priority:        6
+      SortPriority:    6
+    # 7) spdlog
+    - Regex:           '^<spdlog/.*>$'
+      Priority:        7
+      SortPriority:    7
+    # 8) fmt
+    - Regex:           '^<fmt/.*>$'
+      Priority:        8
+      SortPriority:    8
+    # 9) SQLite + sqlite-modern-cpp
+    - Regex:           '^<(sqlite3\.h|sqlite_modern_cpp.*)>$'
+      Priority:        9
+      SortPriority:    9
+    # 10) Other third-party angled includes
+    - Regex:           '^<.*>$'
+      Priority:        10
+      SortPriority:    10
+IncludeIsMainRegex:               '(_test|_tests|_bench)?$'
+
+# Penalties (defaults are fine, listed for transparency)
+PenaltyBreakAssignment:             2
+PenaltyBreakBeforeFirstCallParameter: 19
+PenaltyBreakComment:                300
+PenaltyBreakFirstLessLess:          120
+PenaltyBreakString:                 1000
+PenaltyExcessCharacter:             1000000
+PenaltyReturnTypeOnItsOwnLine:      200
+
+# Misc
+CompactNamespaces:                  false
+EmptyLineBeforeAccessModifier:      LogicalBlock
+KeepEmptyLinesAtTheStartOfBlocks:   false
+MaxEmptyLinesToKeep:                1
+SeparateDefinitionBlocks:           Always
+InsertNewlineAtEOF:                 true
+RemoveSemicolon:                    false
+QualifierAlignment:                 Leave
+...

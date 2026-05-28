@@ -1,0 +1,284 @@
+# Release: build platform binaries on tag push and attach them to a GitHub release.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v1.2.3) -- workflow_dispatch only.'
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-bincache,readwrite"
+  VCPKG_DISABLE_METRICS: "1"
+
+jobs:
+  build-release-linux:
+    name: Build release (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Install GCC 14
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-14 g++-14
+          echo "CC=gcc-14"  >> "$GITHUB_ENV"
+          echo "CXX=g++-14" >> "$GITHUB_ENV"
+
+      - name: Set up vcpkg
+        shell: bash
+        run: |
+          if [ ! -d "$HOME/vcpkg" ]; then
+            git clone --depth 1 https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+            "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          fi
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
+          echo "$HOME/vcpkg"            >> "$GITHUB_PATH"
+
+      - name: Prepare vcpkg binary cache directory
+        shell: bash
+        run: mkdir -p "${{ github.workspace }}/.vcpkg-bincache"
+
+      - name: Cache vcpkg binary archives
+        id: vcpkg-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.vcpkg-bincache
+            ~/.cache/vcpkg/archives
+          key: ${{ runner.os }}-gcc-14-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: |
+            ${{ runner.os }}-gcc-14-vcpkg-
+            ${{ runner.os }}-vcpkg-
+
+      - name: Report cache status
+        shell: bash
+        run: |
+          echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
+
+      - name: Configure with CMake (release)
+        shell: bash
+        run: cmake --preset release
+
+      - name: Build with Ninja
+        shell: bash
+        run: cmake --build --preset release --parallel
+
+      - name: Package with CPack (TGZ)
+        shell: bash
+        working-directory: build/release
+        run: cpack -G TGZ
+
+      - name: Upload Linux release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmlb-linux-x64
+          path: |
+            build/release/*.tar.gz
+            build/release/*.tgz
+          if-no-files-found: error
+          retention-days: 14
+
+  build-release-macos:
+    name: Build release (macOS)
+    runs-on: macos-14
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Set up vcpkg
+        shell: bash
+        run: |
+          if [ ! -d "$HOME/vcpkg" ]; then
+            git clone --depth 1 https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+            "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          fi
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
+          echo "$HOME/vcpkg"            >> "$GITHUB_PATH"
+
+      - name: Prepare vcpkg binary cache directory
+        shell: bash
+        run: mkdir -p "${{ github.workspace }}/.vcpkg-bincache"
+
+      - name: Cache vcpkg binary archives
+        id: vcpkg-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.vcpkg-bincache
+            ~/.cache/vcpkg/archives
+          key: ${{ runner.os }}-apple-clang-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: |
+            ${{ runner.os }}-apple-clang-vcpkg-
+            ${{ runner.os }}-vcpkg-
+
+      - name: Report cache status
+        shell: bash
+        run: |
+          echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
+
+      - name: Configure with CMake (release)
+        shell: bash
+        run: cmake --preset release
+
+      - name: Build with Ninja
+        shell: bash
+        run: cmake --build --preset release --parallel
+
+      - name: Package with CPack (TGZ)
+        shell: bash
+        working-directory: build/release
+        run: cpack -G TGZ
+
+      - name: Upload macOS release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmlb-macos-arm64
+          path: |
+            build/release/*.tar.gz
+            build/release/*.tgz
+          if-no-files-found: error
+          retention-days: 14
+
+  build-release-windows:
+    name: Build release (Windows)
+    runs-on: windows-2022
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Configure MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up vcpkg
+        shell: bash
+        run: |
+          # Windows runners ship vcpkg preinstalled at C:\vcpkg.
+          echo "VCPKG_ROOT=C:\\vcpkg" >> "$GITHUB_ENV"
+          echo "C:\\vcpkg"            >> "$GITHUB_PATH"
+
+      - name: Prepare vcpkg binary cache directory
+        shell: bash
+        run: mkdir -p "${{ github.workspace }}/.vcpkg-bincache"
+
+      - name: Cache vcpkg binary archives
+        id: vcpkg-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}\.vcpkg-bincache
+            ${{ env.LOCALAPPDATA }}\vcpkg\archives
+          key: ${{ runner.os }}-msvc-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: |
+            ${{ runner.os }}-msvc-vcpkg-
+            ${{ runner.os }}-vcpkg-
+
+      - name: Report cache status
+        shell: bash
+        run: |
+          echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
+
+      - name: Configure with CMake (msvc-release)
+        shell: bash
+        run: cmake --preset msvc-release
+
+      - name: Build with Ninja
+        shell: bash
+        run: cmake --build --preset msvc-release --parallel
+
+      - name: Package with CPack (ZIP)
+        shell: bash
+        working-directory: build/msvc-release
+        run: cpack -G ZIP
+
+      - name: Upload Windows release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmlb-windows-x64
+          path: |
+            build/msvc-release/*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish GitHub release
+    runs-on: ubuntu-24.04
+    needs: [build-release-linux, build-release-macos, build-release-windows]
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: List downloaded artifacts
+        shell: bash
+        run: |
+          echo "Artifacts staged for upload:"
+          find dist -type f | sort
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: ${{ github.event.inputs.tag || github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/cmlb-linux-x64/*
+            dist/cmlb-macos-arm64/*
+            dist/cmlb-windows-x64/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

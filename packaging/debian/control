@@ -1,0 +1,35 @@
+Source: cmlb
+Section: net
+Priority: optional
+Maintainer: Stanes Wilson <noreply@github.com>
+Build-Depends: debhelper-compat (= 13),
+               cmake (>= 3.28),
+               ninja-build,
+               g++-13,
+               libboost-system-dev,
+               libboost-json-dev,
+               libssl-dev,
+               libsqlite3-dev,
+               libspdlog-dev,
+               libfmt-dev,
+               nlohmann-json3-dev
+Standards-Version: 4.6.2
+Homepage: https://github.com/staneswilson/cpp-mirror-leech-bot
+Vcs-Browser: https://github.com/staneswilson/cpp-mirror-leech-bot
+Vcs-Git: https://github.com/staneswilson/cpp-mirror-leech-bot.git
+Rules-Requires-Root: no
+
+Package: cmlb
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         aria2,
+         ca-certificates
+Recommends: ffmpeg, p7zip-full, rclone
+Description: Production-grade C++23 Telegram mirror/leech bot
+ CMLB downloads URLs, magnet links, and torrents via aria2c or qBittorrent
+ and uploads the results back to Telegram or to cloud storage
+ (Google Drive, rclone remotes). It supports RSS subscriptions,
+ archive extraction, media processing, and a four-tier permission model.
+ .
+ Built on TDLib, Boost.Asio C++20 coroutines, and SQLite (WAL mode).

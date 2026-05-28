@@ -1,0 +1,7 @@
+file(GLOB CORE_TEST_SOURCES CONFIGURE_DEPENDS *_test.cpp)
+foreach(test_file ${CORE_TEST_SOURCES})
+    get_filename_component(test_name "${test_file}" NAME_WE)
+    add_executable(core_${test_name} ${test_file})
+    target_link_libraries(core_${test_name} PRIVATE cmlb_core cmlb_test_support Catch2::Catch2WithMain)
+    catch_discover_tests(core_${test_name} DISCOVERY_MODE PRE_TEST)
+endforeach()

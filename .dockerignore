@@ -1,0 +1,103 @@
+# .dockerignore — keep the build context tiny so multi-arch builds aren't
+# bottlenecked by sending an 800 MB tarball over the buildkit socket.
+
+# Build artefacts -----------------------------------------------------------
+build/
+build-*/
+out/
+cmake-build-*/
+_deps/
+vcpkg_installed/
+/c/cmlb-build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+.ninja_deps
+.ninja_log
+
+# Editor / IDE / OS junk ----------------------------------------------------
+.vs/
+.vscode/
+.idea/
+.cache/
+.clangd/
+.ccls-cache/
+.history/
+*.code-workspace
+*.suo
+*.user
+*.sln
+*.vcxproj*
+CMakeSettings.json
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.swp
+*.swo
+*~
+
+# Local runtime state -------------------------------------------------------
+data/
+downloads/
+logs/
+tdlib/
+runtime/
+*.log
+*.log.*
+*.db
+*.db-wal
+*.db-shm
+
+# Secrets / credentials (NEVER bake into images) ----------------------------
+config.json
+config.local.json
+.env
+.env.local
+.env.*.local
+*.env.local
+service_account*.json
+credentials*.json
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# Source-control + dev tooling not needed by the build ----------------------
+.git/
+.gitattributes
+.gitignore
+.github/
+.pre-commit-config.yaml
+.clang-format
+.clang-tidy
+.cmake-format.yaml
+.editorconfig
+
+# Tests + scripts NOT needed by the runtime image (build still copies them) -
+# (Kept in image because the builder runs ctest as a gate; if you want a
+# leaner build context, comment these in.)
+# tests/integration/
+# tests/property/
+# benchmarks/
+
+# Documentation / legacy ----------------------------------------------------
+*.legacy.*
+*.real
+build_error.txt
+MIGRATION_NOTES.md
+docs/_build/
+docs/html/
+
+# Coverage / sanitizer artefacts --------------------------------------------
+*.gcda
+*.gcno
+*.gcov
+coverage/
+*.lcov
+*.profraw
+*.profdata

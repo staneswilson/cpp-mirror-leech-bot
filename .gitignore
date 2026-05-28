@@ -1,48 +1,178 @@
-# Build directories
+# CMLB .gitignore
+# Keep this list curated: untracked artefacts only -- not editor preferences
+# you want to share. Sensitive paths (config.json, .env, service accounts)
+# MUST stay listed below.
+
+# ----- Build directories --------------------------------------------------
 build/
+build-*/
 out/
 cmake-build-*/
+_deps/
+CMakeFiles/
+CMakeCache.txt
+CMakeUserPresets.json
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+.ninja_deps
+.ninja_log
+# MSBuild incremental artefacts
+*.tlog
+*.iobj
+*.ipdb
+*.lastbuildstate
+*.recipe
+*.vcxproj.FileListAbsolute.txt
 
-# IDE files
+# ----- Package managers ---------------------------------------------------
+vcpkg_installed/
+.vcpkg-root
+vcpkg/buildtrees/
+vcpkg/downloads/
+vcpkg/packages/
+
+# ----- IDE / editor caches -----------------------------------------------
 .vs/
 .vscode/
 .idea/
+.claude/
+CLAUDE.md
 *.sln
-*.vcxproj*
+*.vcxproj
+*.vcxproj.*
+*.suo
+*.user
 CMakeSettings.json
+.cache/
+.clangd/
+.ccls-cache/
+.history/
+*.code-workspace
 
-# Compiled files
+# ----- Compiled artefacts -------------------------------------------------
 *.o
 *.obj
+*.lo
+*.slo
 *.exe
 *.dll
 *.so
+*.so.*
 *.dylib
 *.a
 *.lib
 *.pdb
+*.ilk
+*.exp
+*.idb
+*.app
+*.gch
+*.pch
 
-# Data and logs
+# ----- Data / runtime artefacts ------------------------------------------
 data/
 downloads/
 logs/
 *.log
+*.log.*
+*.dmp
 
-# Configuration with secrets
+# ----- Secrets / credentials (NEVER commit) ------------------------------
 config.json
+config.local.json
 .env
+.env.local
+.env.*.local
+*.env.local
+service_account*.json
+credentials*.json
+*-credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.secrets/
 
-# TDLib database
+# ----- TDLib runtime state -----------------------------------------------
 tdlib/
+td_log.txt
 
-# Package managers
-vcpkg_installed/
+# ----- Bot runtime state -------------------------------------------------
+# Runtime executable dependencies fetched by scripts/download_runtime_dependencies.sh
+# (formerly the checked-in aria2c.exe binary).
+runtime/
+# Persisted SQLite DB created by SchemaMigrator on first start.
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
 
-# OS files
+# ----- Coverage reports --------------------------------------------------
+*.gcda
+*.gcno
+*.gcov
+coverage/
+coverage.xml
+*.lcov
+*.profraw
+*.profdata
+.coverage
+
+# ----- Documentation build output ----------------------------------------
+docs/_build/
+docs/html/
+docs/xml/
+docs/doxygen/
+
+# ----- OS / shell --------------------------------------------------------
 .DS_Store
+.AppleDouble
+.LSOverride
 Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
 
-# Temporary files
+# ----- Temporary / scratch files -----------------------------------------
 *.tmp
 *.temp
+*.bak
+*.orig
+*.rej
+*.swp
+*.swo
 *~
+nohup.out
+# Unix core dumps at the repo root only — must NOT shadow src/core, tests/unit/core, include/cmlb/core.
+/core
+/core.*
+.envrc
+
+# ----- Legacy backup files (rebuild artefact; safe to delete) ------------
+# Kept as a defensive entry — the rebuild that produced these is complete.
+*.legacy.*
+
+# ----- Misc tooling artefacts --------------------------------------------
+build_error.txt
+.pytest_cache/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+# include-what-you-use output
+*.iwyu
+# AddressSanitizer / LeakSanitizer dumps
+*.lsan.log
+*.asan.log
+*.tsan.log
+# clang-tidy fixit DB
+.clang-tidy-fixes/
+
+# ----- Allow-list ---------------------------------------------------------
+# Keep example configs tracked even though config.json is ignored.
+!config.example.json

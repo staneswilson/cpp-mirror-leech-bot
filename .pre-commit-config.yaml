@@ -1,0 +1,94 @@
+# CMLB pre-commit configuration.
+#
+# Install once with:    pre-commit install --install-hooks
+# Run on the full tree: pre-commit run --all-files
+#
+# Requirements installed on the developer machine:
+#   - clang-format >= 17   (system tool, exposed on PATH)
+#   - cmake-format         (pip install cmakelang)
+#   - commitizen           (pip install commitizen)
+#
+# Pinned hook revisions keep the toolchain reproducible across contributors.
+
+minimum_pre_commit_version: "3.6.0"
+
+default_language_version:
+    python: python3
+
+default_stages: [pre-commit]
+
+repos:
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v4.6.0
+      hooks:
+          - id: trailing-whitespace
+            args: ["--markdown-linebreak-ext=md"]
+            exclude: '\.(patch|diff)$'
+          - id: end-of-file-fixer
+            exclude: '\.(patch|diff|svg)$'
+          - id: check-yaml
+            files: '\.(yml|yaml)$'
+            args: ["--allow-multiple-documents"]
+          - id: check-json
+            files: '\.json$'
+            exclude: '^(\.vscode/|tests/fixtures/.*\.json)'
+          - id: check-toml
+            files: '\.toml$'
+          - id: check-merge-conflict
+          - id: mixed-line-ending
+            args: ["--fix=lf"]
+            exclude: '\.(ps1|bat|cmd)$'
+          - id: check-added-large-files
+            args: ["--maxkb=512"]
+          - id: check-case-conflict
+          - id: check-executables-have-shebangs
+          - id: check-shebang-scripts-are-executable
+          - id: detect-private-key
+          - id: forbid-submodules
+
+    # clang-format runs against the system binary; we pin the version we expect
+    # via CMake's clang-format target rather than re-downloading a wheel.
+    - repo: local
+      hooks:
+          - id: clang-format
+            name: clang-format (system, >= 17)
+            language: system
+            entry: clang-format
+            args: ["-i", "--style=file"]
+            files: '\.(c|cc|cpp|cxx|h|hh|hpp|hxx|ipp|inl|tpp)$'
+            exclude: '^(third_party/|build/|out/|vcpkg_installed/)'
+
+    # cmake-format from the cmakelang Python package.
+    - repo: local
+      hooks:
+          - id: cmake-format
+            name: cmake-format (system)
+            language: system
+            entry: cmake-format
+            args: ["-i", "--config-file", ".cmake-format.yaml"]
+            files: '(^|/)(CMakeLists\.txt|.*\.cmake)$'
+            exclude: '^(third_party/|build/|out/|vcpkg_installed/)'
+
+    # commitizen enforces Conventional Commits on the commit message itself.
+    - repo: https://github.com/commitizen-tools/commitizen
+      rev: v3.29.1
+      hooks:
+          - id: commitizen
+            stages: [commit-msg]
+          - id: commitizen-branch
+            stages: [pre-push]
+
+    # yamllint catches indentation and style drift in YAML config.
+    - repo: https://github.com/adrienverge/yamllint
+      rev: v1.35.1
+      hooks:
+          - id: yamllint
+            args: ["-s", "-d", "{extends: default, rules: {line-length: {max: 120}, document-start: disable, truthy: {check-keys: false}}}"]
+            files: '\.(yml|yaml)$'
+
+    # shellcheck for any .sh files we ship.
+    - repo: https://github.com/shellcheck-py/shellcheck-py
+      rev: v0.10.0.1
+      hooks:
+          - id: shellcheck
+            files: '\.sh$'

@@ -1,0 +1,221 @@
+# Continuous Integration: build + unit + integration test matrix across Linux/macOS/Windows toolchains.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # Use a writable, cache-friendly binary cache location. The path is mapped per-OS in each job.
+  VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-bincache,readwrite"
+  # Disable vcpkg metrics for faster, quieter runs.
+  VCPKG_DISABLE_METRICS: "1"
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-gcc-debug
+            os: ubuntu-24.04
+            compiler: gcc-14
+            preset: debug
+            cache_path: ~/.cache/vcpkg/archives
+          - name: linux-gcc-release
+            os: ubuntu-24.04
+            compiler: gcc-14
+            preset: release
+            cache_path: ~/.cache/vcpkg/archives
+          - name: linux-clang-debug
+            os: ubuntu-24.04
+            compiler: clang-18
+            preset: debug
+            cache_path: ~/.cache/vcpkg/archives
+          - name: windows-msvc-debug
+            os: windows-2022
+            compiler: msvc
+            preset: msvc-debug
+            cache_path: ${{ github.workspace }}\.vcpkg-bincache
+          - name: macos-appleclang-debug
+            os: macos-14
+            compiler: apple-clang
+            preset: debug
+            cache_path: ~/.cache/vcpkg/archives
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Install GCC 14 (Linux GCC jobs)
+        if: matrix.compiler == 'gcc-14'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-14 g++-14
+          echo "CC=gcc-14"  >> "$GITHUB_ENV"
+          echo "CXX=g++-14" >> "$GITHUB_ENV"
+
+      - name: Install Clang 18 (Linux Clang jobs)
+        if: matrix.compiler == 'clang-18'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 lld-18 llvm-18 g++-14 libstdc++-14-dev
+          # Force Clang's auto-toolchain probe to pick libstdc++-14 (needed for std::expected + <print>).
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+          echo "CC=clang-18"   >> "$GITHUB_ENV"
+          echo "CXX=clang++-18" >> "$GITHUB_ENV"
+
+      - name: Configure MSVC developer environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Set up vcpkg (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [ ! -d "$HOME/vcpkg" ]; then
+            git clone --depth 1 https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+            "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          fi
+          echo "VCPKG_ROOT=$HOME/vcpkg"     >> "$GITHUB_ENV"
+          echo "$HOME/vcpkg"                >> "$GITHUB_PATH"
+
+      - name: Set up vcpkg (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          # Windows runners ship vcpkg preinstalled at C:\vcpkg.
+          echo "VCPKG_ROOT=C:\\vcpkg" >> "$GITHUB_ENV"
+          echo "C:\\vcpkg"            >> "$GITHUB_PATH"
+
+      - name: Prepare vcpkg binary cache directory
+        shell: bash
+        run: mkdir -p "${{ github.workspace }}/.vcpkg-bincache"
+
+      - name: Cache vcpkg binary archives
+        id: vcpkg-cache
+        uses: actions/cache@v4
+        with:
+          # We use the workspace-local files-provider directory (see VCPKG_BINARY_SOURCES above).
+          # The OS-default location is kept as a secondary path so toolchain-installed binaries are also reused.
+          path: |
+            ${{ github.workspace }}/.vcpkg-bincache
+            ${{ matrix.cache_path }}
+          key: ${{ runner.os }}-${{ matrix.compiler }}-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.compiler }}-vcpkg-
+            ${{ runner.os }}-vcpkg-
+
+      - name: Report cache status
+        shell: bash
+        run: |
+          echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
+          echo "vcpkg cache matched key: ${{ steps.vcpkg-cache.outputs.cache-matched-key }}"
+
+      - name: Configure with CMake
+        shell: bash
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build with Ninja
+        shell: bash
+        run: cmake --build --preset ${{ matrix.preset }} --parallel
+
+      - name: Run unit and integration tests
+        shell: bash
+        run: ctest --preset ${{ matrix.preset }} --output-on-failure
+
+      - name: Upload CTest log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-log-${{ matrix.name }}
+          path: ${{ github.workspace }}/build/${{ matrix.preset }}/Testing/Temporary/LastTest.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+  lint:
+    name: lint (clang-format + cmake-format)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install clang-format 18 and cmake-format
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-18 python3-pip
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
+          python3 -m pip install --user cmake-format
+
+      - name: Run clang-format (dry-run, treat warnings as errors)
+        shell: bash
+        run: |
+          mapfile -d '' files < <(find include src tests benchmarks -type f \( -name '*.hpp' -o -name '*.cpp' \) -print0 2>/dev/null)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No C++ sources found to format-check."
+            exit 0
+          fi
+          clang-format --version
+          clang-format --dry-run --Werror "${files[@]}"
+
+      - name: Run cmake-format check
+        shell: bash
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          mapfile -d '' files < <(find . -type f \( -name 'CMakeLists.txt' -o -name '*.cmake' \) \
+            ! -path './build/*' ! -path './*/build/*' ! -path './third_party/*' ! -path './tdlib/*' -print0)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No CMake files found to check."
+            exit 0
+          fi
+          cmake-format --version
+          cmake-format --check "${files[@]}"
+
+  summary:
+    name: CI summary (required check)
+    runs-on: ubuntu-24.04
+    needs: [build-and-test, lint]
+    if: always()
+    permissions:
+      contents: read
+    steps:
+      - name: Fail if any required job failed
+        shell: bash
+        run: |
+          echo "build-and-test result: ${{ needs.build-and-test.result }}"
+          echo "lint result:           ${{ needs.lint.result }}"
+          if [ "${{ needs.build-and-test.result }}" != "success" ] || [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "One or more required jobs failed."
+            exit 1
+          fi
+          echo "All required jobs succeeded."

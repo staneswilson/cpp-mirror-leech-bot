@@ -9,39 +9,167 @@
         {
             "name": "default",
             "hidden": true,
+            "description": "Shared base. Sets vcpkg toolchain, Ninja generator, compile_commands.json.",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
             }
         },
         {
             "name": "debug",
-            "displayName": "Debug Config",
-            "description": "Debug build with symbols",
             "inherits": "default",
+            "displayName": "Debug",
+            "description": "Debug build with tests enabled.",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug"
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMLB_BUILD_TESTS": "ON"
             }
         },
         {
             "name": "release",
-            "displayName": "Release Config",
-            "description": "Release build with optimizations",
             "inherits": "default",
+            "displayName": "Release",
+            "description": "Optimised release build; tests off by default.",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMLB_BUILD_TESTS": "OFF"
+            }
+        },
+        {
+            "name": "asan",
+            "inherits": "debug",
+            "displayName": "Debug + AddressSanitizer",
+            "cacheVariables": {
+                "CMLB_ENABLE_ASAN": "ON"
+            }
+        },
+        {
+            "name": "ubsan",
+            "inherits": "debug",
+            "displayName": "Debug + UndefinedBehaviorSanitizer",
+            "cacheVariables": {
+                "CMLB_ENABLE_UBSAN": "ON"
+            }
+        },
+        {
+            "name": "tsan",
+            "inherits": "debug",
+            "displayName": "Debug + ThreadSanitizer",
+            "cacheVariables": {
+                "CMLB_ENABLE_TSAN": "ON"
+            }
+        },
+        {
+            "name": "coverage",
+            "inherits": "debug",
+            "displayName": "Debug + Coverage",
+            "cacheVariables": {
+                "CMLB_ENABLE_COVERAGE": "ON"
+            }
+        },
+        {
+            "name": "msvc-debug",
+            "displayName": "MSVC Debug (Visual Studio 17 2022)",
+            "description": "Multi-config MSVC build. Sanitizers are skipped on MSVC in v1.",
+            "generator": "Visual Studio 17 2022",
+            "architecture": {
+                "value": "x64",
+                "strategy": "set"
+            },
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+            }
+        },
+        {
+            "name": "msvc-release",
+            "displayName": "MSVC Release (Visual Studio 17 2022)",
+            "description": "Multi-config MSVC build, optimised.",
+            "generator": "Visual Studio 17 2022",
+            "architecture": {
+                "value": "x64",
+                "strategy": "set"
+            },
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
             }
         }
     ],
     "buildPresets": [
+        { "name": "debug",        "configurePreset": "debug" },
+        { "name": "release",      "configurePreset": "release" },
+        { "name": "asan",         "configurePreset": "asan" },
+        { "name": "ubsan",        "configurePreset": "ubsan" },
+        { "name": "tsan",         "configurePreset": "tsan" },
+        { "name": "coverage",     "configurePreset": "coverage" },
+        {
+            "name": "msvc-debug",
+            "configurePreset": "msvc-debug",
+            "configuration": "Debug"
+        },
+        {
+            "name": "msvc-release",
+            "configurePreset": "msvc-release",
+            "configuration": "Release"
+        }
+    ],
+    "testPresets": [
         {
             "name": "debug",
-            "configurePreset": "debug"
+            "configurePreset": "debug",
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "error", "stopOnFailure": false }
         },
         {
             "name": "release",
-            "configurePreset": "release"
+            "configurePreset": "release",
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "ignore", "stopOnFailure": false }
+        },
+        {
+            "name": "asan",
+            "configurePreset": "asan",
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "error", "stopOnFailure": false }
+        },
+        {
+            "name": "ubsan",
+            "configurePreset": "ubsan",
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "error", "stopOnFailure": false }
+        },
+        {
+            "name": "tsan",
+            "configurePreset": "tsan",
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "error", "stopOnFailure": false }
+        },
+        {
+            "name": "coverage",
+            "configurePreset": "coverage",
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "error", "stopOnFailure": false }
+        },
+        {
+            "name": "msvc-debug",
+            "configurePreset": "msvc-debug",
+            "configuration": "Debug",
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "error", "stopOnFailure": false }
+        },
+        {
+            "name": "msvc-release",
+            "configurePreset": "msvc-release",
+            "configuration": "Release",
+            "output": { "outputOnFailure": true },
+            "execution": { "noTestsAction": "ignore", "stopOnFailure": false }
         }
     ]
 }

@@ -1,0 +1,58 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+    "$comment": [
+        "CMLB vcpkg manifest. Reproducibility is anchored by `builtin-baseline`",
+        "below — every dependency resolves to its version at that baseline SHA.",
+        "Update the baseline with:  git -C <vcpkg-root> rev-parse HEAD",
+        "and bump both this file and vcpkg-configuration.json in lockstep.",
+        "Version floors (version>=) are intentionally omitted: the baseline",
+        "is the source of truth, and adding incompatible floors causes the",
+        "`no version database entry` failure mode."
+    ],
+    "name": "cmlb",
+    "version-string": "1.0.0",
+    "description": "CMLB - C++23 Telegram Mirror/Leech Bot.",
+    "homepage": "https://github.com/staneswilson/cpp-mirror-leech-bot",
+    "license": "MIT",
+    "supports": "(windows | linux | osx) & (x64 | arm64)",
+    "builtin-baseline": "2b65c20fc66eda893aa15a15a453c3cf09500b19",
+    "dependencies": [
+        "boost-asio",
+        "boost-beast",
+        "boost-process",
+        "boost-system",
+        "boost-json",
+        "openssl",
+        "nlohmann-json",
+        "spdlog",
+        "fmt",
+        {
+            "name": "sqlite3",
+            "features": ["json1", "fts5"]
+        },
+        "sqlite-modern-cpp",
+        "catch2",
+        "rapidcheck"
+    ],
+    "features": {
+        "telegram": {
+            "description": "Pull TDLib for the real Telegram gateway (vs. the build-only stub). Required for any real bot run; not required for unit tests of layers that don't touch TDLib.",
+            "dependencies": ["tdlib"]
+        },
+        "benchmarks": {
+            "description": "Enable micro-benchmarks via nanobench.",
+            "dependencies": ["nanobench"]
+        },
+        "coverage": {
+            "description": "Enable additional tooling required for coverage builds.",
+            "dependencies": []
+        }
+    },
+    "default-features": [],
+    "overrides": [
+        {
+            "name": "sqlite-modern-cpp",
+            "version-date": "2023-12-03"
+        }
+    ]
+}

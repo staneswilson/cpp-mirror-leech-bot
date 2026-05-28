@@ -1,0 +1,112 @@
+# Sanitizers: AddressSanitizer, UndefinedBehaviorSanitizer, and ThreadSanitizer runs on Linux/Clang.
+name: Sanitizers
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Nightly at 03:00 UTC.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sanitizers-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-bincache,readwrite"
+  VCPKG_DISABLE_METRICS: "1"
+  # NOTE: Suppression files live under tests/sanitizer_suppressions/ and will be added on demand
+  # as we discover unavoidable third-party noise (tdlib, openssl, etc.).
+  ASAN_OPTIONS: "halt_on_error=1:abort_on_error=1:print_stacktrace=1:detect_leaks=1:strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:verbosity=1"
+  UBSAN_OPTIONS: "halt_on_error=1:abort_on_error=1:print_stacktrace=1:print_summary=1:report_error_type=1:verbosity=1"
+  TSAN_OPTIONS: "halt_on_error=1:second_deadlock_stack=1:history_size=7:verbosity=1"
+  LSAN_OPTIONS: "use_unaligned=1"
+
+jobs:
+  sanitizer:
+    name: ${{ matrix.preset }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [asan, ubsan, tsan]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Install Clang 18
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 lld-18 llvm-18 libc++-18-dev libc++abi-18-dev g++-14 libstdc++-14-dev
+          # Force Clang's auto-toolchain probe to pick libstdc++-14 (needed for std::expected + <print>).
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+          echo "CC=clang-18"    >> "$GITHUB_ENV"
+          echo "CXX=clang++-18" >> "$GITHUB_ENV"
+
+      - name: Set up vcpkg
+        shell: bash
+        run: |
+          if [ ! -d "$HOME/vcpkg" ]; then
+            git clone --depth 1 https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+            "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          fi
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
+          echo "$HOME/vcpkg"            >> "$GITHUB_PATH"
+
+      - name: Prepare vcpkg binary cache directory
+        shell: bash
+        run: mkdir -p "${{ github.workspace }}/.vcpkg-bincache"
+
+      - name: Cache vcpkg binary archives
+        id: vcpkg-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.vcpkg-bincache
+            ~/.cache/vcpkg/archives
+          key: ${{ runner.os }}-clang-18-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: |
+            ${{ runner.os }}-clang-18-vcpkg-
+            ${{ runner.os }}-vcpkg-
+
+      - name: Report cache status
+        shell: bash
+        run: |
+          echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
+          echo "vcpkg cache matched key: ${{ steps.vcpkg-cache.outputs.cache-matched-key }}"
+
+      - name: Configure with CMake
+        shell: bash
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build with Ninja
+        shell: bash
+        run: cmake --build --preset ${{ matrix.preset }} --parallel
+
+      - name: Run tests under ${{ matrix.preset }}
+        shell: bash
+        run: ctest --preset ${{ matrix.preset }} --output-on-failure
+
+      - name: Upload CTest log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-log-${{ matrix.preset }}
+          path: ${{ github.workspace }}/build/${{ matrix.preset }}/Testing/Temporary/LastTest.log
+          if-no-files-found: ignore
+          retention-days: 14

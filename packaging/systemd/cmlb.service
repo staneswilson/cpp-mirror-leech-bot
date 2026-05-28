@@ -1,0 +1,55 @@
+[Unit]
+Description=CMLB — Telegram mirror/leech bot
+Documentation=https://github.com/staneswilson/cpp-mirror-leech-bot
+After=network-online.target aria2.service
+Wants=network-online.target
+Requires=aria2.service
+
+[Service]
+Type=simple
+User=cmlb
+Group=cmlb
+WorkingDirectory=/var/lib/cmlb
+
+ExecStartPre=/usr/bin/cmlb --validate-config /etc/cmlb/config.json
+ExecStart=/usr/bin/cmlb /etc/cmlb/config.json
+
+Restart=on-failure
+RestartSec=10s
+
+# Graceful shutdown: SIGTERM, then SIGKILL after 30s if it hangs.
+KillSignal=SIGTERM
+TimeoutStopSec=30s
+
+# Hardening (systemd security directives).
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@mount @reboot @swap @raw-io
+
+ReadWritePaths=/var/lib/cmlb /var/log/cmlb
+StateDirectory=cmlb
+LogsDirectory=cmlb
+
+# Resource limits.
+LimitNOFILE=65536
+TasksMax=4096
+
+# Standard logging via journald.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

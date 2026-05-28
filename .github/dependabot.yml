@@ -1,0 +1,43 @@
+# Dependabot configuration.
+#
+# vcpkg is not a Dependabot-supported ecosystem; the vcpkg baseline pin in
+# vcpkg-configuration.json is monitored manually and bumped via Renovate or
+# scheduled maintenance work, not by this file.
+#
+# This file covers GitHub Actions versions and any future submodule deps.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+      include: scope
+    labels:
+      - "dependencies"
+      - "ci"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directory: "/packaging"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build"
+      include: scope
+    labels:
+      - "dependencies"
+      - "docker"

@@ -1,0 +1,88 @@
+# EditorConfig for CMLB -- normalises whitespace across editors.
+# Reference: https://editorconfig.org
+
+root = true
+
+# Defaults for every text file in the repository.
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# C / C++ source and headers.
+[*.{cpp,hpp,cc,cxx,c,h,hh,hxx,ipp,inl,tpp}]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+max_line_length = 100
+
+# CMake build files.
+[{*.cmake,CMakeLists.txt,CMakePresets.json}]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# YAML / JSON config.
+[*.{yml,yaml,json}]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Markdown -- preserve trailing whitespace because two spaces denotes a line break.
+[*.md]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+trim_trailing_whitespace = false
+insert_final_newline = true
+
+# Shell scripts -- POSIX defaults.
+[*.{sh,bash}]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Python tooling scripts.
+[*.py]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true
+max_line_length = 100
+
+# Windows-only scripts must keep CRLF.
+[*.{ps1,bat,cmd}]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Makefiles require literal tabs.
+[Makefile]
+indent_style = tab
+indent_size = 4
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Git configuration files.
+[{.gitattributes,.gitignore,.gitmodules}]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true

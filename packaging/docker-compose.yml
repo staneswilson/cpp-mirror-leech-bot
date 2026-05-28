@@ -1,0 +1,128 @@
+# docker-compose.yml — local development + production-shaped stack.
+#
+# Two services:
+#   * aria2  — the download daemon CMLB delegates HTTP/torrent fetches to.
+#   * cmlb   — the bot itself.
+#
+# Usage:
+#   docker compose --file packaging/docker-compose.yml up --build
+#
+# Configuration:
+#   Place your config.json at ./config.json (relative to the repo root). It is
+#   bind-mounted read-only into the bot container at /etc/cmlb/config.json.
+#
+#   Override sensitive values via the .env file beside this compose file, or
+#   via the host shell. Compose substitutes `${VAR}` automatically.
+
+name: cmlb
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+services:
+  aria2:
+    image: p3terx/aria2-pro:latest
+    container_name: cmlb-aria2
+    restart: unless-stopped
+    init: true
+    user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      RPC_SECRET: "${ARIA2_SECRET:?ARIA2_SECRET must be set}"
+      RPC_PORT: 6800
+      LISTEN_PORT: 6888
+      DISK_CACHE: "128M"
+      UMASK_SET: "022"
+      TZ: "${TZ:-UTC}"
+    volumes:
+      - aria2-config:/config
+      - aria2-downloads:/downloads
+    networks:
+      - cmlb-net
+    ports:
+      - "127.0.0.1:6800:6800"     # RPC bound to loopback only
+      - "6888:6888/tcp"             # BT peer port
+      - "6888:6888/udp"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z localhost 6800"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+
+  cmlb:
+    build:
+      context: ..
+      dockerfile: packaging/Dockerfile
+      args:
+        CMLB_BUILD_TYPE: Release
+        CMLB_RUN_TESTS: "1"
+        GIT_SHA: "${GIT_SHA:-dev}"
+        BUILD_DATE: "${BUILD_DATE:-unknown}"
+      cache_from:
+        - type=registry,ref=ghcr.io/staneswilson/cmlb:cache
+    image: ghcr.io/staneswilson/cmlb:${CMLB_TAG:-latest}
+    container_name: cmlb-bot
+    restart: unless-stopped
+    init: true
+    depends_on:
+      aria2:
+        condition: service_healthy
+    environment:
+      # Every leaf field in AppConfig is overridable via env. See
+      # docs/configuration_reference.md.
+      CMLB_TELEGRAM_API_ID:        "${TELEGRAM_API_ID:?TELEGRAM_API_ID must be set}"
+      CMLB_TELEGRAM_API_HASH:      "${TELEGRAM_API_HASH:?TELEGRAM_API_HASH must be set}"
+      CMLB_TELEGRAM_BOT_TOKEN:     "${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN must be set}"
+      CMLB_TELEGRAM_OWNER_ID:      "${OWNER_ID:?OWNER_ID must be set}"
+      CMLB_ARIA2_RPC_URL:          "ws://aria2:6800/jsonrpc"
+      CMLB_ARIA2_SECRET:           "${ARIA2_SECRET}"
+      CMLB_LOGGING_LEVEL:          "${LOG_LEVEL:-info}"
+      CMLB_LOGGING_CONSOLE:        "true"
+      TZ:                          "${TZ:-UTC}"
+    volumes:
+      - ../config.json:/etc/cmlb/config.json:ro
+      - cmlb-data:/var/lib/cmlb
+      - cmlb-logs:/var/log/cmlb
+      - aria2-downloads:/var/lib/cmlb/downloads
+    networks:
+      - cmlb-net
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/cmlb", "--validate-config", "/etc/cmlb/config.json"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+    # Security hardening (compose runs as docker, not k8s, so we replicate
+    # the systemd unit's intent at the container layer).
+    read_only: false             # writes to /var/lib/cmlb and /var/log/cmlb
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE         # only if exposing inbound port; safe default
+
+networks:
+  cmlb-net:
+    driver: bridge
+
+volumes:
+  aria2-config:
+  aria2-downloads:
+  cmlb-data:
+  cmlb-logs:

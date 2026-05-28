@@ -1,0 +1,37 @@
+# Code Owners
+#
+# Defines who must review changes to specific parts of the codebase.
+# Lines are matched bottom-up; later patterns override earlier ones.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-security/customizing-your-repository/about-code-owners
+
+# Default owners — every PR requires a review from this group.
+*                                       @stanes-wilson
+
+# Build system and CI changes are infrastructure-critical.
+/CMakeLists.txt                         @stanes-wilson
+/CMakePresets.json                      @stanes-wilson
+/cmake/                                 @stanes-wilson
+/vcpkg.json                             @stanes-wilson
+/vcpkg-configuration.json               @stanes-wilson
+/.github/                               @stanes-wilson
+
+# The Telegram gateway is the only file in the codebase that may include
+# <td/telegram/td_api.h>. Changes here often warrant extra scrutiny.
+/include/cmlb/infrastructure/telegram/  @stanes-wilson
+/src/infrastructure/telegram/           @stanes-wilson
+
+# Persistence: schema migrations are forward-only and irreversible in
+# production. Reviewers must verify migrations apply cleanly to existing DBs.
+/include/cmlb/infrastructure/persistence/   @stanes-wilson
+/src/infrastructure/persistence/            @stanes-wilson
+
+# Domain model owns business invariants. Changes here ripple into every
+# use case; treat as load-bearing.
+/include/cmlb/domain/                   @stanes-wilson
+/src/domain/                            @stanes-wilson
+
+# Documentation, including ADRs, follows the same review standard so
+# decisions are recorded faithfully.
+/docs/                                  @stanes-wilson
+/README.md                              @stanes-wilson
+/CHANGELOG.md                           @stanes-wilson

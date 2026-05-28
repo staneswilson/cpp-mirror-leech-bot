@@ -1,0 +1,212 @@
+# Static analysis: clang-tidy on changed C++ sources (PR) or full tree (main); optional IWYU on label.
+name: Static Analysis
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: static-analysis-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-bincache,readwrite"
+  VCPKG_DISABLE_METRICS: "1"
+
+jobs:
+  clang-tidy:
+    name: clang-tidy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          # PRs need history to diff against origin/main.
+          fetch-depth: 0
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Install Clang 18 and clang-tidy
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 clang-tidy-18 clang-tools-18 lld-18 llvm-18 g++-14 libstdc++-14-dev
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-18 100
+          sudo update-alternatives --install /usr/bin/run-clang-tidy run-clang-tidy /usr/bin/run-clang-tidy-18 100
+          # Force Clang's auto-toolchain probe to pick libstdc++-14 (needed for std::expected + <print>).
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+          echo "CC=clang-18"    >> "$GITHUB_ENV"
+          echo "CXX=clang++-18" >> "$GITHUB_ENV"
+
+      - name: Set up vcpkg
+        shell: bash
+        run: |
+          if [ ! -d "$HOME/vcpkg" ]; then
+            git clone --depth 1 https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+            "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          fi
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
+          echo "$HOME/vcpkg"            >> "$GITHUB_PATH"
+
+      - name: Prepare vcpkg binary cache directory
+        shell: bash
+        run: mkdir -p "${{ github.workspace }}/.vcpkg-bincache"
+
+      - name: Cache vcpkg binary archives
+        id: vcpkg-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.vcpkg-bincache
+            ~/.cache/vcpkg/archives
+          key: ${{ runner.os }}-clang-18-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: |
+            ${{ runner.os }}-clang-18-vcpkg-
+            ${{ runner.os }}-vcpkg-
+
+      - name: Report cache status
+        shell: bash
+        run: |
+          echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
+          echo "vcpkg cache matched key: ${{ steps.vcpkg-cache.outputs.cache-matched-key }}"
+
+      - name: Configure with CMake (debug, exports compile_commands.json)
+        shell: bash
+        run: cmake --preset debug
+
+      - name: Build dependencies and generated sources
+        shell: bash
+        # Build only what's needed so generated headers exist when clang-tidy runs.
+        run: cmake --build --preset debug --parallel --target all
+
+      - name: Determine changed C++ sources (pull_request only)
+        id: changed
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git fetch --no-tags --depth=50 origin "${{ github.base_ref }}"
+          mapfile -t files < <(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- 'src/**/*.cpp' 'tests/**/*.cpp' | tr '\n' ' ' | xargs -n1 | sort -u)
+          {
+            echo "files<<EOF"
+            printf '%s\n' "${files[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "Changed C++ source files:"
+          printf '  %s\n' "${files[@]}"
+
+      - name: Run clang-tidy on changed sources (PR)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          files="${{ steps.changed.outputs.files }}"
+          if [ -z "${files//[[:space:]]/}" ]; then
+            echo "No changed C++ sources; skipping clang-tidy."
+            exit 0
+          fi
+          run-clang-tidy \
+            -p build/debug \
+            -header-filter='^.*include/cmlb/.*\.hpp$' \
+            -warnings-as-errors='*' \
+            -quiet \
+            $files
+
+      - name: Run clang-tidy on full tree (push/dispatch)
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          mapfile -d '' files < <(find src tests -type f -name '*.cpp' -print0)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No C++ sources found."
+            exit 0
+          fi
+          run-clang-tidy \
+            -p build/debug \
+            -header-filter='^.*include/cmlb/.*\.hpp$' \
+            -warnings-as-errors='*' \
+            -quiet \
+            "${files[@]}"
+
+  # Include-What-You-Use is heavy; only run on PRs labelled with `[iwyu]`.
+  # The label-based gate keeps default PR latency low while still allowing on-demand analysis.
+  iwyu:
+    name: include-what-you-use
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'iwyu')
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@latest
+
+      - name: Install Clang 18 and IWYU
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 libclang-18-dev llvm-18-dev iwyu g++-14 libstdc++-14-dev
+          # Force Clang's auto-toolchain probe to pick libstdc++-14 (needed for std::expected + <print>).
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+          echo "CC=clang-18"    >> "$GITHUB_ENV"
+          echo "CXX=clang++-18" >> "$GITHUB_ENV"
+
+      - name: Set up vcpkg
+        shell: bash
+        run: |
+          if [ ! -d "$HOME/vcpkg" ]; then
+            git clone --depth 1 https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+            "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          fi
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Prepare vcpkg binary cache directory
+        shell: bash
+        run: mkdir -p "${{ github.workspace }}/.vcpkg-bincache"
+
+      - name: Cache vcpkg binary archives
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.vcpkg-bincache
+            ~/.cache/vcpkg/archives
+          key: ${{ runner.os }}-clang-18-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: |
+            ${{ runner.os }}-clang-18-vcpkg-
+            ${{ runner.os }}-vcpkg-
+
+      - name: Configure with CMake
+        shell: bash
+        run: cmake --preset debug
+
+      - name: Run include-what-you-use via iwyu_tool
+        shell: bash
+        run: |
+          iwyu_tool.py -p build/debug -- -Xiwyu --no_fwd_decls -Xiwyu --cxx17ns | tee iwyu-report.txt
+
+      - name: Upload IWYU report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iwyu-report
+          path: iwyu-report.txt
+          if-no-files-found: ignore
+          retention-days: 14

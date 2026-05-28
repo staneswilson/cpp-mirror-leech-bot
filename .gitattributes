@@ -1,0 +1,107 @@
+# CMLB git attributes -- enforce consistent line endings across platforms.
+# Reference: https://git-scm.com/docs/gitattributes
+
+# Default: let git infer text vs binary, but normalise text to LF in the index.
+* text=auto eol=lf
+
+# --- Source code (LF, always) ---------------------------------------------
+*.c           text eol=lf
+*.cc          text eol=lf
+*.cpp         text eol=lf
+*.cxx         text eol=lf
+*.h           text eol=lf
+*.hh          text eol=lf
+*.hpp         text eol=lf
+*.hxx         text eol=lf
+*.ipp         text eol=lf
+*.inl         text eol=lf
+*.tpp         text eol=lf
+
+# --- Build / config (LF) --------------------------------------------------
+*.cmake       text eol=lf
+CMakeLists.txt text eol=lf
+CMakePresets.json text eol=lf
+*.json        text eol=lf
+*.yml         text eol=lf
+*.yaml        text eol=lf
+*.toml        text eol=lf
+*.ini         text eol=lf
+
+# --- Docs (LF) ------------------------------------------------------------
+*.md          text eol=lf
+*.txt         text eol=lf
+*.rst         text eol=lf
+LICENSE       text eol=lf
+VERSION       text eol=lf
+
+# --- Scripts (LF) ---------------------------------------------------------
+*.sh          text eol=lf
+*.bash        text eol=lf
+*.py          text eol=lf
+
+# --- Windows-only scripts (CRLF) ------------------------------------------
+*.ps1         text eol=crlf
+*.bat         text eol=crlf
+*.cmd         text eol=crlf
+
+# --- Dotfiles ------------------------------------------------------------
+.gitattributes text eol=lf
+.gitignore    text eol=lf
+.gitmodules   text eol=lf
+.editorconfig text eol=lf
+.clang-format text eol=lf
+.clang-tidy   text eol=lf
+
+# --- Binary artefacts -----------------------------------------------------
+*.exe         binary
+*.dll         binary
+*.so         binary
+*.so.*        binary
+*.dylib       binary
+*.a           binary
+*.lib         binary
+*.obj         binary
+*.o           binary
+*.pdb         binary
+*.ilk         binary
+*.exp         binary
+*.idb         binary
+
+# Archives
+*.zip         binary
+*.tar         binary
+*.tar.gz      binary
+*.tgz         binary
+*.gz          binary
+*.bz2         binary
+*.xz          binary
+*.7z          binary
+*.rar         binary
+
+# Images
+*.png         binary
+*.jpg         binary
+*.jpeg        binary
+*.gif         binary
+*.ico         binary
+*.bmp         binary
+*.tif         binary
+*.tiff        binary
+*.webp        binary
+*.svg         text eol=lf
+
+# Fonts and other binary assets
+*.ttf         binary
+*.otf         binary
+*.woff        binary
+*.woff2       binary
+
+# --- Linguist hints -------------------------------------------------------
+docs/**       linguist-documentation
+tests/**      linguist-tests=false
+third_party/** linguist-vendored
+benchmarks/** linguist-vendored=false
+
+# Generated artefacts (suppress diff churn)
+*.lock        -diff
+*.lock.json   -diff
