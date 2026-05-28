@@ -537,11 +537,14 @@ int main(int argc, char* argv[]) try {
     executor.stop();
     cmlb::core::Logger::shutdown();
     return EXIT_SUCCESS;
-
-} catch (const std::exception& ex) {
+}
+// clang-format off
+catch (const std::exception& ex) {
     std::cerr << "Fatal: " << ex.what() << "\n";
     return EXIT_FAILURE;
-} catch (...) {
+}
+catch (...) {
     std::cerr << "Fatal: unknown exception\n";
     return EXIT_FAILURE;
 }
+// clang-format on

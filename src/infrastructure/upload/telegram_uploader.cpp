@@ -305,9 +305,7 @@ boost::asio::awaitable<cmlb::core::Result<UploadResult>> TelegramUploader::uploa
                         std::shared_ptr<SharedState> shared;
                         ~ExitGuard() noexcept {
                             if (shared->live.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                                boost::system::error_code ec;
-                                shared->done_timer->cancel(ec);
-                                (void)ec;
+                                shared->done_timer->cancel();
                             }
                         }
                     };
@@ -396,7 +394,7 @@ boost::asio::awaitable<cmlb::core::Result<UploadResult>> TelegramUploader::uploa
 
         PartsCleanup parts_cleanup{&parts, true};
 
-        std::error_code wait_ec;
+        boost::system::error_code wait_ec;
         co_await shared->done_timer->async_wait(asio::redirect_error(asio::use_awaitable, wait_ec));
 
         if (shared->first_error) {
@@ -504,9 +502,7 @@ TelegramUploader::upload_directory(fs::path path,
                     std::shared_ptr<DirShared> shared;
                     ~ExitGuard() noexcept {
                         if (shared->live_workers.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                            boost::system::error_code ec;
-                            shared->join_timer->cancel(ec);
-                            (void)ec;
+                            shared->join_timer->cancel();
                         }
                     }
                 };

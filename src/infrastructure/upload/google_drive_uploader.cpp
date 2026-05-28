@@ -560,9 +560,7 @@ boost::asio::awaitable<cmlb::core::Result<UploadResult>> GoogleDriveUploader::up
                 std::shared_ptr<Shared> shared;
                 ~ExitGuard() noexcept {
                     if (shared->live_workers.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                        boost::system::error_code ec;
-                        shared->join_timer.cancel(ec);
-                        (void)ec;
+                        shared->join_timer.cancel();
                     }
                 }
             };
@@ -991,9 +989,7 @@ GoogleDriveUploader::upload_directory(fs::path path,
             std::shared_ptr<DirShared> shared;
             ~ExitGuard() noexcept {
                 if (shared->live_workers.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                    boost::system::error_code ec;
-                    shared->join_timer.cancel(ec);
-                    (void)ec;
+                    shared->join_timer.cancel();
                 }
             }
         };

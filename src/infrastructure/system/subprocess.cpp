@@ -9,7 +9,7 @@
 //   * POSIX (Linux / macOS) — fork + execvp + waitpid + pipe + read
 //   * Win32                 — CreateProcessW + CreatePipe + ReadFile + WaitForSingleObject
 //
-// Async surface: the synchronous spawn runs on a worker `std::jthread`;
+// Async surface: the synchronous spawn runs on a worker `std::thread`;
 // the calling coroutine parks on a steady_timer that the worker cancels
 // on completion. Cancellation of the awaitable triggers a graceful child
 // termination (SIGTERM / TerminateProcess) followed by a hard kill after
@@ -291,8 +291,9 @@ struct CancelHandle {
     // its own pipe. Both pipes are drained in parallel, avoiding the classic
     // deadlock where a chatty stderr fills its 64 KiB pipe buffer while the
     // parent is still reading stdout to EOF.
-    // `std::jthread` so a thrown exception below this point still joins the
-    // readers via RAII rather than std::terminate-ing on an unjoined thread.
+    // The readers are joined explicitly below — a thrown exception between
+    // here and the join calls would std::terminate on the unjoined thread,
+    // but the intervening code is noexcept-by-construction (handle ops only).
     auto reader = [](HANDLE h, LineSlicer slicer) {
         char buf[4096];
         DWORD n = 0;
@@ -307,8 +308,8 @@ struct CancelHandle {
     LineSlicer stderr_slicer{
         req.capture_stderr ? &result.stderr_data : nullptr, {}, req.on_stderr_line};
 
-    std::jthread stdout_reader{reader, stdout_r, std::move(stdout_slicer)};
-    std::jthread stderr_reader{reader, stderr_r, std::move(stderr_slicer)};
+    std::thread stdout_reader{reader, stdout_r, std::move(stdout_slicer)};
+    std::thread stderr_reader{reader, stderr_r, std::move(stderr_slicer)};
 
     const DWORD timeout_ms = static_cast<DWORD>(req.timeout.count());
     const DWORD wait_res = WaitForSingleObject(pi.hProcess, timeout_ms);
@@ -434,12 +435,12 @@ struct CancelHandle {
 
     if (req.stdin_data) {
         const auto& d = *req.stdin_data;
-        ssize_t off = 0;
-        while (off < static_cast<ssize_t>(d.size())) {
+        std::size_t off = 0;
+        while (off < d.size()) {
             const ssize_t n = ::write(stdin_pipe[1], d.data() + off, d.size() - off);
             if (n < 0)
                 break;
-            off += n;
+            off += static_cast<std::size_t>(n);
         }
     }
     close_fd(stdin_pipe[1]);
@@ -518,7 +519,7 @@ struct CancelHandle {
             std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count();
         const int poll_ms = static_cast<int>(std::min<long long>(remain, 1000));
 
-        const int rc = ::poll(fds, nfds, poll_ms);
+        const int rc = ::poll(fds, static_cast<nfds_t>(nfds), poll_ms);
         if (rc < 0) {
             if (errno == EINTR)
                 continue;
@@ -645,7 +646,7 @@ boost::asio::awaitable<cmlb::core::Result<SubprocessResult>> Subprocess::run(
     // cancellation handler can race against the coroutine returning.
     auto cancel_handle = std::make_shared<CancelHandle>();
 
-    std::jthread worker{[req = std::move(request), result_holder, ptr = &ready, cancel_handle]() {
+    std::thread worker{[req = std::move(request), result_holder, ptr = &ready, cancel_handle]() {
         *result_holder = spawn_sync(req, cancel_handle.get());
         ptr->cancel();
     }};
