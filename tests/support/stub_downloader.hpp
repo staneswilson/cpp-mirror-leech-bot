@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstddef>
 #include <mutex>
 #include <optional>
@@ -50,6 +51,13 @@ public:
     void set_status_error(cmlb::core::AppError err) {
         std::lock_guard lk{mutex_};
         status_error_ = std::move(err);
+    }
+
+    /// Toggle the value returned by `supports_pipelining()`. Defaults to
+    /// true so that application-layer tests exercise the aria2-style
+    /// per-file pipelined upload path (the common case).
+    void set_supports_pipelining(bool value) noexcept {
+        supports_pipelining_.store(value, std::memory_order_relaxed);
     }
 
     // ---- inspection ----------------------------------------------------
@@ -149,6 +157,10 @@ public:
         return "stub";
     }
 
+    [[nodiscard]] bool supports_pipelining() const noexcept override {
+        return supports_pipelining_.load(std::memory_order_relaxed);
+    }
+
 private:
     mutable std::mutex mutex_;
     cmlb::domain::Gid next_gid_{std::string{"stub-gid"}};
@@ -159,6 +171,7 @@ private:
     int pause_calls_{0};
     int resume_calls_{0};
     int remove_calls_{0};
+    std::atomic<bool> supports_pipelining_{true};
 };
 
 } // namespace cmlb::test_support
