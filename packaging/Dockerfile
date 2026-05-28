@@ -35,6 +35,10 @@ ARG CMLB_RUN_TESTS=1
 # =============================================================================
 FROM ubuntu:${UBUNTU_VERSION} AS builder
 
+# Buildkit injects TARGETARCH on every multi-arch build (linux/amd64 → "amd64",
+# linux/arm64 → "arm64"). We translate that to the matching vcpkg triplet so a
+# cross-arch buildx job doesn't try to compile x64 binaries on an aarch64 host.
+ARG TARGETARCH
 ARG VCPKG_BASELINE
 ARG CMLB_BUILD_TYPE
 ARG CMLB_RUN_TESTS
@@ -77,9 +81,21 @@ WORKDIR /src
 # Manifest-first layer: copy only the vcpkg manifest so port installs are
 # cached when source-only changes happen. The bind-mount cache stores the
 # resolved port archives between builds.
+#
+# TARGETARCH is injected by buildx (amd64 / arm64). We translate to the
+# matching vcpkg triplet so a multi-arch build doesn't try to compile x64
+# binaries on an aarch64 host. The triplet is recorded to /opt/cmlb/triplet
+# so the later configure step can read it back without recomputing.
 COPY vcpkg.json vcpkg-configuration.json ./
 RUN --mount=type=cache,target=/root/.cache/vcpkg,sharing=locked \
-    "${VCPKG_ROOT}/vcpkg" install --triplet x64-linux --x-manifest-root=/src \
+    mkdir -p /opt/cmlb \
+ && case "${TARGETARCH:-amd64}" in \
+        amd64) triplet=x64-linux ;; \
+        arm64) triplet=arm64-linux ;; \
+        *) echo "Unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+ && echo "${triplet}" > /opt/cmlb/triplet \
+ && "${VCPKG_ROOT}/vcpkg" install --triplet "${triplet}" --x-manifest-root=/src \
         --x-feature=telegram
 
 # Now copy the rest of the source tree. Anything in .dockerignore stays out.
@@ -92,11 +108,21 @@ ENV PATH="/usr/lib/ccache:${PATH}" \
 
 # Configure + build + (optionally) run tests as a gate. A failed test halts
 # the image from being promoted to the runtime stage.
+#
+# Two things must line up with the earlier `vcpkg install --x-feature=telegram`
+# step or the toolchain re-runs install at configure time WITHOUT the telegram
+# feature and overwrites our tdlib-bearing manifest dir:
+#   * VCPKG_TARGET_TRIPLET — read from the file we wrote above so it matches
+#     the host arch (x64-linux on amd64, arm64-linux on arm64).
+#   * VCPKG_MANIFEST_FEATURES — must include `telegram` so the toolchain
+#     keeps tdlib in the install set.
 RUN --mount=type=cache,target=/root/.cache/ccache,sharing=locked \
-    cmake -S . -B build/release -G Ninja \
+    triplet="$(cat /opt/cmlb/triplet)" \
+ && cmake -S . -B build/release -G Ninja \
         -DCMAKE_BUILD_TYPE="${CMLB_BUILD_TYPE}" \
         -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
-        -DVCPKG_TARGET_TRIPLET=x64-linux \
+        -DVCPKG_TARGET_TRIPLET="${triplet}" \
+        -DVCPKG_MANIFEST_FEATURES="telegram" \
         -DCMLB_BUILD_TESTS="$([ "${CMLB_RUN_TESTS}" = "1" ] && echo ON || echo OFF)" \
         -DCMLB_WITH_TELEGRAM=ON \
     && cmake --build build/release --parallel \
