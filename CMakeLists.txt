@@ -1,18 +1,15 @@
 # ---------------------------------------------------------------------------
 # CMLB — C++23 Telegram Mirror/Leech Bot
 #
-# Top-level build configuration. All knobs are documented inline. The build
-# graph is decomposed by architectural layer:
+# Top-level build configuration. All knobs are documented inline. The build graph is decomposed by
+# architectural layer:
 #
-#     cmlb_core           (static)     — error, logger, config, runtime
-#     cmlb_domain         (static)     — domain types (authority, task, ...)
-#     cmlb_application    (interface)  — use cases (phase 6+)
-#     cmlb_infrastructure (interface)  — adapters (phase 3+)
-#     cmlb_presentation   (interface)  — CLI/Telegram surfaces (phase 5+)
-#     cmlb                (exe)        — main entry point
+# cmlb_core           (static)     — error, logger, config, runtime cmlb_domain         (static) —
+# domain types (authority, task, ...) cmlb_application    (interface)  — use cases (phase 6+)
+# cmlb_infrastructure (interface)  — adapters (phase 3+) cmlb_presentation   (interface)  —
+# CLI/Telegram surfaces (phase 5+) cmlb                (exe)        — main entry point
 #
-# Helper modules live in cmake/ and are included once each, in dependency
-# order, below.
+# Helper modules live in cmake/ and are included once each, in dependency order, below.
 # ---------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.28)
 
@@ -21,9 +18,9 @@ file(STRINGS "${CMAKE_SOURCE_DIR}/VERSION" CMLB_VERSION LIMIT_COUNT 1)
 string(STRIP "${CMLB_VERSION}" CMLB_VERSION)
 
 if(NOT CMLB_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
-    message(FATAL_ERROR
-        "VERSION file must contain a single SemVer 'MAJOR.MINOR.PATCH' line, "
-        "got '${CMLB_VERSION}'.")
+    message(FATAL_ERROR "VERSION file must contain a single SemVer 'MAJOR.MINOR.PATCH' line, "
+                        "got '${CMLB_VERSION}'."
+    )
 endif()
 
 project(
@@ -36,9 +33,9 @@ project(
 
 # ---- In-source guard -----------------------------------------------------
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
-    message(FATAL_ERROR
-        "In-source builds are not permitted. Configure from a build/ "
-        "directory: cmake --preset debug")
+    message(FATAL_ERROR "In-source builds are not permitted. Configure from a build/ "
+                        "directory: cmake --preset debug"
+    )
 endif()
 
 # ---- Language standard ---------------------------------------------------
@@ -46,10 +43,9 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# CMLB does not use C++20 modules (we use plain headers throughout). Modules
-# scanning under GCC 15.x + Boost.Asio has known interaction bugs that
-# silently fail the dyndep step. Disable globally — re-enable per-target if
-# a future module is introduced.
+# CMLB does not use C++20 modules (we use plain headers throughout). Modules scanning under GCC 15.x
+# + Boost.Asio has known interaction bugs that silently fail the dyndep step. Disable globally —
+# re-enable per-target if a future module is introduced.
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 if(UNIX)
@@ -65,13 +61,13 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 # ---- Build options -------------------------------------------------------
-option(CMLB_BUILD_TESTS      "Build unit/property/integration tests"  ON)
-option(CMLB_BUILD_BENCHMARKS "Build microbenchmarks"                  OFF)
-option(CMLB_BUILD_DOCS       "Build Doxygen documentation"            OFF)
-option(CMLB_ENABLE_COVERAGE  "Enable code-coverage instrumentation"   OFF)
-option(CMLB_ENABLE_ASAN      "Enable AddressSanitizer"                OFF)
-option(CMLB_ENABLE_UBSAN     "Enable UndefinedBehaviorSanitizer"      OFF)
-option(CMLB_ENABLE_TSAN      "Enable ThreadSanitizer"                 OFF)
+option(CMLB_BUILD_TESTS "Build unit/property/integration tests" ON)
+option(CMLB_BUILD_BENCHMARKS "Build microbenchmarks" OFF)
+option(CMLB_BUILD_DOCS "Build Doxygen documentation" OFF)
+option(CMLB_ENABLE_COVERAGE "Enable code-coverage instrumentation" OFF)
+option(CMLB_ENABLE_ASAN "Enable AddressSanitizer" OFF)
+option(CMLB_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+option(CMLB_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 
 include(warnings)
 include(sanitizers)
@@ -89,10 +85,12 @@ foreach(_hdr expected print format source_location)
     string(TOUPPER "${_have_var}" _have_var)
     check_include_file_cxx("${_hdr}" ${_have_var})
     if(NOT ${_have_var})
-        message(FATAL_ERROR
-            "Required C++23 header <${_hdr}> not found. CMLB needs a "
-            "fully C++23-conformant standard library "
-            "(GCC >= 14, Clang >= 18, MSVC >= 19.40).")
+        message(
+            FATAL_ERROR
+                "Required C++23 header <${_hdr}> not found. CMLB needs a "
+                "fully C++23-conformant standard library "
+                "(GCC >= 14, Clang >= 18, MSVC >= 19.40)."
+        )
     endif()
 endforeach()
 unset(CMAKE_REQUIRED_FLAGS)
@@ -104,31 +102,24 @@ find_package(SQLite3 REQUIRED)
 find_package(nlohmann_json 3.11.3 CONFIG REQUIRED)
 find_package(spdlog 1.13 CONFIG REQUIRED)
 find_package(fmt 10 CONFIG REQUIRED)
-find_package(
-    Boost
-    CONFIG
-    REQUIRED
-    COMPONENTS system headers json process
-)
-# Boost.Asio and Boost.Beast are header-only in modern Boost; pulled in via
-# Boost::headers. We still declare them via find_package above for clarity.
+find_package(Boost CONFIG REQUIRED COMPONENTS system headers json process)
+# Boost.Asio and Boost.Beast are header-only in modern Boost; pulled in via Boost::headers. We still
+# declare them via find_package above for clarity.
 
-# TDLib is the only dependency that may legitimately be absent on developer
-# machines, AND its API surface changes across versions (the gateway's
-# td_api::sendMessage signature is tied to the TDLib release used at compile
-# time). When the real gateway isn't viable the project falls back to a
-# build-only stub for `telegram_gateway.cpp` — every other layer compiles,
-# unit tests run, and the bot binary links but errors at startup with
-# "telegram gateway stub: rebuild with the 'telegram' vcpkg feature".
+# TDLib is the only dependency that may legitimately be absent on developer machines, AND its API
+# surface changes across versions (the gateway's td_api::sendMessage signature is tied to the TDLib
+# release used at compile time). When the real gateway isn't viable the project falls back to a
+# build-only stub for `telegram_gateway.cpp` — every other layer compiles, unit tests run, and the
+# bot binary links but errors at startup with "telegram gateway stub: rebuild with the 'telegram'
+# vcpkg feature".
 #
-# Behaviour:
-#   * `-DCMLB_WITH_TELEGRAM=ON`: require TDLib; build real gateway.
-#   * `-DCMLB_WITH_TELEGRAM=OFF`: skip TDLib entirely; build stub.
-#   * default (`AUTO`): probe for TDLib *and* confirm version compatibility.
-#     If not found or unusable, fall back to stub.
-set(CMLB_WITH_TELEGRAM "AUTO" CACHE STRING
-    "Telegram backend mode: ON|OFF|AUTO. AUTO probes for a usable TDLib and \
-falls back to a build-only stub if absent or version-incompatible.")
+# Behaviour: * `-DCMLB_WITH_TELEGRAM=ON`: require TDLib; build real gateway. *
+# `-DCMLB_WITH_TELEGRAM=OFF`: skip TDLib entirely; build stub. * default (`AUTO`): probe for TDLib
+# *and* confirm version compatibility. If not found or unusable, fall back to stub.
+set(CMLB_WITH_TELEGRAM "AUTO"
+    CACHE STRING "Telegram backend mode: ON|OFF|AUTO. AUTO probes for a usable TDLib and \
+falls back to a build-only stub if absent or version-incompatible."
+)
 set_property(CACHE CMLB_WITH_TELEGRAM PROPERTY STRINGS AUTO ON OFF)
 
 if(CMLB_WITH_TELEGRAM STREQUAL "OFF")
@@ -139,9 +130,9 @@ elseif(CMLB_WITH_TELEGRAM STREQUAL "ON")
     set(CMLB_WITH_TELEGRAM ON)
     message(STATUS "TDLib: enabled by request (real gateway)")
 else()
-    # AUTO mode: prefer real gateway only if the user has explicitly built it
-    # against the matching TDLib. The stub is the safe default since TDLib's
-    # td_api signatures differ across versions and MinGW builds.
+    # AUTO mode: prefer real gateway only if the user has explicitly built it against the matching
+    # TDLib. The stub is the safe default since TDLib's td_api signatures differ across versions and
+    # MinGW builds.
     find_package(Td CONFIG QUIET)
     if(Td_FOUND AND DEFINED ENV{CMLB_PREFER_REAL_TDLIB})
         set(CMLB_WITH_TELEGRAM ON)
@@ -150,7 +141,8 @@ else()
         set(CMLB_WITH_TELEGRAM OFF)
         message(STATUS "TDLib: AUTO — using build-only stub gateway "
                        "(set env CMLB_PREFER_REAL_TDLIB=1 or "
-                       "-DCMLB_WITH_TELEGRAM=ON to opt into the real backend).")
+                       "-DCMLB_WITH_TELEGRAM=ON to opt into the real backend)."
+        )
     endif()
 endif()
 
@@ -163,12 +155,11 @@ if(CMLB_BUILD_TESTS)
 endif()
 
 if(CMLB_BUILD_BENCHMARKS)
-    # benchmarks/ is added when real benchmark sources land. The directory is
-    # not scaffolded yet — re-enable this block after dropping in a
-    # nanobench-based suite under benchmarks/.
-    message(WARNING
-        "CMLB_BUILD_BENCHMARKS=ON but benchmarks/ is not yet populated. "
-        "Skipping benchmark target generation.")
+    # benchmarks/ is added when real benchmark sources land. The directory is not scaffolded yet —
+    # re-enable this block after dropping in a nanobench-based suite under benchmarks/.
+    message(WARNING "CMLB_BUILD_BENCHMARKS=ON but benchmarks/ is not yet populated. "
+                    "Skipping benchmark target generation."
+    )
 endif()
 
 if(CMLB_BUILD_DOCS)
@@ -178,20 +169,13 @@ endif()
 # ---- Install rules -------------------------------------------------------
 include(GNUInstallDirs)
 
-install(
-    TARGETS cmlb
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+install(TARGETS cmlb RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+install(FILES "${CMAKE_SOURCE_DIR}/config.example.json"
+        DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/cmlb
 )
 
-install(
-    FILES "${CMAKE_SOURCE_DIR}/config.example.json"
-    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/cmlb
-)
-
-install(
-    FILES "${CMAKE_SOURCE_DIR}/LICENSE"
-    DESTINATION ${CMAKE_INSTALL_DOCDIR}
-)
+install(FILES "${CMAKE_SOURCE_DIR}/LICENSE" DESTINATION ${CMAKE_INSTALL_DOCDIR})
 
 # ---- Packaging (CPack) ---------------------------------------------------
 include(packaging)

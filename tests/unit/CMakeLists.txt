@@ -1,8 +1,8 @@
 # ---------------------------------------------------------------------------
 # tests/unit/CMakeLists.txt
 #
-# Unit-test tree. Each architectural layer gets its own subdirectory
-# so test additions stay local to the code they exercise.
+# Unit-test tree. Each architectural layer gets its own subdirectory so test additions stay local to
+# the code they exercise.
 # ---------------------------------------------------------------------------
 
 add_subdirectory(core)
