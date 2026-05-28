@@ -24,9 +24,8 @@ set_target_properties(
                                                                                      cmlb_http
 )
 
-# Boost.Beast + Asio coroutines explode the COFF section count on MSVC well past
-# the 65,535 default ceiling. `/bigobj` lifts it to ~4 billion. GCC/Clang have
-# no equivalent need.
+# Boost.Beast + Asio coroutines explode the COFF section count on MSVC well past the 65,535 default
+# ceiling. `/bigobj` lifts it to ~4 billion. GCC/Clang have no equivalent need.
 if(MSVC)
     target_compile_options(cmlb_http PRIVATE /bigobj)
 endif()
