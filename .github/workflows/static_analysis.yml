@@ -41,18 +41,17 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 clang-tidy-18 clang-tools-18 lld-18 llvm-18 g++-14 libstdc++-14-dev
+          sudo apt-get install -y clang-18 clang-tidy-18 clang-tools-18 lld-18 llvm-18 libc++-18-dev libc++abi-18-dev
           sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-18 100
           sudo update-alternatives --install /usr/bin/run-clang-tidy run-clang-tidy /usr/bin/run-clang-tidy-18 100
-          # Force Clang's auto-toolchain probe to pick libstdc++-14 (needed for std::expected + <print>).
-          # update-alternatives alone is not enough: clang scans /usr/lib/gcc/x86_64-linux-gnu/<ver>
-          # independently and picks the highest. --gcc-install-dir pins it explicitly.
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+          # Use libc++ rather than libstdc++. On Ubuntu noble, clang-18 cannot reliably
+          # find libstdc++-14's C++23 headers (std::expected, <print>) even with
+          # --gcc-install-dir, because the split-package layout puts headers on a search
+          # path the install-dir probe does not adjust. libc++-18 ships C++23 fully.
           echo "CC=clang-18"    >> "$GITHUB_ENV"
           echo "CXX=clang++-18" >> "$GITHUB_ENV"
-          echo "CFLAGS=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14"   >> "$GITHUB_ENV"
-          echo "CXXFLAGS=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14" >> "$GITHUB_ENV"
+          echo "CXXFLAGS=-stdlib=libc++"            >> "$GITHUB_ENV"
+          echo "LDFLAGS=-stdlib=libc++ -lc++abi"    >> "$GITHUB_ENV"
 
       - name: Set up vcpkg
         shell: bash
@@ -75,8 +74,11 @@ jobs:
           path: |
             ${{ github.workspace }}/.vcpkg-bincache
             ~/.cache/vcpkg/archives
-          key: ${{ runner.os }}-clang-18-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          # Discriminator `libcxx` keeps libstdc++- and libc++-built archives in
+          # separate cache slots so an ABI-mismatched archive is never reused.
+          key: ${{ runner.os }}-clang-18-libcxx-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: |
+            ${{ runner.os }}-clang-18-libcxx-vcpkg-
             ${{ runner.os }}-clang-18-vcpkg-
             ${{ runner.os }}-vcpkg-
 
@@ -166,14 +168,14 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 libclang-18-dev llvm-18-dev iwyu g++-14 libstdc++-14-dev
-          # Force Clang's auto-toolchain probe to pick libstdc++-14 (needed for std::expected + <print>).
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+          sudo apt-get install -y clang-18 libclang-18-dev llvm-18-dev iwyu libc++-18-dev libc++abi-18-dev
+          # Use libc++ rather than libstdc++ for the same reason as the clang-tidy job:
+          # Ubuntu noble's split-package layout hides libstdc++-14 C++23 headers from
+          # clang-18's auto-probe. libc++-18 ships them directly.
           echo "CC=clang-18"    >> "$GITHUB_ENV"
           echo "CXX=clang++-18" >> "$GITHUB_ENV"
-          echo "CFLAGS=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14"   >> "$GITHUB_ENV"
-          echo "CXXFLAGS=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14" >> "$GITHUB_ENV"
+          echo "CXXFLAGS=-stdlib=libc++"            >> "$GITHUB_ENV"
+          echo "LDFLAGS=-stdlib=libc++ -lc++abi"    >> "$GITHUB_ENV"
 
       - name: Set up vcpkg
         shell: bash
@@ -194,8 +196,11 @@ jobs:
           path: |
             ${{ github.workspace }}/.vcpkg-bincache
             ~/.cache/vcpkg/archives
-          key: ${{ runner.os }}-clang-18-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          # Discriminator `libcxx` keeps libstdc++- and libc++-built archives in
+          # separate cache slots so an ABI-mismatched archive is never reused.
+          key: ${{ runner.os }}-clang-18-libcxx-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: |
+            ${{ runner.os }}-clang-18-libcxx-vcpkg-
             ${{ runner.os }}-clang-18-vcpkg-
             ${{ runner.os }}-vcpkg-
 

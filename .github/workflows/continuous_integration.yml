@@ -79,16 +79,15 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 lld-18 llvm-18 g++-14 libstdc++-14-dev
-          # Force Clang's auto-toolchain probe to pick libstdc++-14 (needed for std::expected + <print>).
-          # update-alternatives alone is not enough: clang scans /usr/lib/gcc/x86_64-linux-gnu/<ver>
-          # independently and picks the highest. --gcc-install-dir pins it explicitly.
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+          sudo apt-get install -y clang-18 lld-18 llvm-18 libc++-18-dev libc++abi-18-dev
+          # Use libc++ rather than libstdc++. On Ubuntu noble, clang-18 cannot reliably
+          # find libstdc++-14's C++23 headers (std::expected, <print>) even with
+          # --gcc-install-dir, because the split-package layout puts headers on a search
+          # path the install-dir probe does not adjust. libc++-18 ships C++23 fully.
           echo "CC=clang-18"   >> "$GITHUB_ENV"
           echo "CXX=clang++-18" >> "$GITHUB_ENV"
-          echo "CFLAGS=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14"   >> "$GITHUB_ENV"
-          echo "CXXFLAGS=--gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/14" >> "$GITHUB_ENV"
+          echo "CXXFLAGS=-stdlib=libc++"            >> "$GITHUB_ENV"
+          echo "LDFLAGS=-stdlib=libc++ -lc++abi"    >> "$GITHUB_ENV"
 
       - name: Configure MSVC developer environment (Windows)
         if: runner.os == 'Windows'
@@ -128,8 +127,11 @@ jobs:
           path: |
             ${{ github.workspace }}/.vcpkg-bincache
             ${{ matrix.cache_path }}
-          key: ${{ runner.os }}-${{ matrix.compiler }}-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          # Discriminator `libcxx` (Linux clang only) keeps libstdc++- and libc++-built
+          # archives in separate cache slots so an ABI-mismatched archive is never reused.
+          key: ${{ runner.os }}-${{ matrix.compiler }}${{ matrix.compiler == 'clang-18' && '-libcxx' || '' }}-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: |
+            ${{ runner.os }}-${{ matrix.compiler }}${{ matrix.compiler == 'clang-18' && '-libcxx' || '' }}-vcpkg-
             ${{ runner.os }}-${{ matrix.compiler }}-vcpkg-
             ${{ runner.os }}-vcpkg-
 
