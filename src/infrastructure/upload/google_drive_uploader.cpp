@@ -221,9 +221,10 @@ void add_header(HttpRequest& req, std::string name, std::string value) {
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~";
     std::string out;
     out.reserve(in.size());
-    for (unsigned char c : in) {
-        if (safe.find(static_cast<char>(c)) != std::string_view::npos) {
-            out.push_back(static_cast<char>(c));
+    for (char raw : in) {
+        const auto c = static_cast<unsigned char>(raw);
+        if (safe.find(raw) != std::string_view::npos) {
+            out.push_back(raw);
         } else {
             out += fmt::format("%{:02X}", c);
         }

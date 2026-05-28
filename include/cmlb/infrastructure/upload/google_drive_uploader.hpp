@@ -145,7 +145,7 @@ private:
     /// logged but do not propagate to the caller.
     boost::asio::awaitable<void> abort_resumable_session(std::string session_uri);
 
-    cmlb::core::Executor& exec_;
+    [[maybe_unused]] cmlb::core::Executor& exec_;
     cmlb::core::GoogleDriveConfig config_;
     cmlb::infrastructure::http::BeastHttpClient& http_;
 

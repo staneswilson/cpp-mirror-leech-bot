@@ -47,7 +47,8 @@ constexpr std::chrono::seconds kDefaultRequestTimeout{30};
     static constexpr std::string_view hex = "0123456789ABCDEF";
     std::string out;
     out.reserve(in.size());
-    for (unsigned char c : in) {
+    for (char raw : in) {
+        const auto c = static_cast<unsigned char>(raw);
         const bool unreserved = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
                                 || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.'
                                 || c == '~';

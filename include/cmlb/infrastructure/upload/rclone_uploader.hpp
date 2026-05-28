@@ -66,7 +66,7 @@ private:
     [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<UploadResult>> run_rclone(
         std::vector<std::string> args, std::string display_name, UploadProgressHandler on_progress);
 
-    cmlb::core::Executor& exec_;
+    [[maybe_unused]] cmlb::core::Executor& exec_;
     cmlb::core::RcloneConfig config_;
     cmlb::infrastructure::system::Subprocess& subprocess_;
 

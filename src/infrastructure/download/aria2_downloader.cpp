@@ -294,7 +294,6 @@ public:
     /// suspension point. Safe to call from any thread.
     void request_shutdown() noexcept {
         shutdown_requested_.store(true, std::memory_order_release);
-        boost::system::error_code ec;
         // Cancel the reconnect timer and any in-flight read by closing the
         // underlying socket. The reader will surface this as an error and
         // bail out of the loop, dropping its captured `self`.
@@ -507,7 +506,6 @@ private:
 #pragma GCC diagnostic ignored "-Wold-style-cast"
                 if (!SSL_set_tlsext_host_name(tls_stream_->next_layer().native_handle(),
                                               parsed->host.c_str())) {
-#pragma GCC diagnostic pop
                     co_return error(ErrorCode::Network, "failed to set TLS SNI hostname");
                 }
 #pragma GCC diagnostic pop
