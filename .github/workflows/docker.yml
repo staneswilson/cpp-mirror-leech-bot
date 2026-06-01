@@ -42,17 +42,17 @@ jobs:
         platform: [linux/amd64, linux/arm64]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0    # full history so we can set OCI revision label
 
       - name: Set up QEMU (for arm64 emulation on amd64 runners)
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
         with:
           driver-opts: |
             image=moby/buildkit:latest
@@ -60,7 +60,7 @@ jobs:
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -68,7 +68,7 @@ jobs:
 
       - name: Compute image metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -86,7 +86,7 @@ jobs:
 
       - name: Build image (and push on non-PR)
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: packaging/Dockerfile
@@ -121,7 +121,7 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
@@ -131,7 +131,7 @@ jobs:
           exit-code: 0      # report but don't fail; promote with attestations
       - name: Upload SARIF to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
           category: trivy-image

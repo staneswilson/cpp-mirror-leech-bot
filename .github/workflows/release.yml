@@ -32,7 +32,7 @@ jobs:
       contents: read
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 1
@@ -64,7 +64,7 @@ jobs:
 
       - name: Cache vcpkg binary archives
         id: vcpkg-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ github.workspace }}/.vcpkg-bincache
@@ -93,7 +93,7 @@ jobs:
         run: cpack -G TGZ
 
       - name: Upload Linux release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cmlb-linux-x64
           path: |
@@ -110,7 +110,7 @@ jobs:
       contents: read
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 1
@@ -134,7 +134,7 @@ jobs:
 
       - name: Cache vcpkg binary archives
         id: vcpkg-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ github.workspace }}/.vcpkg-bincache
@@ -163,7 +163,7 @@ jobs:
         run: cpack -G TGZ
 
       - name: Upload macOS release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cmlb-macos-arm64
           path: |
@@ -180,7 +180,7 @@ jobs:
       contents: read
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 1
@@ -206,7 +206,7 @@ jobs:
 
       - name: Cache vcpkg binary archives
         id: vcpkg-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ github.workspace }}\.vcpkg-bincache
@@ -235,7 +235,7 @@ jobs:
         run: cpack -G ZIP
 
       - name: Upload Windows release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cmlb-windows-x64
           path: |
@@ -252,12 +252,12 @@ jobs:
       contents: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Download all release artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
 
@@ -268,7 +268,7 @@ jobs:
           find dist -type f | sort
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: ${{ github.event.inputs.tag || github.ref_name }}

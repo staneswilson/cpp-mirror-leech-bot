@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           # PRs need history to diff against origin/main.
@@ -69,7 +69,7 @@ jobs:
 
       - name: Cache vcpkg binary archives
         id: vcpkg-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ github.workspace }}/.vcpkg-bincache
@@ -156,7 +156,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 1
@@ -191,7 +191,7 @@ jobs:
         run: mkdir -p "${{ github.workspace }}/.vcpkg-bincache"
 
       - name: Cache vcpkg binary archives
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ github.workspace }}/.vcpkg-bincache
@@ -215,7 +215,7 @@ jobs:
 
       - name: Upload IWYU report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: iwyu-report
           path: iwyu-report.txt

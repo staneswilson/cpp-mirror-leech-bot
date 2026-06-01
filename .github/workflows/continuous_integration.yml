@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 1
@@ -120,7 +120,7 @@ jobs:
 
       - name: Cache vcpkg binary archives
         id: vcpkg-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           # We use the workspace-local files-provider directory (see VCPKG_BINARY_SOURCES above).
           # The OS-default location is kept as a secondary path so toolchain-installed binaries are also reused.
@@ -155,7 +155,7 @@ jobs:
 
       - name: Upload CTest log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-log-${{ matrix.name }}
           path: ${{ github.workspace }}/build/${{ matrix.preset }}/Testing/Temporary/LastTest.log
@@ -171,7 +171,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
