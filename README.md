@@ -17,6 +17,7 @@ Production-grade C++23 Telegram mirror/leech bot.
   - [Docker](#docker)
   - [Release artifacts](#release-artifacts)
   - [Build from source](#build-from-source)
+- [Documentation and wiki](#documentation-and-wiki)
 - [Configuration](#configuration)
 - [Commands](#commands)
 - [Packages and images](#packages-and-images)
@@ -148,6 +149,24 @@ cmake --build --preset release
 > **Note:** The first build compiles TDLib from source via vcpkg. Plan for 15-30 minutes on a 4-core machine and 4-8 GB of free RAM. Subsequent builds reuse the vcpkg binary cache and finish in seconds.
 
 For the full build matrix (debug, asan, ubsan, tsan, coverage, MSVC) see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+---
+
+## Documentation and wiki
+
+The documentation is organized for operators first:
+
+| Need | Read |
+|---|---|
+| Deploy from an empty Linux machine | [`docs/deployment_quickstart.md`](docs/deployment_quickstart.md) |
+| Operate, upgrade, back up, restore, and troubleshoot | [`docs/runbook.md`](docs/runbook.md) |
+| Set every config field and environment variable | [`docs/configuration_reference.md`](docs/configuration_reference.md) |
+| Register and use Telegram commands | [`docs/command_reference.md`](docs/command_reference.md) |
+| Understand architecture and CI guardrails | [`docs/architecture.md`](docs/architecture.md) and [`docs/adr/`](docs/adr/) |
+
+The GitHub Wiki is enabled for the repository. The wiki publishing map is in
+[`docs/wiki.md`](docs/wiki.md); until GitHub initializes the wiki git
+repository, these versioned docs remain the source of truth.
 
 ---
 

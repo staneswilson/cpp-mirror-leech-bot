@@ -10,6 +10,7 @@ Start with the guide that matches your role:
 | Every Telegram command and permission tier | [`command_reference.md`](command_reference.md) |
 | Architecture and dependency boundaries | [`architecture.md`](architecture.md) |
 | Throughput measurement template | [`throughput_benchmarks.md`](throughput_benchmarks.md) |
+| GitHub Wiki page map and publishing notes | [`wiki.md`](wiki.md) |
 | Long-term technical decisions | [`adr/`](adr/) |
 
 Recommended first-time path:
@@ -21,6 +22,6 @@ Recommended first-time path:
 3. Use [`runbook.md`](runbook.md) before putting the bot into a long-running
    production host.
 
-The repository documentation is the source of truth. The GitHub wiki, when
-available, should link back here instead of becoming a separate copy of the
-operator manual.
+The repository documentation is the source of truth. The GitHub Wiki, when
+available, should use the concise page map in [`wiki.md`](wiki.md) and link
+back here for detailed operator procedures.
