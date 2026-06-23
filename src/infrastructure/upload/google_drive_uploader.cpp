@@ -463,12 +463,11 @@ boost::asio::awaitable<cmlb::core::Result<UploadResult>> GoogleDriveUploader::up
         co_return cmlb::core::error(cmlb::core::ErrorCode::GoogleDriveApi,
                                     "gdrive: resumable session missing Location header");
     }
-    const std::string session_uri = *loc;
+    const std::string& session_uri = *loc;
 
     // ---- Step 2: upload aligned chunks ----
     std::int64_t chunk_bytes = static_cast<std::int64_t>(config_.chunk_size);
-    if (chunk_bytes < kResumableAlignment)
-        chunk_bytes = kResumableAlignment;
+    chunk_bytes = std::max(chunk_bytes, kResumableAlignment);
     chunk_bytes = (chunk_bytes / kResumableAlignment) * kResumableAlignment;
 
     // Readability probe — workers each open their own handle since seekg+read
@@ -584,7 +583,7 @@ boost::asio::awaitable<cmlb::core::Result<UploadResult>> GoogleDriveUploader::up
                         break;
                     }
                     const int idx = shared->next_index.fetch_add(1, std::memory_order_acq_rel);
-                    if (idx >= static_cast<int>(plan_ptr->size()))
+                    if (std::cmp_greater_equal(idx, plan_ptr->size()))
                         break;
                     const auto& cp = (*plan_ptr)[static_cast<std::size_t>(idx)];
 

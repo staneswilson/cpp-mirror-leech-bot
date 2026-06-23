@@ -12,12 +12,9 @@
 namespace cmlb::application {
 
 namespace asio = boost::asio;
-namespace tg_ns = cmlb::infrastructure::telegram;
 namespace pers_ns = cmlb::infrastructure::persistence;
 
-RssSubscription::RssSubscription(pers_ns::RssFeedRepository& repo,
-                                 tg_ns::MessengerInterface& messenger) noexcept
-    : repo_{repo}, messenger_{messenger} {
+RssSubscription::RssSubscription(pers_ns::RssFeedRepository& repo) noexcept : repo_{repo} {
 }
 
 asio::awaitable<cmlb::core::Result<std::int64_t>> RssSubscription::add(pers_ns::RssFeed feed) {

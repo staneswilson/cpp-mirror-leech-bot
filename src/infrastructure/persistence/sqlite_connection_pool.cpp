@@ -73,11 +73,11 @@ namespace {
 // ---------------------------------------------------------------------------
 
 void SqliteConnectionHandle::release_() noexcept {
-    if (pool_ != nullptr && slot_ != static_cast<std::size_t>(-1)) {
+    if (pool_ != nullptr && slot_ != kInvalidSlot) {
         pool_->return_slot_(slot_);
     }
     pool_ = nullptr;
-    slot_ = static_cast<std::size_t>(-1);
+    slot_ = kInvalidSlot;
     db_.reset();
 }
 

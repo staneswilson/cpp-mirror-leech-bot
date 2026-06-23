@@ -15,6 +15,7 @@
 // and contributes zero rather than aborting the snapshot.
 // ---------------------------------------------------------------------------
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
@@ -99,9 +100,7 @@ void read_memory_linux(std::int64_t& used, std::int64_t& total) {
     }
     total = total_kb * 1024;
     used = (total_kb - avail_kb) * 1024;
-    if (used < 0) {
-        used = 0;
-    }
+    used = std::max<std::int64_t>(used, 0);
 }
 
 std::chrono::seconds read_system_uptime_linux() {
@@ -220,9 +219,7 @@ void read_disk(std::int64_t& used, std::int64_t& total) {
     }
     total = static_cast<std::int64_t>(info.capacity);
     used = static_cast<std::int64_t>(info.capacity - info.available);
-    if (used < 0) {
-        used = 0;
-    }
+    used = std::max<std::int64_t>(used, 0);
 }
 
 } // namespace

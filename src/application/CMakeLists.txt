@@ -15,6 +15,7 @@ add_library(
     cancel_task.cpp
     pause_task.cpp
     resume_task.cpp
+    show_status.cpp
     update_user_settings.cpp
     update_bot_settings.cpp
     rss_subscription.cpp
@@ -38,6 +39,7 @@ target_link_libraries(
            cmlb_telegram
            cmlb_download
            cmlb_upload
+           cmlb_system
            Boost::headers
            Boost::system
     PRIVATE # fmt is consumed only inside .cpp files (status-message formatting), so it stays an

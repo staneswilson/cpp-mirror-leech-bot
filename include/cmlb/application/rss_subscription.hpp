@@ -8,7 +8,6 @@
 #include <cmlb/core/error.hpp>
 #include <cmlb/domain/identifiers.hpp>
 #include <cmlb/infrastructure/persistence/rss_feed_repository.hpp>
-#include <cmlb/infrastructure/telegram/messenger.hpp>
 
 /// @file rss_subscription.hpp
 /// @brief Aggregated RSS subscription use case (add / list / remove).
@@ -23,8 +22,7 @@ namespace cmlb::application {
 /// ownership key (the persistence schema does not store a per-user owner).
 class RssSubscription {
 public:
-    RssSubscription(cmlb::infrastructure::persistence::RssFeedRepository& repo,
-                    cmlb::infrastructure::telegram::MessengerInterface& messenger) noexcept;
+    explicit RssSubscription(cmlb::infrastructure::persistence::RssFeedRepository& repo) noexcept;
 
     /// Inserts a new feed. The returned id is the SQLite-assigned primary key.
     [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<std::int64_t>> add(
@@ -43,7 +41,6 @@ public:
 
 private:
     cmlb::infrastructure::persistence::RssFeedRepository& repo_;
-    cmlb::infrastructure::telegram::MessengerInterface& messenger_;
 };
 
 } // namespace cmlb::application

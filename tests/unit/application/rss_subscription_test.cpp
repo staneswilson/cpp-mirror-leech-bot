@@ -3,7 +3,6 @@
 // ---------------------------------------------------------------------------
 
 #include "in_memory_rss_feed_repository.hpp"
-#include "stub_messenger.hpp"
 
 #include <cstdint>
 #include <string>
@@ -26,7 +25,6 @@ using cmlb::domain::ChatId;
 using cmlb::domain::UserId;
 using cmlb::infrastructure::persistence::RssFeed;
 using cmlb::test_support::InMemoryRssFeedRepository;
-using cmlb::test_support::StubMessenger;
 
 namespace {
 
@@ -58,8 +56,7 @@ RssFeed sample_feed(std::string url, ChatId chat) {
 
 TEST_CASE("RssSubscription::add assigns an id and persists the feed", "[application][rss]") {
     InMemoryRssFeedRepository repo;
-    StubMessenger messenger;
-    RssSubscription uc{repo, messenger};
+    RssSubscription uc{repo};
 
     asio::io_context ctx;
     auto added = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<std::int64_t>> {
@@ -73,8 +70,7 @@ TEST_CASE("RssSubscription::add assigns an id and persists the feed", "[applicat
 
 TEST_CASE("RssSubscription::list_for_chat filters by chat", "[application][rss]") {
     InMemoryRssFeedRepository repo;
-    StubMessenger messenger;
-    RssSubscription uc{repo, messenger};
+    RssSubscription uc{repo};
 
     asio::io_context ctx;
     (void)run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<std::int64_t>> {
@@ -94,8 +90,7 @@ TEST_CASE("RssSubscription::list_for_chat filters by chat", "[application][rss]"
 
 TEST_CASE("RssSubscription::remove enforces ownership via chat", "[application][rss]") {
     InMemoryRssFeedRepository repo;
-    StubMessenger messenger;
-    RssSubscription uc{repo, messenger};
+    RssSubscription uc{repo};
 
     asio::io_context ctx;
     auto added = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<std::int64_t>> {
@@ -119,8 +114,7 @@ TEST_CASE("RssSubscription::remove enforces ownership via chat", "[application][
 
 TEST_CASE("RssSubscription::remove returns NotFound for unknown ids", "[application][rss]") {
     InMemoryRssFeedRepository repo;
-    StubMessenger messenger;
-    RssSubscription uc{repo, messenger};
+    RssSubscription uc{repo};
 
     asio::io_context ctx;
     auto result = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {

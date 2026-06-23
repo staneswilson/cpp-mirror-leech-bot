@@ -11,6 +11,7 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -39,6 +40,7 @@
 #include <cmlb/application/pause_task.hpp>
 #include <cmlb/application/resume_task.hpp>
 #include <cmlb/application/rss_subscription.hpp>
+#include <cmlb/application/show_status.hpp>
 #include <cmlb/application/update_bot_settings.hpp>
 #include <cmlb/application/update_user_settings.hpp>
 
@@ -431,6 +433,28 @@ void CommandDispatcher::register_builtins_() {
                       .chat = req.chat,
                   };
                   auto result = co_await deps_.resume_task.execute(std::move(rr));
+                  if (!result)
+                      co_return std::unexpected(result.error());
+                  co_return Result<void>{};
+              });
+
+    // -------- status ------------------------------------------------------
+    register_("status",
+              Permission::User,
+              "Show active tasks, or one task by id.",
+              [this](CommandRequest req) -> asio::awaitable<Result<void>> {
+                  const auto split = split_first_token(req.arguments);
+                  StatusRequest sr{
+                      .user = req.sender,
+                      .chat = req.chat,
+                      .task_id = split.head.empty()
+                                     ? std::nullopt
+                                     : std::optional<cmlb::domain::TaskId>{cmlb::domain::TaskId{
+                                           split.head}},
+                      .include_all_users =
+                          deps_.authority.can_run(req.sender, req.chat, Permission::Admin),
+                  };
+                  auto result = co_await deps_.show_status.execute(std::move(sr));
                   if (!result)
                       co_return std::unexpected(result.error());
                   co_return Result<void>{};

@@ -170,7 +170,7 @@ std::string render_progress_bar(double fraction, std::size_t width, char filled,
         return "[]";
 
     const auto fill_count =
-        static_cast<std::size_t>(std::floor(f * static_cast<double>(width) + 0.0));
+        static_cast<std::size_t>(std::floor((f * static_cast<double>(width)) + 0.0));
     const std::size_t clamped = std::min(fill_count, width);
 
     std::string out;
@@ -183,15 +183,13 @@ std::string render_progress_bar(double fraction, std::size_t width, char filled,
 }
 
 std::string format_rate(std::int64_t bytes_per_second) {
-    if (bytes_per_second < 0)
-        bytes_per_second = 0;
+    bytes_per_second = std::max<std::int64_t>(bytes_per_second, 0);
     return format_binary(bytes_per_second, "/s");
 }
 
 std::string format_percent(double fraction, int decimals) {
     const double f = clamp_fraction(fraction) * 100.0;
-    if (decimals < 0)
-        decimals = 0;
+    decimals = std::max(decimals, 0);
     return fmt::format("{:.{}f}%", f, decimals);
 }
 

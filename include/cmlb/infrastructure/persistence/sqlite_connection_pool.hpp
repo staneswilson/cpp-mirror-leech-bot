@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -40,7 +41,7 @@ public:
     SqliteConnectionHandle(SqliteConnectionHandle&& other) noexcept
         : pool_{other.pool_}, slot_{other.slot_}, db_{std::move(other.db_)} {
         other.pool_ = nullptr;
-        other.slot_ = static_cast<std::size_t>(-1);
+        other.slot_ = kInvalidSlot;
     }
 
     SqliteConnectionHandle& operator=(SqliteConnectionHandle&& other) noexcept {
@@ -50,7 +51,7 @@ public:
             slot_ = other.slot_;
             db_ = std::move(other.db_);
             other.pool_ = nullptr;
-            other.slot_ = static_cast<std::size_t>(-1);
+            other.slot_ = kInvalidSlot;
         }
         return *this;
     }
@@ -76,6 +77,8 @@ public:
 private:
     friend class SqliteConnectionPool;
 
+    static constexpr std::size_t kInvalidSlot = std::numeric_limits<std::size_t>::max();
+
     SqliteConnectionHandle(SqliteConnectionPool* pool,
                            std::size_t slot,
                            std::shared_ptr<sqlite::database> db) noexcept
@@ -85,7 +88,7 @@ private:
     void release_() noexcept;
 
     SqliteConnectionPool* pool_{nullptr};
-    std::size_t slot_{static_cast<std::size_t>(-1)};
+    std::size_t slot_{kInvalidSlot};
     std::shared_ptr<sqlite::database> db_;
 };
 

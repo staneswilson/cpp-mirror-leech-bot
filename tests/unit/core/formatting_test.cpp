@@ -51,8 +51,8 @@ TEST_CASE("format_duration - h/m/s, day rollover", "[core][formatting]") {
     CHECK(format_duration(seconds{45}) == "45s");
     CHECK(format_duration(seconds{60}) == "1m 0s");
     CHECK(format_duration(seconds{125}) == "2m 5s");
-    CHECK(format_duration(seconds{3 * 3600 + 2 * 60 + 45}) == "3h 2m 45s");
-    CHECK(format_duration(seconds{2 * 86'400 + 3'600}) == "2d 1h 0m 0s");
+    CHECK(format_duration(seconds{(3 * 3600) + (2 * 60) + 45}) == "3h 2m 45s");
+    CHECK(format_duration(seconds{(2 * 86'400) + 3'600}) == "2d 1h 0m 0s");
     // Negative is treated as absolute.
     CHECK(format_duration(seconds{-30}) == "30s");
 }
@@ -62,7 +62,7 @@ TEST_CASE("format_eta - '--' for zero/negative, '~' prefix otherwise", "[core][f
     CHECK(format_eta(seconds{0}) == "--");
     CHECK(format_eta(seconds{-5}) == "--");
     CHECK_THAT(format_eta(seconds{45}), ContainsSubstring("~"));
-    CHECK(format_eta(seconds{2 * 3600 + 3 * 60}) == "~2h 3m");
+    CHECK(format_eta(seconds{(2 * 3600) + (3 * 60)}) == "~2h 3m");
     CHECK(format_eta(seconds{125}) == "~2m 5s");
 }
 

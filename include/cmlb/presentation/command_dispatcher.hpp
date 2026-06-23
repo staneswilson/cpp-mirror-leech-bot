@@ -37,6 +37,7 @@ class DeleteDriveResource;
 class CancelTask;
 class PauseTask;
 class ResumeTask;
+class ShowStatus;
 class UpdateUserSettings;
 class UpdateBotSettings;
 class RssSubscription;
@@ -70,6 +71,7 @@ public:
         cmlb::application::CancelTask& cancel_task;
         cmlb::application::PauseTask& pause_task;
         cmlb::application::ResumeTask& resume_task;
+        cmlb::application::ShowStatus& show_status;
         cmlb::application::UpdateUserSettings& update_user;
         cmlb::application::UpdateBotSettings& update_bot;
         cmlb::application::RssSubscription& rss;

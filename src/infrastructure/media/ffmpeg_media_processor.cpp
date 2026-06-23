@@ -77,8 +77,7 @@ using json = nlohmann::json;
 /// Formats `seconds` as ffmpeg's `-ss` argument (HH:MM:SS.mmm).
 [[nodiscard]] std::string format_timestamp(std::chrono::seconds seconds) {
     auto total = seconds.count();
-    if (total < 0)
-        total = 0;
+    total = std::max<decltype(total)>(total, 0);
     const auto h = total / 3600;
     const auto m = (total % 3600) / 60;
     const auto s = total % 60;

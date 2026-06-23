@@ -186,7 +186,7 @@ asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> LeechUrl::execute(Leec
     if (!gid_res) {
         co_return co_await fail_task("download", gid_res.error());
     }
-    const auto gid = *gid_res;
+    const auto& gid = *gid_res;
     const auto downloader_kind = request.use_qbittorrent ? cmlb::domain::DownloaderKind::Qbittorrent
                                                          : cmlb::domain::DownloaderKind::Aria2;
     task.attach_downloader(gid, downloader_kind);

@@ -31,7 +31,7 @@ using cmlb::infrastructure::system::SubprocessResult;
 
 /// Lowercases an ASCII string in-place.
 [[nodiscard]] std::string ascii_lower(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char ch) {
+    std::ranges::transform(s, s.begin(), [](unsigned char ch) {
         return static_cast<char>(std::tolower(ch));
     });
     return s;
