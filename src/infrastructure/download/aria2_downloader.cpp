@@ -278,9 +278,9 @@ public:
           ssl_ctx_{asio::ssl::context::tls_client},
           reconnect_timer_{strand_},
           config_{std::move(config)} {
-        ssl_ctx_.set_options(asio::ssl::context::default_workarounds
-                             | asio::ssl::context::no_sslv2 | asio::ssl::context::no_sslv3
-                             | asio::ssl::context::no_tlsv1 | asio::ssl::context::no_tlsv1_1);
+        ssl_ctx_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2
+                             | asio::ssl::context::no_sslv3 | asio::ssl::context::no_tlsv1
+                             | asio::ssl::context::no_tlsv1_1);
         ssl_ctx_.set_default_verify_paths();
         ssl_ctx_.set_verify_mode(asio::ssl::verify_peer);
     }

@@ -421,9 +421,8 @@ asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> LeechUrl::execute(Leec
 
     if (!transitioned_to_uploading) {
         if (auto t = task.begin_upload(); !t) {
-            cmlb::core::Logger::debug("leech_url: task={} begin_upload skipped: {}",
-                                      meta.id.value(),
-                                      t.error().message);
+            cmlb::core::Logger::debug(
+                "leech_url: task={} begin_upload skipped: {}", meta.id.value(), t.error().message);
         }
     }
     if (auto t = task.mark_completed(); !t) {
