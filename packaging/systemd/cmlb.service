@@ -1,9 +1,8 @@
 [Unit]
 Description=CMLB — Telegram mirror/leech bot
 Documentation=https://github.com/staneswilson/cpp-mirror-leech-bot
-After=network-online.target aria2.service
+After=network-online.target
 Wants=network-online.target
-Requires=aria2.service
 
 [Service]
 Type=simple
@@ -11,8 +10,8 @@ User=cmlb
 Group=cmlb
 WorkingDirectory=/var/lib/cmlb
 
-ExecStartPre=/usr/bin/cmlb --validate-config /etc/cmlb/config.json
-ExecStart=/usr/bin/cmlb /etc/cmlb/config.json
+ExecStartPre=/usr/local/bin/cmlb --validate-config /etc/cmlb/config.json
+ExecStart=/usr/local/bin/cmlb /etc/cmlb/config.json
 
 Restart=on-failure
 RestartSec=10s

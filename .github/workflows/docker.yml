@@ -1,8 +1,8 @@
 # docker.yml — build, test, and publish the CMLB container image.
 #
 # Triggers:
-#   * Push to main      — builds and pushes :main + :sha-<full sha> (latest builder cache).
-#   * Tag v*.*.*        — builds and pushes :vX.Y.Z + :X + :X.Y + :latest.
+#   * Push to main      — builds and pushes :main + :latest + :sha-<full sha>.
+#   * Tag v*.*.*        — builds and pushes semver tags + :sha-<full sha>.
 #   * Pull request      — builds without pushing (verification only).
 #   * workflow_dispatch — manual trigger for ad-hoc rebuilds.
 #

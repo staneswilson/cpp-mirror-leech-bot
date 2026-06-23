@@ -3,7 +3,7 @@
 #
 # CPack configuration. Generators are selected per-platform:
 #
-# - Linux:   TGZ, ZIP, DEB
+# - Linux:   TGZ, ZIP
 # - macOS:   TGZ, ZIP
 # - Windows: TGZ, ZIP, WIX (if WiX toolset is found)
 #
@@ -50,13 +50,7 @@ set(CPACK_SOURCE_IGNORE_FILES
 
 # ---- Generator selection -------------------------------------------------
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
-    list(APPEND CPACK_GENERATOR TGZ ZIP DEB)
-
-    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_CONTACT}")
-    set(CPACK_DEBIAN_PACKAGE_SECTION "net")
-    set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-    set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "${CPACK_PACKAGE_HOMEPAGE_URL}")
+    list(APPEND CPACK_GENERATOR TGZ ZIP)
 
 elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
     list(APPEND CPACK_GENERATOR TGZ ZIP)

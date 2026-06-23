@@ -63,13 +63,15 @@ Security-sensitive reports must follow the disclosure flow described in
 The end-to-end developer setup, prerequisites, and common workflows live in
 [docs/runbook.md](./docs/runbook.md). At a glance:
 
--   **Toolchain:** C++23 (GCC 13+, Clang 17+, or MSVC 2022 17.10+).
--   **Build system:** CMake 3.27+ via presets (`cmake --preset dev`).
--   **Dependencies:** vcpkg manifest mode -- run `vcpkg install` from the repo
-    root once the baseline SHA is pinned in `vcpkg.json`.
+-   **Toolchain:** C++23 with the project matrix: GCC 14, Clang 20, MSVC 2022,
+    or Apple Clang on the current macOS runner.
+-   **Build system:** CMake 3.28+ via presets (`cmake --preset debug`).
+-   **Dependencies:** vcpkg manifest mode. The registry baseline is pinned in
+    both `vcpkg.json` and `vcpkg-configuration.json`; do not use floating
+    dependency versions in build or deployment scripts.
 -   **Pre-commit:** `pip install pre-commit cmakelang commitizen` then
     `pre-commit install --install-hooks` from the repo root.
--   **Tests:** `ctest --preset dev --output-on-failure`.
+-   **Tests:** `ctest --preset debug --output-on-failure`.
 
 See the runbook for platform-specific notes (Windows TDLib build, WSL caveats,
 Sanitizer presets, coverage runs).
@@ -194,7 +196,7 @@ suppress them without an inline `// NOLINT(check-name) // reason` comment.
     point.
 -   Long-running or integration tests must be tagged `[integration]` and gated
     behind the `CMLB_RUN_INTEGRATION_TESTS` ctest label.
--   Run `ctest --preset dev --output-on-failure` before pushing.
+-   Run `ctest --preset debug --output-on-failure` before pushing.
 
 ---
 
@@ -203,7 +205,8 @@ suppress them without an inline `// NOLINT(check-name) // reason` comment.
 Before requesting review, confirm that:
 
 -   [ ] `clang-format` runs clean (`pre-commit run clang-format --all-files`).
--   [ ] `clang-tidy` runs clean (`cmake --build --preset dev --target tidy`).
+-   [ ] `clang-tidy` runs clean (`scripts/run_static_analysis.sh` after
+        `cmake --preset debug`).
 -   [ ] New code is covered by tests; existing tests still pass.
 -   [ ] An ADR exists for any non-trivial design decision.
 -   [ ] `CHANGELOG.md` has an entry under `## [Unreleased]` describing the
@@ -211,7 +214,7 @@ Before requesting review, confirm that:
 -   [ ] Documentation in `docs/` is updated when behaviour changes.
 -   [ ] Commit messages follow Conventional Commits.
 -   [ ] No secrets, tokens, or personally identifying information are in the
-        diff (CI scans for common patterns, but check yourself first).
+        diff.
 -   [ ] The PR description fills in every section of the template.
 
 PRs that fail these checks will be sent back without review.

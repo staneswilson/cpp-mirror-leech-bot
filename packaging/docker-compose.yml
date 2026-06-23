@@ -5,7 +5,7 @@
 #   * cmlb   — the bot itself.
 #
 # Usage:
-#   docker compose --file packaging/docker-compose.yml up --build
+#   docker compose --file packaging/docker-compose.yml --env-file packaging/.env up --build
 #
 # Configuration:
 #   Place your config.json at ./config.json (relative to the repo root). It is
@@ -24,7 +24,7 @@ x-logging: &default-logging
 
 services:
   aria2:
-    image: p3terx/aria2-pro:latest
+    image: p3terx/aria2-pro@sha256:086d1a37c586edb07ec0fb956bf9edd89d1d38d138ad5309ff96d510c8c9a011
     container_name: cmlb-aria2
     restart: unless-stopped
     init: true
@@ -68,8 +68,8 @@ services:
         GIT_SHA: "${GIT_SHA:-dev}"
         BUILD_DATE: "${BUILD_DATE:-unknown}"
       cache_from:
-        - type=registry,ref=ghcr.io/staneswilson/cmlb:cache
-    image: ghcr.io/staneswilson/cmlb:${CMLB_TAG:-latest}
+        - type=registry,ref=${CMLB_IMAGE:-ghcr.io/staneswilson/cpp-mirror-leech-bot}:buildcache-${CMLB_CACHE_ARCH:-amd64}
+    image: ${CMLB_IMAGE:-ghcr.io/staneswilson/cpp-mirror-leech-bot}:${CMLB_TAG:?CMLB_TAG must be pinned to a release tag or sha-<full commit>}
     container_name: cmlb-bot
     restart: unless-stopped
     init: true
@@ -77,8 +77,8 @@ services:
       aria2:
         condition: service_healthy
     environment:
-      # Every leaf field in AppConfig is overridable via env. See
-      # docs/configuration_reference.md.
+      # Deployment-critical fields are overridden here. The full explicit
+      # override list lives in docs/configuration_reference.md.
       CMLB_TELEGRAM_API_ID:        "${TELEGRAM_API_ID:?TELEGRAM_API_ID must be set}"
       CMLB_TELEGRAM_API_HASH:      "${TELEGRAM_API_HASH:?TELEGRAM_API_HASH must be set}"
       CMLB_TELEGRAM_BOT_TOKEN:     "${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN must be set}"
@@ -114,8 +114,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    cap_add:
-      - NET_BIND_SERVICE         # only if exposing inbound port; safe default
 
 networks:
   cmlb-net:

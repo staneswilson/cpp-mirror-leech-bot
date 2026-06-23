@@ -28,9 +28,10 @@ install_apt_packages() {
         cmake ninja-build \
         git curl ca-certificates pkg-config \
         autoconf autoconf-archive automake libtool \
-        zip unzip tar \
-        python3 python3-pip \
-        aria2 ffmpeg p7zip-full
+        bison flex gperf \
+        zip unzip tar xz-utils bzip2 \
+        python3 python3-pip python3-jinja2 \
+        aria2 ffmpeg p7zip-full rclone
 }
 
 clone_vcpkg() {

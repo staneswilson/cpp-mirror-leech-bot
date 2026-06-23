@@ -12,10 +12,10 @@ CMLB has four authority tiers, ordered from least to most privileged:
 
 | Tier | Granted to | Notes |
 |---|---|---|
-| `Anyone` | every user the bot can see | `/start`, `/help`, `/ping` |
-| `User` | users in `telegram.users`, or anyone if the list is empty | `/mirror`, `/leech`, `/status`, `/settings`, `/stats` |
-| `Admin` | users in `telegram.admins` | per-user overrides, force-cancel others' tasks |
-| `Owner` | `telegram.owner_id` (single user) | `/log`, `/botsettings`, bypass all limits |
+| `Anyone` | every user the bot can see | `/start`, `/help`, `/ping`, `/settings`, `/version` |
+| `User` | commands issued in `telegram.authorized_chats`; owner and sudo users also inherit this tier | `/mirror`, `/leech`, `/status`, `/stats` |
+| `Admin` | users in `telegram.sudo_users` | Drive delete, bot settings, chat-wide bulk cancel |
+| `Owner` | `telegram.owner_id` (single user) | `/log`, plus every lower-tier command |
 
 A higher tier inherits everything from below.
 
@@ -41,6 +41,7 @@ A higher tier inherits everything from below.
 - [`/botsettings`](#botsettings)
 - [`/stats`](#stats)
 - [`/ping`](#ping)
+- [`/version`](#version)
 - [`/log`](#log)
 - [`/rss`](#rss)
 
@@ -51,7 +52,9 @@ A higher tier inherits everything from below.
 **Syntax:** `/start`
 **Permission:** Anyone
 
-Greets the caller and confirms the bot is alive. If the caller is not in any allow list and the bot is configured with a non-empty `telegram.users` list, `/start` will inform them they are unauthorized — this is by design, so an operator can see who is trying to use the bot without granting any access.
+Greets the caller and confirms the bot is alive. Authorization is enforced on
+the commands that require `User`, `Admin`, or `Owner`; `/start` itself remains
+open so operators can verify that TDLib and the command dispatcher are alive.
 
 **Examples:**
 
@@ -67,37 +70,36 @@ Greets the caller and confirms the bot is alive. If the caller is not in any all
 
 ## `/help`
 
-**Syntax:** `/help [<command>]`
+**Syntax:** `/help`
 **Permission:** Anyone
 
-Without an argument, shows a grouped command list filtered to the caller's authority tier. With an argument, shows the per-command help (syntax, description, examples) for that command. `/help mirror` shows the same body that appears here under [`/mirror`](#mirror).
+Shows the registered command list filtered to the caller's authority tier. The
+current dispatcher ignores arguments to `/help`; per-command help lives in this
+document.
 
 **Examples:**
 
 ```
 /help
-/help mirror
-/help rss
 ```
 
 **Errors:**
 
-- `Unknown command` — argument did not match any registered command.
+- None expected. Unknown command handling applies when the command itself is
+  unknown, not to `/help` arguments.
 
 ---
 
 ## `/mirror`
 
-**Syntax:** `/mirror <url-or-magnet> [--no-extract] [--upload-to <destination>] [--rename <name>]`
+**Syntax:** `/mirror <url-or-magnet>`
 **Permission:** User
 
-Downloads the resource at the given URL or magnet link and uploads the result to the configured cloud destination (Google Drive or rclone remote). The download uses aria2 by default; for torrent-specific behaviour use [`/qbmirror`](#qbmirror).
-
-Flags:
-
-- `--no-extract` — do not auto-extract archives after download. Default behaviour extracts `.7z`, `.zip`, `.tar*`, `.rar`, and uploads the extracted contents.
-- `--upload-to <destination>` — override the configured default destination. Valid values: `gdrive`, `rclone:<remote>:<path>`, `tg` (same as `/leech`).
-- `--rename <name>` — rename the resulting file or top-level folder before upload.
+Downloads the resource at the given URL or magnet link and uploads the result
+to the caller's configured mirror destination. The download uses aria2 by
+default; for torrent-specific qBittorrent behaviour use [`/qbmirror`](#qbmirror).
+Destination selection is controlled by `/settings` and persisted in SQLite.
+Shortcut: `/m`.
 
 The bot replies immediately with a queued message and edits it with live progress. On completion the message changes to a link to the uploaded resource.
 
@@ -105,8 +107,7 @@ The bot replies immediately with a queued message and edits it with live progres
 
 ```
 /mirror https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso
-/mirror https://example.com/archive.tar.gz --no-extract
-/mirror magnet:?xt=urn:btih:... --upload-to rclone:backup:isos
+/mirror magnet:?xt=urn:btih:...
 ```
 
 **Errors:**
@@ -115,56 +116,46 @@ The bot replies immediately with a queued message and edits it with live progres
 - `Auth forbidden` — caller does not have the `User` tier.
 - `External unavailable: aria2` — aria2c is not reachable; see [`runbook.md`](runbook.md#aria2c-not-reachable).
 - `External quota exceeded: gdrive` — service account has hit its quota or the destination folder is not writable.
-- `Io full` — the host has run out of disk space in `paths.downloads`.
+- `Io full` — the host has run out of disk space in `paths.download_dir`.
 
 ---
 
 ## `/leech`
 
-**Syntax:** `/leech <url-or-magnet> [--no-extract] [--rename <name>] [--thumbnail <reply>]`
+**Syntax:** `/leech <url-or-magnet>`
 **Permission:** User
 
-Same as `/mirror`, but the result is uploaded back into the originating Telegram chat as a document (or video, when applicable) rather than to a cloud destination. Files larger than `telegram.upload_split_bytes` are split.
-
-Flags:
-
-- `--no-extract` — same as for `/mirror`.
-- `--rename <name>` — same as for `/mirror`.
-- `--thumbnail <reply>` — if used in reply to a photo, attaches that photo as the document thumbnail.
+Same as `/mirror`, but the result is uploaded back into the originating
+Telegram chat. Files larger than the bot-wide `leech_split_size` setting are
+split before upload. Per-user settings decide whether Telegram uploads are sent
+as documents and whether a default thumbnail path is attached.
+Shortcut: `/l`.
 
 **Examples:**
 
 ```
 /leech https://example.com/big.iso
-/leech magnet:?xt=urn:btih:... --rename "MyShow S01E01"
-```
-
-(reply to a photo)
-
-```
-/leech https://example.com/movie.mkv --thumbnail
+/leech magnet:?xt=urn:btih:...
 ```
 
 **Errors:**
 
 - Same set as `/mirror`, plus:
 - `External rate limited: telegram` — Telegram's per-chat upload rate limit was hit. CMLB will retry with backoff; persistent rate-limiting may indicate the chat or bot is flooded.
-- `Input too large` — file exceeds `telegram.upload_split_bytes * 50` (the bot refuses unbounded splits).
+- `Input too large` — file exceeds the configured split policy (the bot refuses unbounded splits).
 
 ---
 
 ## `/qbmirror`
 
-**Syntax:** `/qbmirror <url-or-magnet-or-torrent-file> [--no-extract] [--upload-to <destination>]`
+**Syntax:** `/qbmirror <url-or-magnet>`
 **Permission:** User
 
-Same semantics as `/mirror`, but forces the qBittorrent downloader. Use when:
-
-- The source is a `.torrent` file attachment (reply to a file with `/qbmirror`).
-- You want qBittorrent's DHT or specific tracker behaviour.
-- aria2 is misbehaving on this specific torrent.
-
-Requires `qbittorrent.enabled = true`.
+Same semantics as `/mirror`, but forces the qBittorrent downloader. Use it for
+magnet links or torrent URLs when you want qBittorrent's DHT, tracker, or
+seeding behaviour. The current command dispatcher expects the input as command
+text; Telegram file-reply torrent ingestion is not wired yet.
+Shortcut: `/qm`.
 
 **Examples:**
 
@@ -172,26 +163,21 @@ Requires `qbittorrent.enabled = true`.
 /qbmirror magnet:?xt=urn:btih:...
 ```
 
-(reply to a .torrent attachment)
-
-```
-/qbmirror
-```
-
 **Errors:**
 
 - `External unavailable: qbittorrent` — Web API not reachable.
 - `External unauthorized: qbittorrent` — credentials wrong.
-- `Input invalid` — no usable input. If replying to a non-torrent file you'll get this.
+- `Input invalid` — no usable URL or magnet text was supplied.
 
 ---
 
 ## `/qbleech`
 
-**Syntax:** `/qbleech <url-or-magnet-or-torrent-file> [--no-extract]`
+**Syntax:** `/qbleech <url-or-magnet>`
 **Permission:** User
 
 The qBittorrent equivalent of `/leech`. See `/qbmirror` and `/leech` for details.
+Shortcut: `/ql`.
 
 **Examples:**
 
@@ -210,7 +196,7 @@ The qBittorrent equivalent of `/leech`. See `/qbmirror` and `/leech` for details
 
 Server-side clone of a Google Drive resource (file or folder) into the configured destination. No bytes are downloaded to CMLB's host; Drive copies the file to the destination owned by the service account. Faster and quota-free for downloads.
 
-The destination is `google_drive.default_folder_id` (or `google_drive.shared_drive_id` if set). On success the reply is a link to the cloned resource.
+The destination is `google_drive.parent_folder_id`. On success the reply is a link to the cloned resource.
 
 **Examples:**
 
@@ -252,7 +238,10 @@ Recursively counts files, subfolders, and total bytes under the given Drive reso
 **Syntax:** `/del <gdrive-link>`
 **Permission:** Admin
 
-Permanently deletes a Drive resource owned by the service account (or trashable by it). Because this is destructive the command requires `Admin`. The bot replies with a confirmation inline keyboard before performing the delete.
+Deletes a Drive resource owned by, or trashable by, the service account. Because
+this is destructive the command requires `Admin`. The current implementation
+executes immediately after the command is authorized; do not hand out `Admin`
+unless that is acceptable operationally.
 
 **Examples:**
 
@@ -273,9 +262,13 @@ Permanently deletes a Drive resource owned by the service account (or trashable 
 **Syntax:** `/status [<task-id>]`
 **Permission:** User
 
-Without an argument: shows all active tasks the caller can see. `User` sees their own tasks; `Admin` and `Owner` see everyone's. The status message updates in place on a throttle (default once every 2 seconds).
+Without an argument: sends a point-in-time status summary for active tasks the
+caller can see. `User` sees their own tasks in the current chat; `Admin` and
+`Owner` see all tasks in that chat.
 
-With an argument: shows the detailed status of a single task by id (the short id returned when the task was created), including stage, progress, speed, ETA, and the last 3 log lines for that task.
+With an argument: shows one visible task by id, including progress, rate, ETA,
+state, host metrics, and the current downloader state when the downloader
+binding is still available.
 
 **Examples:**
 
@@ -293,9 +286,12 @@ With an argument: shows the detailed status of a single task by id (the short id
 ## `/cancel`
 
 **Syntax:** `/cancel <task-id>`
-**Permission:** User (callers can cancel their own tasks) / Admin (cancels anyone's)
+**Permission:** User
 
-Cancels the task. Triggers the task's cancellation slot; any in-flight downloader/uploader call returns `Cancelled`. The task transitions to the `Cancelled` state, the progress message is edited to `"Cancelled."`, and partial files on disk are removed (unless `paths.keep_downloads_on_failure = true`).
+Cancels a non-terminal task in the current chat. If the task is actively running,
+the live use case observes the cancellation flag, asks the downloader to remove
+the job when possible, transitions the task to `Cancelled`, and edits the status
+message.
 
 **Examples:**
 
@@ -305,7 +301,7 @@ Cancels the task. Triggers the task's cancellation slot; any in-flight downloade
 
 **Errors:**
 
-- `Auth forbidden` — `User` tier and not the task owner.
+- `Auth forbidden` — caller cannot see this chat/task.
 - `State not found` — task id does not exist.
 - `State invalid transition` — task already completed; nothing to cancel.
 
@@ -314,9 +310,9 @@ Cancels the task. Triggers the task's cancellation slot; any in-flight downloade
 ## `/cancelall`
 
 **Syntax:** `/cancelall`
-**Permission:** User (cancels own tasks) / Admin (cancels everyone's)
+**Permission:** Admin
 
-Cancels every active task visible to the caller. For `User`, that's their own. For `Admin` and `Owner`, that's the bot-wide active set.
+Cancels every active task in the current chat. This is intentionally admin-only because it is destructive for everyone in that chat.
 
 **Examples:**
 
@@ -326,16 +322,19 @@ Cancels every active task visible to the caller. For `User`, that's their own. F
 
 **Errors:**
 
-- None typically. If there are no tasks the bot replies `Nothing to cancel.`
+- None typically. If there are no active tasks, the summary reports
+  `0 cancelled, 0 failed`.
 
 ---
 
 ## `/pause`
 
 **Syntax:** `/pause <task-id>`
-**Permission:** User (own tasks) / Admin (any)
+**Permission:** User
 
-Pauses the task if the underlying downloader supports it (aria2 and qBittorrent both do for torrents; HTTP/FTP downloads cannot be paused, only cancelled). Paused tasks consume no network and do not progress, but they hold their downloaded bytes.
+Pauses a non-terminal task in the current chat if the underlying downloader
+supports it. Pause/resume is forwarded to the downloader; CMLB does not persist
+a separate `Paused` task state in SQLite.
 
 **Examples:**
 
@@ -352,9 +351,10 @@ Pauses the task if the underlying downloader supports it (aria2 and qBittorrent 
 ## `/resume`
 
 **Syntax:** `/resume <task-id>`
-**Permission:** User (own tasks) / Admin (any)
+**Permission:** User
 
-Resumes a paused task.
+Resumes a non-terminal task in the current chat by forwarding the request to the
+downloader.
 
 **Examples:**
 
@@ -371,14 +371,12 @@ Resumes a paused task.
 ## `/settings`
 
 **Syntax:** `/settings`
-**Permission:** User
+**Permission:** Anyone
 
-Opens an inline-keyboard panel for the caller's per-user settings. Toggles include:
+Opens an inline-keyboard panel for the caller's per-user settings. Current buttons include:
 
 - Default upload destination (Drive / rclone remote / Telegram).
-- Auto-extract on / off.
-- Default rename pattern.
-- Per-user log verbosity for status messages.
+- Upload-as-document mode.
 
 Settings are persisted in the SQLite database and survive restarts.
 
@@ -397,16 +395,15 @@ Settings are persisted in the SQLite database and survive restarts.
 ## `/botsettings`
 
 **Syntax:** `/botsettings`
-**Permission:** Owner
+**Permission:** Admin
 
-Opens an inline-keyboard panel for bot-wide settings that can be edited at runtime (a subset of `config.json` — fields marked `runtime-editable` in [`configuration_reference.md`](configuration_reference.md)). Includes:
+Shows the bot-wide settings panel. The current panel is read-only except for the close button; runtime mutation should be added deliberately through `UpdateBotSettings`.
 
 - Default upload destination.
-- Global limits (`max_concurrent_tasks_global`, `max_filesize_bytes`).
-- RSS feature on/off.
-- Logging level (process-wide).
+- Download directory.
+- Telegram leech split size.
 
-> **Note:** Some settings (e.g. `telegram.bot_token`, database path) cannot be changed at runtime and must be edited in `config.json` followed by a restart.
+Process-level settings such as `telegram.bot_token`, database path, and logger directory are config-file settings and require a restart.
 
 **Examples:**
 
@@ -416,7 +413,7 @@ Opens an inline-keyboard panel for bot-wide settings that can be edited at runti
 
 **Errors:**
 
-- `Auth forbidden` — caller is not the owner.
+- `Auth forbidden` — caller is not an admin or owner.
 
 ---
 
@@ -461,70 +458,72 @@ Replies with the round-trip latency between the bot receiving the message and th
 
 ---
 
+## `/version`
+
+**Syntax:** `/version`
+**Permission:** Anyone
+
+Shows the running CMLB build version.
+
+**Examples:**
+
+```
+/version
+```
+
+**Errors:** none expected.
+
+---
+
 ## `/log`
 
-**Syntax:** `/log [<lines>] [--level <level>] [--module <name>]`
+**Syntax:** `/log`
 **Permission:** Owner
 
-Tails the last N log lines (default 50, max 500) from the bot's log file. Optionally filters by level (`info`, `warn`, `error`, `debug`) or by module name (e.g. `aria2`, `gdrive`, `tdlib`).
-
-The output is sent as a document attachment for any request longer than ~3500 characters.
+Uploads `logs/cmlb.log` as a document, capped at 50 MiB so an operator cannot accidentally push a huge log segment into Telegram.
 
 **Examples:**
 
 ```
 /log
-/log 200
-/log 100 --level error
-/log 50 --module aria2
 ```
 
 **Errors:**
 
 - `Auth forbidden` — caller is not the owner.
-- `Io not found` — log file does not exist or `logging.file` is empty.
+- `Io not found` — `logs/cmlb.log` does not exist in the process working directory.
 
 ---
 
 ## `/rss`
 
-`/rss` is a multi-subcommand surface for managing RSS subscriptions. Requires `rss.enabled = true`.
+`/rss` is a multi-subcommand surface for managing RSS subscriptions. RSS
+polling runs as part of the main process; there is no separate `rss.enabled`
+config switch in v1.
 
 ### `/rss add`
 
-**Syntax:** `/rss add <name> <url> [--interval <seconds>] [--filter <regex>] [--chat <chat-id>]`
+**Syntax:** `/rss add <url>`
 **Permission:** User
 
-Creates a new subscription named `<name>` polling `<url>`. The first poll happens immediately; subsequent polls at the configured interval (default `rss.default_interval_seconds`).
-
-Flags:
-
-- `--interval <seconds>` — override the poll interval. Cannot be lower than `rss.min_interval_seconds`.
-- `--filter <regex>` — only accept entries whose title matches this regex (ECMAScript syntax).
-- `--chat <chat-id>` — deliver matches to a specific chat. Defaults to the chat the command was issued in.
-
-When a feed produces a new entry that matches the filter, the bot announces it in the destination chat. The user must then trigger `/mirror` or `/leech` on the link if they want to download it. (Automatic auto-mirror-on-match is a planned v2 feature.)
+Creates a subscription for the current chat. The URL must start with `http://` or `https://`. Polling behavior is owned by `RssFeedPoller`.
 
 **Examples:**
 
 ```
-/rss add ubuntu https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso.zsync
-/rss add ubuntu https://example.com/feed.xml --interval 1800 --filter "^Ubuntu .* LTS"
+/rss add https://example.com/feed.xml
 ```
 
 **Errors:**
 
-- `Input invalid: name already exists` — pick a different name.
 - `Input invalid: URL` — could not parse.
-- `Input invalid: regex` — filter is not a valid regex.
-- `External unavailable` — the first probe of the feed failed.
 
 ### `/rss list`
 
 **Syntax:** `/rss list`
 **Permission:** User
 
-Lists the caller's subscriptions with their URL, interval, filter, last poll time, and last delivered entry. Admins see all subscriptions.
+Lists subscriptions for the current chat.
 
 **Examples:**
 
@@ -536,18 +535,19 @@ Lists the caller's subscriptions with their URL, interval, filter, last poll tim
 
 ### `/rss remove`
 
-**Syntax:** `/rss remove <name>`
-**Permission:** User (own) / Admin (any)
+**Syntax:** `/rss remove <id>`
+**Permission:** User
 
-Removes the named subscription. The poller stops immediately; any in-flight poll for that feed is cancelled.
+Removes a subscription by numeric id. Users can remove feeds owned by the
+current chat. `/rss delete <id>` and `/rss del <id>` are accepted aliases.
 
 **Examples:**
 
 ```
-/rss remove ubuntu
+/rss remove 42
 ```
 
 **Errors:**
 
-- `State not found` — no subscription with that name (or visible to caller).
-- `Auth forbidden` — `User` tier trying to remove someone else's subscription.
+- `State not found` — no visible subscription has that id.
+- `Auth forbidden` — feed belongs to another chat.

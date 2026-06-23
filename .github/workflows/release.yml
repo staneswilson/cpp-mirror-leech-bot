@@ -34,6 +34,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7.0.0
         with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
           submodules: recursive
           fetch-depth: 1
 
@@ -114,6 +115,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7.0.0
         with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
           submodules: recursive
           fetch-depth: 1
 
@@ -190,6 +192,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7.0.0
         with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
           submodules: recursive
           fetch-depth: 1
 
@@ -264,6 +267,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7.0.0
         with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
           fetch-depth: 1
 
       - name: Download all release artifacts

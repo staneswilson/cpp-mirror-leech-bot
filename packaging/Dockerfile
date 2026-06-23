@@ -4,16 +4,18 @@
 #
 #   * Builder       — Ubuntu 24.04, GCC 14, vcpkg-managed deps, ccache.
 #   * Test (gated)  — runs ctest in the builder before promoting to runtime.
-#   * Runtime       — Debian 13 slim, runs as non-root, ships with aria2c +
-#                     ffmpeg + p7zip-full + rclone so /mirror, /leech and
-#                     auto-extract work out of the box.
+#   * Runtime       — Debian 13 slim, runs as non-root, ships with runtime
+#                     libraries and external tools (aria2c, ffmpeg, p7zip-full,
+#                     rclone). /mirror and /leech still require reachable
+#                     aria2/qBittorrent RPC; archive/media commands are wired
+#                     only when the presentation layer exposes them.
 #
 # Build (single-arch):
-#     docker build -t ghcr.io/staneswilson/cmlb:latest -f packaging/Dockerfile .
+#     docker build -t ghcr.io/staneswilson/cpp-mirror-leech-bot:local -f packaging/Dockerfile .
 #
 # Build (multi-arch, requires buildx):
 #     docker buildx build --platform linux/amd64,linux/arm64 \
-#         -t ghcr.io/staneswilson/cmlb:latest \
+#         -t ghcr.io/staneswilson/cpp-mirror-leech-bot:sha-<full-commit> \
 #         --push \
 #         -f packaging/Dockerfile .
 #
@@ -22,7 +24,7 @@
 #         -v $(pwd)/config.json:/etc/cmlb/config.json:ro \
 #         -v cmlb-data:/var/lib/cmlb \
 #         -v cmlb-logs:/var/log/cmlb \
-#         ghcr.io/staneswilson/cmlb:latest
+#         ghcr.io/staneswilson/cpp-mirror-leech-bot:sha-<full-commit>
 
 ARG UBUNTU_VERSION=24.04
 ARG DEBIAN_VERSION=13-slim

@@ -20,7 +20,7 @@ install_brew_packages() {
     log "Installing system packages via Homebrew"
     brew update
     brew install \
-        llvm@17 \
+        llvm@20 \
         cmake ninja \
         git pkg-config \
         autoconf automake libtool \
@@ -51,7 +51,7 @@ setup_pre_commit() {
 
 print_next_steps() {
     local llvm_prefix
-    llvm_prefix="$(brew --prefix llvm@17)"
+    llvm_prefix="$(brew --prefix llvm@20)"
     cat <<EOF
 
 Bootstrap complete.

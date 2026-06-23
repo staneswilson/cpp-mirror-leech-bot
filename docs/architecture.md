@@ -14,6 +14,7 @@ Cross-references:
 - [`adr/0009-five-layer-ddd-layering.md`](adr/0009-five-layer-ddd-layering.md)
 - [`adr/0010-security-boundary-and-credential-handling.md`](adr/0010-security-boundary-and-credential-handling.md)
 - [`adr/0011-forward-only-schema-migrations.md`](adr/0011-forward-only-schema-migrations.md)
+- [`adr/0012-ci-tdlib-include-probe.md`](adr/0012-ci-tdlib-include-probe.md)
 
 ---
 
@@ -228,7 +229,8 @@ The rationale for choosing Asio coroutines over `std::future`, callback APIs, or
 
 TDLib is a C++ library that exposes about 1,500 generated types in `<td/telegram/td_api.h>`. Including that header is expensive (compile-time and incidentally in code reviewer attention) and contagious: once a `td_api::object_ptr` shows up in a header, every translation unit that includes that header pays the cost.
 
-CMLB's response: exactly one file in the codebase is allowed to include `<td/telegram/td_api.h>` — `src/infrastructure/telegram_gateway.cpp`. The gateway:
+CMLB's response: exactly one file in the codebase is allowed to include TDLib headers:
+`src/infrastructure/telegram/telegram_gateway.cpp`. The gateway:
 
 1. Owns the `td::Client` instance.
 2. Drives the TDLib update loop on a dedicated strand.
@@ -251,9 +253,15 @@ No TDLib symbol leaks through.
 
 Enforcement:
 
-- **clang-tidy** has a project-level `header-filter` rule that blocks `<td/telegram/td_api.h>` everywhere except `src/infrastructure/telegram_gateway.cpp`.
-- **include-what-you-use** (IWYU) is run in a CI job and rejects new includes of TDLib outside the allowed file.
-- **CMake** declares the TDLib dependency `PRIVATE` on a single target (`cmlb_infrastructure_telegram`), so an attempt to include it elsewhere won't even resolve the path.
+- **Static Analysis workflow** runs a cheap source probe that fails if any
+  source or test file outside `telegram_gateway.cpp` includes
+  `<td/telegram/td_api.h>`, `<td/telegram/td_api.hpp>`, or
+  `<td/telegram/Client.h>`.
+- **clang-tidy** still runs with `-warnings-as-errors='*'` over changed C++
+  sources on pull requests and over the full tree on pushes.
+- **CMake** declares the TDLib dependency `PRIVATE` on the Telegram
+  infrastructure target, so other targets cannot accidentally consume TDLib
+  include paths.
 
 The full rationale (and the alternatives considered) is in [ADR-0003](adr/0003-telegram-gateway-isolation.md).
 
@@ -436,7 +444,7 @@ This model is what makes `Result<T>` worthwhile compared to plain exceptions: er
 
 Configuration is loaded once at startup. The load order is:
 
-1. Parse `config.json` (path from `--config` flag or `CMLB_CONFIG_PATH` env var, defaults to `./config.json`).
+1. Parse `config.json` (path from the optional positional `CONFIG_PATH` argument, defaults to `./config.json`).
 2. For each field, check if the corresponding `CMLB_<UPPER_SNAKE>` environment variable is set; if so, override.
 3. Validate. Validation **collects all errors** rather than stopping at the first one. If three fields are wrong, the operator gets a report of all three.
 4. Construct an immutable `core::Configuration` and pass it down via dependency injection.
@@ -451,26 +459,21 @@ Field-level details live in [`configuration_reference.md`](configuration_referen
 
 ## Observability
 
-Two pillars: logging and (optional) metrics.
+Two pillars are implemented today: structured logs and fast in-chat host stats.
 
 **Logging** uses spdlog with two sinks:
 
-- A rotating-file sink at `paths.data / cmlb.log` (default), rotating at 10 MB with 5 historical files kept.
+- A rotating-file sink at `logging.logs_dir / cmlb.log` (default), rotating at 10 MB with 5 historical files kept.
 - A stderr sink for interactive runs.
 
-Log lines are structured: every entry carries `{timestamp, level, logger_name, message, fields...}`. The format is human-readable by default; JSON mode is enabled by `logging.format = "json"` for ingestion into log aggregators.
+Log lines are structured enough for operations: timestamp, level, thread id,
+and message. Two sinks receive the same events: rotating file and optional
+stderr. Do not log raw config secrets; secret-bearing fields are passed only to
+the adapters that need them.
 
-Sensitive fields (bot token, API hash, service-account key) are redacted before logging. The redaction list is defined in `core/logger.cpp` and is symmetric across both sinks.
+`/status` and `/stats` sample `SystemMetrics` for CPU, RAM, disk, load, and
+uptime. These commands are intentionally cheap and remain available even when a
+downloader stats call fails.
 
-**Metrics** are off by default. When `metrics.enabled = true`, CMLB exposes a Prometheus scrape endpoint at `metrics.bind` (default `127.0.0.1:9464`). Counters and histograms include:
-
-- `cmlb_tasks_total{state}` — counter by terminal state (`completed`, `failed`, `cancelled`).
-- `cmlb_task_duration_seconds{kind}` — histogram by task kind (`mirror`, `leech`, `clone`).
-- `cmlb_download_bytes_total{downloader}` — counter, sum of bytes downloaded.
-- `cmlb_upload_bytes_total{uploader}` — counter, sum of bytes uploaded.
-- `cmlb_external_errors_total{adapter, code}` — counter of external errors by adapter and ErrorCode.
-- `cmlb_telegram_updates_total{type}` — counter of TDLib updates by type.
-
-The metrics endpoint is local-only by default. Bind to `0.0.0.0` only behind an authenticating reverse proxy.
-
-There is no built-in tracing in v1.
+A Prometheus `/metrics` endpoint and distributed tracing are roadmap items, not
+part of the current config surface.
