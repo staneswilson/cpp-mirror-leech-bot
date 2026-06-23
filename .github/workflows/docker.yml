@@ -237,6 +237,11 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
+          limit-severities-for-sarif: true
+          # Keep code scanning actionable: Debian CVEs with no fixed package
+          # cannot be remediated by a rebuild. They surface automatically when
+          # a fixed package exists.
+          ignore-unfixed: true
           exit-code: 0      # report but don't fail; promote with attestations
 
       - name: Upload SARIF to GitHub Security

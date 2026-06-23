@@ -5,10 +5,11 @@
 #   * Builder       — Ubuntu 24.04, GCC 14, vcpkg-managed deps, ccache.
 #   * Test (gated)  — runs ctest in the builder before promoting to runtime.
 #   * Runtime       — Debian 13 slim, runs as non-root, ships with runtime
-#                     libraries and external tools (aria2c, ffmpeg, p7zip-full,
-#                     rclone). /mirror and /leech still require reachable
-#                     aria2/qBittorrent RPC; archive/media commands are wired
-#                     only when the presentation layer exposes them.
+#                     libraries and pinned external tools (aria2c, ffmpeg,
+#                     upstream 7-Zip, upstream rclone). /mirror and /leech
+#                     still require reachable aria2/qBittorrent RPC;
+#                     archive/media commands are wired only when the
+#                     presentation layer exposes them.
 #
 # Build (single-arch):
 #     docker build -t ghcr.io/staneswilson/cpp-mirror-leech-bot:local -f packaging/Dockerfile .
@@ -31,6 +32,8 @@ ARG DEBIAN_VERSION=13-slim
 ARG VCPKG_BASELINE=a7eda31dc16994fcaa8587982eb833a8695f1b6f
 ARG CMLB_BUILD_TYPE=Release
 ARG CMLB_RUN_TESTS=1
+ARG RCLONE_VERSION=1.74.3
+ARG SEVEN_ZIP_VERSION=26.01
 
 # =============================================================================
 # Stage 1: builder — full toolchain + vcpkg
@@ -44,6 +47,8 @@ ARG TARGETARCH
 ARG VCPKG_BASELINE
 ARG CMLB_BUILD_TYPE
 ARG CMLB_RUN_TESTS
+ARG RCLONE_VERSION
+ARG SEVEN_ZIP_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
@@ -133,6 +138,39 @@ RUN --mount=type=cache,target=/root/.cache/ccache,sharing=locked \
         fi \
     && cmake --install build/release --prefix /opt/cmlb --strip
 
+# Pinned upstream runtime tools. Debian's rclone/p7zip packages lag upstream
+# significantly; installing the official static binaries avoids shipping old
+# packages with known CVEs while keeping the runtime image reproducible.
+RUN case "${TARGETARCH:-amd64}" in \
+        amd64) \
+            rclone_arch=amd64; \
+            rclone_sha=dbee7ccd7a5d617e4ed4cd4555c16669b511abfe8d31164f61be35ac9e999bd2; \
+            seven_zip_asset=7z2601-linux-x64.tar.xz; \
+            seven_zip_sha=8ea0fc8a135e7b848e80a4116fe22dff56c8c4518dde1f43cce67f4e340b437a ;; \
+        arm64) \
+            rclone_arch=arm64; \
+            rclone_sha=8f8d47446e061f80c3256659fe8e21f56d72d96aaefe1275d088ea5eb6b42aa7; \
+            seven_zip_asset=7z2601-linux-arm64.tar.xz; \
+            seven_zip_sha=39f8c9070c300a63c7484d9a983119ef3edf841e1ddf69f1affae29fdec5f612 ;; \
+        *) echo "Unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+ && mkdir -p /opt/cmlb/tools /tmp/cmlb-tools \
+ && curl -fsSLo /tmp/cmlb-tools/rclone.zip \
+        "https://github.com/rclone/rclone/releases/download/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-${rclone_arch}.zip" \
+ && echo "${rclone_sha}  /tmp/cmlb-tools/rclone.zip" | sha256sum -c - \
+ && unzip -q /tmp/cmlb-tools/rclone.zip -d /tmp/cmlb-tools \
+ && install -m 0755 \
+        "/tmp/cmlb-tools/rclone-v${RCLONE_VERSION}-linux-${rclone_arch}/rclone" \
+        /opt/cmlb/tools/rclone \
+ && curl -fsSLo /tmp/cmlb-tools/7zip.tar.xz \
+        "https://github.com/ip7z/7zip/releases/download/${SEVEN_ZIP_VERSION}/${seven_zip_asset}" \
+ && echo "${seven_zip_sha}  /tmp/cmlb-tools/7zip.tar.xz" | sha256sum -c - \
+ && mkdir -p /tmp/cmlb-tools/7zip \
+ && tar -xJf /tmp/cmlb-tools/7zip.tar.xz -C /tmp/cmlb-tools/7zip \
+ && install -m 0755 /tmp/cmlb-tools/7zip/7zz /opt/cmlb/tools/7zz \
+ && ln -s /opt/cmlb/tools/7zz /opt/cmlb/tools/7z \
+ && rm -rf /tmp/cmlb-tools
+
 # =============================================================================
 # Stage 2: runtime — Debian slim with the external tools the bot shells out to
 # =============================================================================
@@ -141,6 +179,8 @@ FROM debian:${DEBIAN_VERSION} AS runtime
 ARG DEBIAN_VERSION
 ARG VCPKG_BASELINE
 ARG CMLB_BUILD_TYPE
+ARG RCLONE_VERSION
+ARG SEVEN_ZIP_VERSION
 ARG GIT_SHA=unknown
 ARG BUILD_DATE=unknown
 
@@ -154,7 +194,9 @@ LABEL org.opencontainers.image.title="cmlb" \
       org.opencontainers.image.authors="cmlb maintainers" \
       org.opencontainers.image.revision="${GIT_SHA}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
-      org.opencontainers.image.base.name="docker.io/library/debian:${DEBIAN_VERSION}"
+      org.opencontainers.image.base.name="docker.io/library/debian:${DEBIAN_VERSION}" \
+      org.opencontainers.image.version.rclone="${RCLONE_VERSION}" \
+      org.opencontainers.image.version.7zip="${SEVEN_ZIP_VERSION}"
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
@@ -171,7 +213,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         ca-certificates tini tzdata \
         libstdc++6 libgcc-s1 \
         libssl3 libsqlite3-0 \
-        aria2 ffmpeg p7zip-full rclone \
+        aria2 ffmpeg \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 # Create a dedicated `cmlb` system user. UID/GID 10001 keeps it well clear of
@@ -184,12 +226,18 @@ RUN groupadd --system --gid 10001 cmlb \
     && chown -R cmlb:cmlb /etc/cmlb /var/lib/cmlb /var/log/cmlb
 
 COPY --from=builder /opt/cmlb/bin/cmlb /usr/local/bin/cmlb
+COPY --from=builder /opt/cmlb/tools/7zz /usr/local/bin/7zz
+COPY --from=builder /opt/cmlb/tools/rclone /usr/local/bin/rclone
 COPY --from=builder /src/config.example.json /etc/cmlb/config.example.json
 COPY --from=builder /src/LICENSE /usr/share/doc/cmlb/LICENSE
 
 # Verify the binary is dynamically linked correctly before shipping. `ldd`
 # returns 0 only if every NEEDED library resolves.
-RUN /usr/local/bin/cmlb --version && ldd /usr/local/bin/cmlb >/dev/null
+RUN ln -s /usr/local/bin/7zz /usr/local/bin/7z \
+    && /usr/local/bin/cmlb --version \
+    && ldd /usr/local/bin/cmlb >/dev/null \
+    && /usr/local/bin/rclone version \
+    && /usr/local/bin/7z | head -3
 
 USER cmlb:cmlb
 WORKDIR /var/lib/cmlb

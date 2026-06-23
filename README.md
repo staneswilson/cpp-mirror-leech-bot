@@ -255,8 +255,10 @@ Docker is the primary production package. Images are published to
 
 Dependency resolution is pinned through `vcpkg.json`,
 `vcpkg-configuration.json`, and the Docker build argument
-`VCPKG_BASELINE=a7eda31dc16994fcaa8587982eb833a8695f1b6f`. Do not replace
-those pins with floating package manager state in deployment automation.
+`VCPKG_BASELINE=a7eda31dc16994fcaa8587982eb833a8695f1b6f`. The runtime image
+also pins upstream rclone and 7-Zip binaries instead of relying on stale distro
+packages. Do not replace those pins with floating package manager state in
+deployment automation.
 
 ---
 

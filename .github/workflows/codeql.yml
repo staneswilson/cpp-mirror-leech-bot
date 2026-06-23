@@ -78,7 +78,11 @@ jobs:
         uses: github/codeql-action/init@v4.36.2
         with:
           languages: ${{ matrix.language }}
-          queries: security-and-quality
+          # Keep GitHub Security focused on actionable security findings.
+          # The `security-and-quality` suite uploads hundreds of note-level
+          # maintainability recommendations as code-scanning alerts, including
+          # third-party headers extracted during the C++ build.
+          queries: security-extended
 
       - name: Configure with CMake
         shell: bash
