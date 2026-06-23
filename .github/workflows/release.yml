@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-14 g++-14
+          sudo apt-get install -y gcc-14 g++-14 autoconf autoconf-archive automake libtool
           echo "CC=gcc-14"  >> "$GITHUB_ENV"
           echo "CXX=g++-14" >> "$GITHUB_ENV"
 
@@ -124,6 +124,10 @@ jobs:
 
       - name: Install CMake and Ninja
         uses: lukka/get-cmake@v4.3.4
+
+      - name: Install vcpkg build tools
+        shell: bash
+        run: brew install autoconf autoconf-archive automake libtool
 
       - name: Set up vcpkg
         shell: bash
