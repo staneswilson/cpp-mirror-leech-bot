@@ -4,12 +4,16 @@
 #include <cstdlib>
 #include <fstream>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <boost/json/parse.hpp>
+#include <boost/system/error_code.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -371,15 +375,26 @@ Result<AppConfig> Configuration::load(const std::filesystem::path& path) {
     if (!stream) {
         return error(ErrorCode::FileSystem, "cannot open config file: " + path.string());
     }
+    std::ostringstream buffer;
+    buffer << stream.rdbuf();
+    if (stream.bad()) {
+        return error(ErrorCode::Io, "failed to read " + path.string());
+    }
+    const std::string contents = buffer.str();
+
+    boost::system::error_code parse_ec;
+    (void)boost::json::parse(contents, parse_ec);
+    if (parse_ec) {
+        return error(ErrorCode::JsonParse,
+                     "JSON parse error in " + path.string() + ": " + parse_ec.message());
+    }
+
     json doc;
     try {
-        doc = json::parse(stream, nullptr, false);
+        doc = json::parse(contents);
     } catch (const std::exception& ex) {
-        return error(ErrorCode::Io,
-                     std::string{"failed to read "} + path.string() + ": " + ex.what());
-    }
-    if (doc.is_discarded()) {
-        return error(ErrorCode::JsonParse, "JSON parse error in " + path.string());
+        return error(ErrorCode::JsonParse,
+                     std::string{"JSON parse error in "} + path.string() + ": " + ex.what());
     }
     return from_json(doc);
 }

@@ -22,7 +22,7 @@ target_include_directories(
 
 target_link_libraries(
     cmlb_core PUBLIC fmt::fmt spdlog::spdlog nlohmann_json::nlohmann_json Boost::system
-                     Boost::headers Threads::Threads PRIVATE cmlb_warnings
+                     Boost::headers Threads::Threads PRIVATE Boost::json cmlb_warnings
 )
 
 set_target_properties(
