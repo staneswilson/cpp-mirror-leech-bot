@@ -373,7 +373,7 @@ struct CancelHandle {
             fd = -1;
         }
     };
-    auto close_pipe = [&](int(&p)[2]) {
+    auto close_pipe = [&](int (&p)[2]) {
         close_fd(p[0]);
         close_fd(p[1]);
     };

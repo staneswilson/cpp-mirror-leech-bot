@@ -27,7 +27,7 @@ jobs:
   build-release-linux:
     name: Build release (Linux)
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 180
     permissions:
       contents: read
     steps:
@@ -69,8 +69,9 @@ jobs:
           path: |
             ${{ github.workspace }}/.vcpkg-bincache
             ~/.cache/vcpkg/archives
-          key: ${{ runner.os }}-gcc-14-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          key: ${{ runner.os }}-gcc-14-telegram-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: |
+            ${{ runner.os }}-gcc-14-telegram-vcpkg-
             ${{ runner.os }}-gcc-14-vcpkg-
             ${{ runner.os }}-vcpkg-
 
@@ -81,7 +82,13 @@ jobs:
 
       - name: Configure with CMake (release)
         shell: bash
-        run: cmake --preset release
+        run: |
+          cmake -S . -B build/release -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_MANIFEST_FEATURES=telegram \
+            -DCMLB_WITH_TELEGRAM=ON \
+            -DCMLB_BUILD_TESTS=OFF
 
       - name: Build with Ninja
         shell: bash
@@ -105,7 +112,7 @@ jobs:
   build-release-macos:
     name: Build release (macOS)
     runs-on: macos-14
-    timeout-minutes: 120
+    timeout-minutes: 180
     permissions:
       contents: read
     steps:
@@ -139,8 +146,9 @@ jobs:
           path: |
             ${{ github.workspace }}/.vcpkg-bincache
             ~/.cache/vcpkg/archives
-          key: ${{ runner.os }}-apple-clang-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          key: ${{ runner.os }}-apple-clang-telegram-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: |
+            ${{ runner.os }}-apple-clang-telegram-vcpkg-
             ${{ runner.os }}-apple-clang-vcpkg-
             ${{ runner.os }}-vcpkg-
 
@@ -151,7 +159,13 @@ jobs:
 
       - name: Configure with CMake (release)
         shell: bash
-        run: cmake --preset release
+        run: |
+          cmake -S . -B build/release -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_MANIFEST_FEATURES=telegram \
+            -DCMLB_WITH_TELEGRAM=ON \
+            -DCMLB_BUILD_TESTS=OFF
 
       - name: Build with Ninja
         shell: bash
@@ -175,7 +189,7 @@ jobs:
   build-release-windows:
     name: Build release (Windows)
     runs-on: windows-2022
-    timeout-minutes: 120
+    timeout-minutes: 180
     permissions:
       contents: read
     steps:
@@ -211,8 +225,9 @@ jobs:
           path: |
             ${{ github.workspace }}\.vcpkg-bincache
             ${{ env.LOCALAPPDATA }}\vcpkg\archives
-          key: ${{ runner.os }}-msvc-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          key: ${{ runner.os }}-msvc-telegram-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: |
+            ${{ runner.os }}-msvc-telegram-vcpkg-
             ${{ runner.os }}-msvc-vcpkg-
             ${{ runner.os }}-vcpkg-
 
@@ -223,7 +238,13 @@ jobs:
 
       - name: Configure with CMake (msvc-release)
         shell: bash
-        run: cmake --preset msvc-release
+        run: |
+          cmake -S . -B build/msvc-release -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_MANIFEST_FEATURES=telegram \
+            -DCMLB_WITH_TELEGRAM=ON \
+            -DCMLB_BUILD_TESTS=OFF
 
       - name: Build with Ninja
         shell: bash

@@ -37,20 +37,21 @@ jobs:
       - name: Install CMake and Ninja
         uses: lukka/get-cmake@v4.3.4
 
-      - name: Install Clang 18 and clang-tidy
+      - name: Install Clang 20 and clang-tidy
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 clang-tidy-18 clang-tools-18 lld-18 llvm-18 libc++-18-dev libc++abi-18-dev
-          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-18 100
-          sudo update-alternatives --install /usr/bin/run-clang-tidy run-clang-tidy /usr/bin/run-clang-tidy-18 100
-          # Use libc++ rather than libstdc++. On Ubuntu noble, clang-18 cannot reliably
+          sudo apt-get install -y clang-20 clang-tidy-20 clang-tools-20 lld-20 llvm-20 libc++-20-dev libc++abi-20-dev
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-20 100
+          sudo update-alternatives --install /usr/bin/run-clang-tidy run-clang-tidy /usr/bin/run-clang-tidy-20 100
+          # Use libc++ rather than libstdc++. On Ubuntu noble, clang cannot reliably
           # find libstdc++-14's C++23 headers (std::expected, <print>) even with
-          # --gcc-install-dir, because the split-package layout puts headers on a search
-          # path the install-dir probe does not adjust. libc++-18 ships C++23 fully.
+          # --gcc-install-dir, because the split-package layout puts headers on a
+          # search path the install-dir probe does not adjust. libc++ ships C++23
+          # directly.
           {
-            printf '%s\n' "CC=clang-18"
-            printf '%s\n' "CXX=clang++-18"
+            printf '%s\n' "CC=clang-20"
+            printf '%s\n' "CXX=clang++-20"
             printf '%s\n' "CXXFLAGS=-stdlib=libc++"
             printf '%s\n' "LDFLAGS=-stdlib=libc++ -lc++abi"
           } >> "$GITHUB_ENV"
@@ -78,10 +79,10 @@ jobs:
             ~/.cache/vcpkg/archives
           # Discriminator `libcxx` keeps libstdc++- and libc++-built archives in
           # separate cache slots so an ABI-mismatched archive is never reused.
-          key: ${{ runner.os }}-clang-18-libcxx-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          key: ${{ runner.os }}-clang-20-libcxx-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: |
-            ${{ runner.os }}-clang-18-libcxx-vcpkg-
-            ${{ runner.os }}-clang-18-vcpkg-
+            ${{ runner.os }}-clang-20-libcxx-vcpkg-
+            ${{ runner.os }}-clang-20-vcpkg-
             ${{ runner.os }}-vcpkg-
 
       - name: Report cache status
@@ -165,17 +166,17 @@ jobs:
       - name: Install CMake and Ninja
         uses: lukka/get-cmake@v4.3.4
 
-      - name: Install Clang 18 and IWYU
+      - name: Install Clang 20 and IWYU
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 libclang-18-dev llvm-18-dev iwyu libc++-18-dev libc++abi-18-dev
+          sudo apt-get install -y clang-20 libclang-20-dev llvm-20-dev iwyu libc++-20-dev libc++abi-20-dev
           # Use libc++ rather than libstdc++ for the same reason as the clang-tidy job:
           # Ubuntu noble's split-package layout hides libstdc++-14 C++23 headers from
-          # clang-18's auto-probe. libc++-18 ships them directly.
+          # clang's auto-probe. libc++ ships them directly.
           {
-            printf '%s\n' "CC=clang-18"
-            printf '%s\n' "CXX=clang++-18"
+            printf '%s\n' "CC=clang-20"
+            printf '%s\n' "CXX=clang++-20"
             printf '%s\n' "CXXFLAGS=-stdlib=libc++"
             printf '%s\n' "LDFLAGS=-stdlib=libc++ -lc++abi"
           } >> "$GITHUB_ENV"
@@ -201,10 +202,10 @@ jobs:
             ~/.cache/vcpkg/archives
           # Discriminator `libcxx` keeps libstdc++- and libc++-built archives in
           # separate cache slots so an ABI-mismatched archive is never reused.
-          key: ${{ runner.os }}-clang-18-libcxx-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          key: ${{ runner.os }}-clang-20-libcxx-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: |
-            ${{ runner.os }}-clang-18-libcxx-vcpkg-
-            ${{ runner.os }}-clang-18-vcpkg-
+            ${{ runner.os }}-clang-20-libcxx-vcpkg-
+            ${{ runner.os }}-clang-20-vcpkg-
             ${{ runner.os }}-vcpkg-
 
       - name: Configure with CMake

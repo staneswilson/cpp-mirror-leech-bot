@@ -8,8 +8,8 @@
 
 The CMLB CI matrix compiles the project on four toolchains:
 
-- Linux GCC 13.
-- Linux Clang 17 (with separate ASan, UBSan, TSan jobs).
+- Linux GCC 14.
+- Linux Clang 20 (with separate ASan, UBSan, TSan jobs).
 - Windows MSVC 19.38 (Visual Studio 2022 17.8+).
 - macOS Apple Clang 15.
 

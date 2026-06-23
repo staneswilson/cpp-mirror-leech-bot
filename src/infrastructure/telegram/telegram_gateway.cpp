@@ -86,7 +86,10 @@ namespace {
             // TDLib's `bytes` alias is `std::string` — pass payload directly.
             auto button_type = td_api::make_object<td_api::inlineKeyboardButtonTypeCallback>(data);
             kb_row.push_back(td_api::make_object<td_api::inlineKeyboardButton>(
-                label, td_api::move_object_as<td_api::InlineKeyboardButtonType>(button_type)));
+                label,
+                0,
+                td_api::make_object<td_api::buttonStyleDefault>(),
+                td_api::move_object_as<td_api::InlineKeyboardButtonType>(button_type)));
         }
         kb_rows.push_back(std::move(kb_row));
     }

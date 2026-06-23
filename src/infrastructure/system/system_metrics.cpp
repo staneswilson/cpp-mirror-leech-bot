@@ -153,7 +153,7 @@ void read_memory_mac(std::int64_t& used, std::int64_t& total) {
 }
 
 std::chrono::seconds read_system_uptime_mac() {
-    struct timeval boot {};
+    struct timeval boot{};
 
     int mib[2] = {CTL_KERN, KERN_BOOTTIME};
     std::size_t size = sizeof(boot);

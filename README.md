@@ -32,7 +32,7 @@ CMLB is a Telegram bot that turns a chat into a remote control for a download-an
 
 The problem CMLB solves is operational: hobbyist mirror bots tend to be a single tangle of global state, ad-hoc subprocess management, and best-effort error handling. They work until they don't, and when they break the failure modes are opaque. CMLB approaches the same workflow as a long-running enterprise service. Every external I/O call goes through a typed adapter, every result is a `Result<T>` with a structured error code, every long task is cancellable through Asio cancellation slots, and every persistent fact lives in SQLite with versioned migrations rather than in ephemeral memory.
 
-What makes CMLB different from existing C++ Telegram bots is the discipline around isolation. Telegram is reached through TDLib, but only one file in the entire codebase is allowed to include `<td/telegram/td_api.h>` — the `TelegramGateway`. Downloads run through `aria2c` over WebSocket JSON-RPC or qBittorrent over its Web API, but the rest of the codebase only sees the `DownloaderInterface`. Uploads target Telegram, Google Drive (service-account JWT), or rclone remotes, but the use cases only know `UploaderInterface`. This layered design is enforced by clang-tidy, include-what-you-use, and a CI matrix that compiles cleanly on GCC 13, Clang 17 (with ASan / UBSan / TSan), MSVC 2022, and Apple Clang — all four with warnings-as-errors.
+What makes CMLB different from existing C++ Telegram bots is the discipline around isolation. Telegram is reached through TDLib, but only one file in the entire codebase is allowed to include `<td/telegram/td_api.h>` — the `TelegramGateway`. Downloads run through `aria2c` over WebSocket JSON-RPC or qBittorrent over its Web API, but the rest of the codebase only sees the `DownloaderInterface`. Uploads target Telegram, Google Drive (service-account JWT), or rclone remotes, but the use cases only know `UploaderInterface`. This layered design is enforced by clang-tidy, include-what-you-use, and a CI matrix that compiles cleanly on GCC 14, Clang 20 (with ASan / UBSan / TSan), MSVC 2022, and Apple Clang — all four with warnings-as-errors.
 
 ---
 
@@ -223,7 +223,7 @@ cmake --build --preset debug
 ctest --preset debug --output-on-failure
 ```
 
-CI runs the same presets on Linux GCC 13, Linux Clang 17 (with ASan, UBSan, TSan in separate jobs), Windows MSVC 2022, and macOS Clang. Warnings-as-errors is symmetric across all four toolchains; see [ADR-0005](docs/adr/0005-warnings-as-errors-symmetric.md).
+CI runs the same presets on Linux GCC 14, Linux Clang 20 (with ASan, UBSan, TSan in separate jobs), Windows MSVC 2022, and macOS Clang. Warnings-as-errors is symmetric across all four toolchains; see [ADR-0005](docs/adr/0005-warnings-as-errors-symmetric.md).
 
 ---
 

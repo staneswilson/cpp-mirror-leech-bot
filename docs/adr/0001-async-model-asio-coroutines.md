@@ -14,7 +14,7 @@ The async model we pick has to satisfy:
 2. **Cancellation.** When a user issues `/cancel`, every in-flight step for that task — a TCP read, an HTTP request, a `sqlite3_step`, a `waitpid` on a subprocess — must abort within seconds, not at the next natural break.
 3. **Backpressure.** A download producing progress events at 10 Hz cannot flood the message-edit pipeline (which Telegram caps near 1 Hz per chat). The model must let us await downstream consumers rather than queue without bound.
 4. **Lifetime safety.** Long chains of asynchronous operations share state (the `Task`, the `cancellation_signal`, the destination message id). Aliasing this state across thread boundaries without a clear ownership story is the single biggest source of bugs in async C++ code.
-5. **Toolchain support.** GCC 13, Clang 17, MSVC 19.38, and Apple Clang 15 must all compile the same async constructs cleanly with warnings-as-errors.
+5. **Toolchain support.** GCC 14, Clang 20, MSVC 19.38, and Apple Clang 15 must all compile the same async constructs cleanly with warnings-as-errors.
 
 Four serious candidates were on the table.
 

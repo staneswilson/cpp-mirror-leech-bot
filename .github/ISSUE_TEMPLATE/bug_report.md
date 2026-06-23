@@ -27,7 +27,7 @@ assignees: []
 ## Environment
 
 - **OS:** <!-- e.g. Ubuntu 24.04, macOS 14.4, Windows 11 23H2 -->
-- **Compiler:** <!-- e.g. GCC 13.2.0, Clang 17.0.6, MSVC 19.40 -->
+- **Compiler:** <!-- e.g. GCC 14.2.0, Clang 20.1.2, MSVC 19.40 -->
 - **CMake:** <!-- output of `cmake --version` -->
 - **vcpkg baseline:** <!-- from vcpkg-configuration.json -->
 - **CMLB version:** <!-- output of `cmlb --version`, or commit SHA if built from source -->

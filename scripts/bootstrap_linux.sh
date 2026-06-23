@@ -23,11 +23,11 @@ install_apt_packages() {
     sudo apt-get update
     sudo apt-get install -y --no-install-recommends \
         build-essential \
-        gcc-13 g++-13 \
-        clang-17 clang-tidy-17 clang-format-17 \
+        gcc-14 g++-14 \
+        clang-20 clang-tidy-20 clang-format-20 lld-20 llvm-20 libc++-20-dev libc++abi-20-dev \
         cmake ninja-build \
         git curl ca-certificates pkg-config \
-        autoconf automake libtool \
+        autoconf autoconf-archive automake libtool \
         zip unzip tar \
         python3 python3-pip \
         aria2 ffmpeg p7zip-full
@@ -61,14 +61,14 @@ Bootstrap complete.
 
 Next steps:
   export VCPKG_ROOT=${VCPKG_ROOT}
-  export CC=gcc-13 CXX=g++-13
+  export CC=gcc-14 CXX=g++-14
 
   cmake --preset debug
   cmake --build --preset debug
   ctest --preset debug --output-on-failure
 
 To switch to clang:
-  export CC=clang-17 CXX=clang++-17
+  export CC=clang-20 CXX=clang++-20
 
 EOF
 }

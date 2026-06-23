@@ -34,7 +34,7 @@ This document is for the person who runs CMLB in production. It assumes you are 
 
 **Toolchain (build from source only):**
 
-- A C++23 compiler: GCC 13+, Clang 17+, MSVC 19.38+ (Visual Studio 2022 17.8+), or Apple Clang 15+.
+- A C++23 compiler: GCC 14+, Clang 20+, MSVC 19.38+ (Visual Studio 2022 17.8+), or Apple Clang 15+.
 - CMake 3.28 or newer.
 - Ninja (the default generator).
 - `git`, `curl`, `zip`, `unzip`, `pkg-config`, `gperf`.

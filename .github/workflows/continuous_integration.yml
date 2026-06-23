@@ -24,7 +24,7 @@ jobs:
   build-and-test:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
@@ -41,9 +41,16 @@ jobs:
             cache_path: ~/.cache/vcpkg/archives
           - name: linux-clang-debug
             os: ubuntu-24.04
-            compiler: clang-18
+            compiler: clang-20
             preset: debug
             cache_path: ~/.cache/vcpkg/archives
+          - name: linux-gcc-telegram-release
+            os: ubuntu-24.04
+            compiler: gcc-14
+            preset: release
+            cache_path: ~/.cache/vcpkg/archives
+            telegram: true
+            run_tests: false
           - name: windows-msvc-debug
             os: windows-2022
             compiler: msvc
@@ -74,19 +81,20 @@ jobs:
           echo "CC=gcc-14"  >> "$GITHUB_ENV"
           echo "CXX=g++-14" >> "$GITHUB_ENV"
 
-      - name: Install Clang 18 (Linux Clang jobs)
-        if: matrix.compiler == 'clang-18'
+      - name: Install Clang 20 (Linux Clang jobs)
+        if: matrix.compiler == 'clang-20'
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 lld-18 llvm-18 libc++-18-dev libc++abi-18-dev
-          # Use libc++ rather than libstdc++. On Ubuntu noble, clang-18 cannot reliably
+          sudo apt-get install -y clang-20 lld-20 llvm-20 libc++-20-dev libc++abi-20-dev
+          # Use libc++ rather than libstdc++. On Ubuntu noble, clang cannot reliably
           # find libstdc++-14's C++23 headers (std::expected, <print>) even with
-          # --gcc-install-dir, because the split-package layout puts headers on a search
-          # path the install-dir probe does not adjust. libc++-18 ships C++23 fully.
+          # --gcc-install-dir, because the split-package layout puts headers on a
+          # search path the install-dir probe does not adjust. libc++ ships C++23
+          # directly.
           {
-            printf '%s\n' "CC=clang-18"
-            printf '%s\n' "CXX=clang++-18"
+            printf '%s\n' "CC=clang-20"
+            printf '%s\n' "CXX=clang++-20"
             printf '%s\n' "CXXFLAGS=-stdlib=libc++"
             printf '%s\n' "LDFLAGS=-stdlib=libc++ -lc++abi"
           } >> "$GITHUB_ENV"
@@ -131,9 +139,12 @@ jobs:
             ${{ matrix.cache_path }}
           # Discriminator `libcxx` (Linux clang only) keeps libstdc++- and libc++-built
           # archives in separate cache slots so an ABI-mismatched archive is never reused.
-          key: ${{ runner.os }}-${{ matrix.compiler }}${{ matrix.compiler == 'clang-18' && '-libcxx' || '' }}-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          # Discriminator `telegram` keeps the TDLib-enabled manifest separate from the
+          # faster default stub builds.
+          key: ${{ runner.os }}-${{ matrix.compiler }}${{ matrix.compiler == 'clang-20' && '-libcxx' || '' }}${{ matrix.telegram && '-telegram' || '' }}-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.compiler }}${{ matrix.compiler == 'clang-18' && '-libcxx' || '' }}-vcpkg-
+            ${{ runner.os }}-${{ matrix.compiler }}${{ matrix.compiler == 'clang-20' && '-libcxx' || '' }}${{ matrix.telegram && '-telegram' || '' }}-vcpkg-
+            ${{ runner.os }}-${{ matrix.compiler }}${{ matrix.compiler == 'clang-20' && '-libcxx' || '' }}-vcpkg-
             ${{ runner.os }}-${{ matrix.compiler }}-vcpkg-
             ${{ runner.os }}-vcpkg-
 
@@ -143,14 +154,27 @@ jobs:
           echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
 
       - name: Configure with CMake
+        if: ${{ !matrix.telegram }}
         shell: bash
         run: cmake --preset ${{ matrix.preset }}
+
+      - name: Configure with CMake (real TDLib)
+        if: ${{ matrix.telegram }}
+        shell: bash
+        run: |
+          cmake -S . -B build/${{ matrix.preset }} -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_MANIFEST_FEATURES=telegram \
+            -DCMLB_WITH_TELEGRAM=ON \
+            -DCMLB_BUILD_TESTS=OFF
 
       - name: Build with Ninja
         shell: bash
         run: cmake --build --preset ${{ matrix.preset }} --parallel
 
       - name: Run unit and integration tests
+        if: ${{ matrix.run_tests != false }}
         shell: bash
         run: ctest --preset ${{ matrix.preset }} --output-on-failure
 
@@ -176,12 +200,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install clang-format 18 and cmake-format
+      - name: Install clang-format 20 and cmake-format
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-format-18 python3-pip
-          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-18 100
+          sudo apt-get install -y clang-format-20 python3-pip
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-20 100
           python3 -m pip install --user cmake-format
 
       - name: Run clang-format (dry-run, treat warnings as errors)
