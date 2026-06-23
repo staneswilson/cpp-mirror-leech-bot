@@ -11,8 +11,10 @@
 #include <boost/asio/cancellation_signal.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/experimental/awaitable_operators.hpp>
+#include <boost/asio/redirect_error.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/this_coro.hpp>
+#include <boost/system/error_code.hpp>
 
 #include <cmlb/core/error.hpp>
 
@@ -60,7 +62,9 @@ template <typename T>
     asio::steady_timer timer{executor};
     timer.expires_after(timeout);
 
-    auto result = co_await (std::move(op) || timer.async_wait(asio::use_awaitable));
+    boost::system::error_code timer_ec;
+    auto result = co_await (
+        std::move(op) || timer.async_wait(asio::redirect_error(asio::use_awaitable, timer_ec)));
 
     if (result.index() == 0) {
         // Operation completed first.

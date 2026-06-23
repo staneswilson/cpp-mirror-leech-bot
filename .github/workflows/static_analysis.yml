@@ -28,14 +28,14 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.0
         with:
           submodules: recursive
           # PRs need history to diff against origin/main.
           fetch-depth: 0
 
       - name: Install CMake and Ninja
-        uses: lukka/get-cmake@latest
+        uses: lukka/get-cmake@v4.3.4
 
       - name: Install Clang 18 and clang-tidy
         shell: bash
@@ -48,10 +48,12 @@ jobs:
           # find libstdc++-14's C++23 headers (std::expected, <print>) even with
           # --gcc-install-dir, because the split-package layout puts headers on a search
           # path the install-dir probe does not adjust. libc++-18 ships C++23 fully.
-          echo "CC=clang-18"    >> "$GITHUB_ENV"
-          echo "CXX=clang++-18" >> "$GITHUB_ENV"
-          echo "CXXFLAGS=-stdlib=libc++"            >> "$GITHUB_ENV"
-          echo "LDFLAGS=-stdlib=libc++ -lc++abi"    >> "$GITHUB_ENV"
+          {
+            printf '%s\n' "CC=clang-18"
+            printf '%s\n' "CXX=clang++-18"
+            printf '%s\n' "CXXFLAGS=-stdlib=libc++"
+            printf '%s\n' "LDFLAGS=-stdlib=libc++ -lc++abi"
+          } >> "$GITHUB_ENV"
 
       - name: Set up vcpkg
         shell: bash
@@ -69,7 +71,7 @@ jobs:
 
       - name: Cache vcpkg binary archives
         id: vcpkg-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5.0.5
         with:
           path: |
             ${{ github.workspace }}/.vcpkg-bincache
@@ -86,7 +88,6 @@ jobs:
         shell: bash
         run: |
           echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
-          echo "vcpkg cache matched key: ${{ steps.vcpkg-cache.outputs.cache-matched-key }}"
 
       - name: Configure with CMake (debug, exports compile_commands.json)
         shell: bash
@@ -156,13 +157,13 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.0
         with:
           submodules: recursive
           fetch-depth: 1
 
       - name: Install CMake and Ninja
-        uses: lukka/get-cmake@latest
+        uses: lukka/get-cmake@v4.3.4
 
       - name: Install Clang 18 and IWYU
         shell: bash
@@ -172,10 +173,12 @@ jobs:
           # Use libc++ rather than libstdc++ for the same reason as the clang-tidy job:
           # Ubuntu noble's split-package layout hides libstdc++-14 C++23 headers from
           # clang-18's auto-probe. libc++-18 ships them directly.
-          echo "CC=clang-18"    >> "$GITHUB_ENV"
-          echo "CXX=clang++-18" >> "$GITHUB_ENV"
-          echo "CXXFLAGS=-stdlib=libc++"            >> "$GITHUB_ENV"
-          echo "LDFLAGS=-stdlib=libc++ -lc++abi"    >> "$GITHUB_ENV"
+          {
+            printf '%s\n' "CC=clang-18"
+            printf '%s\n' "CXX=clang++-18"
+            printf '%s\n' "CXXFLAGS=-stdlib=libc++"
+            printf '%s\n' "LDFLAGS=-stdlib=libc++ -lc++abi"
+          } >> "$GITHUB_ENV"
 
       - name: Set up vcpkg
         shell: bash
@@ -191,7 +194,7 @@ jobs:
         run: mkdir -p "${{ github.workspace }}/.vcpkg-bincache"
 
       - name: Cache vcpkg binary archives
-        uses: actions/cache@v4
+        uses: actions/cache@v5.0.5
         with:
           path: |
             ${{ github.workspace }}/.vcpkg-bincache
@@ -215,7 +218,7 @@ jobs:
 
       - name: Upload IWYU report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: iwyu-report
           path: iwyu-report.txt

@@ -57,13 +57,13 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.0
         with:
           submodules: recursive
           fetch-depth: 1
 
       - name: Install CMake and Ninja
-        uses: lukka/get-cmake@latest
+        uses: lukka/get-cmake@v4.3.4
 
       - name: Install GCC 14 (Linux GCC jobs)
         if: matrix.compiler == 'gcc-14'
@@ -84,14 +84,16 @@ jobs:
           # find libstdc++-14's C++23 headers (std::expected, <print>) even with
           # --gcc-install-dir, because the split-package layout puts headers on a search
           # path the install-dir probe does not adjust. libc++-18 ships C++23 fully.
-          echo "CC=clang-18"   >> "$GITHUB_ENV"
-          echo "CXX=clang++-18" >> "$GITHUB_ENV"
-          echo "CXXFLAGS=-stdlib=libc++"            >> "$GITHUB_ENV"
-          echo "LDFLAGS=-stdlib=libc++ -lc++abi"    >> "$GITHUB_ENV"
+          {
+            printf '%s\n' "CC=clang-18"
+            printf '%s\n' "CXX=clang++-18"
+            printf '%s\n' "CXXFLAGS=-stdlib=libc++"
+            printf '%s\n' "LDFLAGS=-stdlib=libc++ -lc++abi"
+          } >> "$GITHUB_ENV"
 
       - name: Configure MSVC developer environment (Windows)
         if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@v1.13.0
         with:
           arch: x64
 
@@ -111,8 +113,8 @@ jobs:
         shell: bash
         run: |
           # Windows runners ship vcpkg preinstalled at C:\vcpkg.
-          echo "VCPKG_ROOT=C:\\vcpkg" >> "$GITHUB_ENV"
-          echo "C:\\vcpkg"            >> "$GITHUB_PATH"
+          printf '%s\n' 'VCPKG_ROOT=C:\vcpkg' >> "$GITHUB_ENV"
+          printf '%s\n' 'C:\vcpkg'            >> "$GITHUB_PATH"
 
       - name: Prepare vcpkg binary cache directory
         shell: bash
@@ -120,7 +122,7 @@ jobs:
 
       - name: Cache vcpkg binary archives
         id: vcpkg-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5.0.5
         with:
           # We use the workspace-local files-provider directory (see VCPKG_BINARY_SOURCES above).
           # The OS-default location is kept as a secondary path so toolchain-installed binaries are also reused.
@@ -139,7 +141,6 @@ jobs:
         shell: bash
         run: |
           echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
-          echo "vcpkg cache matched key: ${{ steps.vcpkg-cache.outputs.cache-matched-key }}"
 
       - name: Configure with CMake
         shell: bash
@@ -155,7 +156,7 @@ jobs:
 
       - name: Upload CTest log on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: ctest-log-${{ matrix.name }}
           path: ${{ github.workspace }}/build/${{ matrix.preset }}/Testing/Temporary/LastTest.log
@@ -171,7 +172,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.0
         with:
           fetch-depth: 1
 

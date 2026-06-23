@@ -10,8 +10,8 @@
 //   * Win32                 — CreateProcessW + CreatePipe + ReadFile + WaitForSingleObject
 //
 // Async surface: the synchronous spawn runs on a worker `std::thread`;
-// the calling coroutine parks on a steady_timer that the worker cancels
-// on completion. Cancellation of the awaitable triggers a graceful child
+// the calling coroutine polls a completion flag with a steady_timer.
+// Cancellation of the awaitable triggers a graceful child
 // termination (SIGTERM / TerminateProcess) followed by a hard kill after
 // 5 seconds if the child fails to exit.
 
@@ -20,12 +20,14 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <exception>
 #include <memory>
 #include <thread>
 #include <utility>
 #include <vector>
 
 #include <boost/asio/awaitable.hpp>
+#include <boost/asio/bind_cancellation_slot.hpp>
 #include <boost/asio/redirect_error.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/this_coro.hpp>
@@ -62,6 +64,8 @@ namespace cmlb::infrastructure::system {
 namespace {
 
 namespace asio = boost::asio;
+
+constexpr auto kWorkerPollInterval = std::chrono::milliseconds{10};
 
 // Incremental line-mode buffer.
 //
@@ -633,11 +637,10 @@ Subprocess::Subprocess(boost::asio::any_io_executor exec) : exec_{std::move(exec
 boost::asio::awaitable<cmlb::core::Result<SubprocessResult>> Subprocess::run(
     SubprocessRequest request) {
     auto exec = co_await asio::this_coro::executor;
-    asio::steady_timer ready{exec};
-    ready.expires_at(std::chrono::steady_clock::time_point::max());
 
     auto result_holder = std::make_shared<cmlb::core::Result<SubprocessResult>>(
         cmlb::core::error(cmlb::core::ErrorCode::Internal, "Subprocess: worker did not run"));
+    auto worker_done = std::make_shared<std::atomic<bool>>(false);
 
     // Shared cancel channel: the worker publishes the native child handle
     // into it after spawn, and the asio cancellation handler installed below
@@ -646,9 +649,18 @@ boost::asio::awaitable<cmlb::core::Result<SubprocessResult>> Subprocess::run(
     // cancellation handler can race against the coroutine returning.
     auto cancel_handle = std::make_shared<CancelHandle>();
 
-    std::thread worker{[req = std::move(request), result_holder, ptr = &ready, cancel_handle]() {
-        *result_holder = spawn_sync(req, cancel_handle.get());
-        ptr->cancel();
+    std::thread worker{[req = std::move(request), result_holder, worker_done, cancel_handle]() {
+        try {
+            *result_holder = spawn_sync(req, cancel_handle.get());
+        } catch (const std::exception& ex) {
+            *result_holder = cmlb::core::error(
+                cmlb::core::ErrorCode::Internal,
+                std::string{"Subprocess: worker failed unexpectedly: "} + ex.what());
+        } catch (...) {
+            *result_holder = cmlb::core::error(cmlb::core::ErrorCode::Internal,
+                                               "Subprocess: worker failed unexpectedly");
+        }
+        worker_done->store(true, std::memory_order_release);
     }};
 
     // Hook the caller's cancellation slot — `/cancel <task>` and
@@ -661,8 +673,13 @@ boost::asio::awaitable<cmlb::core::Result<SubprocessResult>> Subprocess::run(
         });
     }
 
-    boost::system::error_code ec;
-    co_await ready.async_wait(asio::redirect_error(asio::use_awaitable, ec));
+    asio::steady_timer ready{exec};
+    while (!worker_done->load(std::memory_order_acquire)) {
+        ready.expires_after(kWorkerPollInterval);
+        boost::system::error_code ec;
+        co_await ready.async_wait(asio::bind_cancellation_slot(
+            asio::cancellation_slot{}, asio::redirect_error(asio::use_awaitable, ec)));
+    }
 
     // Clear the cancellation handler before the worker thread is joined so
     // that a slot fired after this point can't reach into a destroyed

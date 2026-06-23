@@ -30,6 +30,10 @@ target_link_libraries(
     PRIVATE cmlb_warnings
 )
 
+if(MSVC)
+    target_compile_options(cmlb_download PRIVATE /bigobj)
+endif()
+
 set_target_properties(
     cmlb_download PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF
                              OUTPUT_NAME cmlb_download

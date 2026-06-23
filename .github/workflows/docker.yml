@@ -1,12 +1,12 @@
 # docker.yml — build, test, and publish the CMLB container image.
 #
 # Triggers:
-#   * Push to main      — builds and pushes :main + :sha-XXXXXXX (latest builder cache).
+#   * Push to main      — builds and pushes :main + :sha-<full sha> (latest builder cache).
 #   * Tag v*.*.*        — builds and pushes :vX.Y.Z + :X + :X.Y + :latest.
 #   * Pull request      — builds without pushing (verification only).
 #   * workflow_dispatch — manual trigger for ad-hoc rebuilds.
 #
-# Multi-arch: linux/amd64 + linux/arm64.
+# Multi-arch: linux/amd64 + linux/arm64, using native hosted runners for each arch.
 
 name: docker
 
@@ -23,6 +23,7 @@ permissions:
   packages: write
   id-token: write    # for OIDC signing with cosign
   attestations: write
+  security-events: write
 
 concurrency:
   group: docker-${{ github.ref }}
@@ -35,40 +36,33 @@ env:
 jobs:
   build:
     name: Build & test (${{ matrix.platform }})
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [linux/amd64, linux/arm64]
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            cache_suffix: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            cache_suffix: arm64
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.0
         with:
           fetch-depth: 0    # full history so we can set OCI revision label
 
-      - name: Set up QEMU (for arm64 emulation on amd64 runners)
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4.1.0
         with:
           driver-opts: |
             image=moby/buildkit:latest
             network=host
 
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Compute image metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6.1.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -77,51 +71,166 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            type=sha,format=short,prefix=sha-
+            type=sha,format=long,prefix=sha-
             type=raw,value=latest,enable={{is_default_branch}}
           labels: |
             org.opencontainers.image.title=cmlb
             org.opencontainers.image.description=Production-grade C++23 Telegram mirror/leech bot
             org.opencontainers.image.licenses=MIT
 
-      - name: Build image (and push on non-PR)
-        id: build
-        uses: docker/build-push-action@v6
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image for pull request
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v7.2.0
         with:
           context: .
           file: packaging/Dockerfile
           platforms: ${{ matrix.platform }}
-          push: ${{ github.event_name != 'pull_request' }}
-          load: ${{ github.event_name == 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          load: true
+          tags: cmlb-pr-${{ matrix.cache_suffix }}:${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             CMLB_RUN_TESTS=1
             GIT_SHA=${{ github.sha }}
             BUILD_DATE=${{ github.event.repository.updated_at }}
           cache-from: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
-          cache-to: |
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.platform == 'linux/amd64' && 'amd64' || 'arm64' }},mode=max
-          provenance: mode=max
-          sbom: true
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.cache_suffix }}
 
       - name: Smoke-test the built image (--version + --help)
         if: github.event_name == 'pull_request' && matrix.platform == 'linux/amd64'
         run: |
-          IMAGE_ID=$(docker image ls --format '{{.Repository}}:{{.Tag}}' | head -1)
-          echo "Testing image: $IMAGE_ID"
-          docker run --rm "$IMAGE_ID" --version
-          docker run --rm "$IMAGE_ID" --help | head -20
+          docker run --rm "cmlb-pr-${{ matrix.cache_suffix }}:${{ github.sha }}" --version
+          docker run --rm "cmlb-pr-${{ matrix.cache_suffix }}:${{ github.sha }}" --help | head -20
 
-  scan:
-    name: Vulnerability scan
+      - name: Build and push image by digest
+        if: github.event_name != 'pull_request'
+        id: build
+        uses: docker/build-push-action@v7.2.0
+        with:
+          context: .
+          file: packaging/Dockerfile
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            CMLB_RUN_TESTS=1
+            GIT_SHA=${{ github.sha }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+          cache-from: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.cache_suffix }}
+          cache-to: |
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ matrix.cache_suffix }},mode=max
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          provenance: mode=max
+          sbom: true
+
+      - name: Export digest
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${RUNNER_TEMP}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: digests-${{ matrix.cache_suffix }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Publish multi-arch manifest
     runs-on: ubuntu-24.04
     needs: build
     if: github.event_name != 'pull_request'
     steps:
-      - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.28.0
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4.1.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image metadata
+        id: meta
+        uses: docker/metadata-action@v6.1.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=long,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+          labels: |
+            org.opencontainers.image.title=cmlb
+            org.opencontainers.image.description=Production-grade C++23 Telegram mirror/leech bot
+            org.opencontainers.image.licenses=MIT
+
+      - name: Download digests
+        uses: actions/download-artifact@v8.0.1
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Create manifest list
+        shell: bash
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
+        run: |
+          mapfile -t digest_files < <(find . -type f -printf '%f\n' | sort)
+          if [ "${#digest_files[@]}" -eq 0 ]; then
+            echo "No image digests were produced."
+            exit 1
+          fi
+
+          refs=()
+          for digest in "${digest_files[@]}"; do
+            refs+=("${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:${digest}")
+          done
+
+          tags=()
+          while IFS= read -r tag; do
+            tags+=("-t" "$tag")
+          done < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+
+          docker buildx imagetools create "${tags[@]}" "${refs[@]}"
+
+      - name: Inspect manifest
+        shell: bash
+        run: docker buildx imagetools inspect "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}"
+
+  scan:
+    name: Vulnerability scan
+    runs-on: ubuntu-24.04
+    needs: merge
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
@@ -129,9 +238,10 @@ jobs:
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
           exit-code: 0      # report but don't fail; promote with attestations
+
       - name: Upload SARIF to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4.36.2
         with:
           sarif_file: trivy-results.sarif
           category: trivy-image

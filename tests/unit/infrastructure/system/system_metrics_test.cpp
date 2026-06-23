@@ -4,6 +4,7 @@
 // non-deterministic. RAM total should be positive and uptime should be
 // non-negative for any environment we expect to run on.
 
+#include <atomic>
 #include <chrono>
 #include <thread>
 
@@ -41,11 +42,11 @@ TEST_CASE("SystemMetrics CPU% delta is non-zero on a busy interval",
 
     // Burn a little CPU to push the percentage above noise floor.
     auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
-    volatile std::uint64_t acc = 0;
+    std::atomic<std::uint64_t> acc{0};
     while (std::chrono::steady_clock::now() < deadline) {
-        ++acc;
+        acc.fetch_add(1, std::memory_order_relaxed);
     }
-    (void)acc;
+    (void)acc.load(std::memory_order_relaxed);
 
     auto snap = metrics.snapshot();
     // [!mayfail] above lets the suite tolerate this on idle CI machines.

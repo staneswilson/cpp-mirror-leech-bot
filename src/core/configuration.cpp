@@ -373,13 +373,13 @@ Result<AppConfig> Configuration::load(const std::filesystem::path& path) {
     }
     json doc;
     try {
-        stream >> doc;
-    } catch (const json::parse_error& ex) {
-        return error(ErrorCode::JsonParse,
-                     std::string{"JSON parse error in "} + path.string() + ": " + ex.what());
+        doc = json::parse(stream, nullptr, false);
     } catch (const std::exception& ex) {
         return error(ErrorCode::Io,
                      std::string{"failed to read "} + path.string() + ": " + ex.what());
+    }
+    if (doc.is_discarded()) {
+        return error(ErrorCode::JsonParse, "JSON parse error in " + path.string());
     }
     return from_json(doc);
 }

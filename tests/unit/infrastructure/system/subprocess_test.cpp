@@ -4,8 +4,10 @@
 // and that the captured stdout contains the expected token.
 
 #include <chrono>
+#include <future>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <boost/asio/co_spawn.hpp>
@@ -15,6 +17,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
+
+#include <cmlb/core/error.hpp>
 #include <cmlb/infrastructure/system/subprocess.hpp>
 
 using Catch::Matchers::ContainsSubstring;
@@ -32,7 +36,44 @@ constexpr const char* kShellExe = "/bin/sh";
 const std::vector<std::string> kEchoArgs{"-c", "echo hello-cmlb"};
 #endif
 
+cmlb::core::Result<SubprocessResult> run_with_watchdog(SubprocessRequest req,
+                                                       std::chrono::milliseconds timeout) {
+    boost::asio::io_context io;
+    Subprocess sub{io.get_executor()};
+
+    auto fut = boost::asio::co_spawn(
+        io.get_executor(),
+        [&]() -> boost::asio::awaitable<cmlb::core::Result<SubprocessResult>> {
+            co_return co_await sub.run(std::move(req));
+        },
+        boost::asio::use_future);
+
+    std::jthread runner{[&io]() {
+        io.run();
+    }};
+
+    if (fut.wait_for(timeout) != std::future_status::ready) {
+        io.stop();
+        return cmlb::core::error(cmlb::core::ErrorCode::DeadlineExceeded,
+                                 "Subprocess test timed out waiting for awaitable completion");
+    }
+    return fut.get();
+}
+
 } // namespace
+
+TEST_CASE("Subprocess returns InvalidArgument for an empty executable without blocking",
+          "[infrastructure][system][subprocess]") {
+    for (int attempt = 0; attempt < 32; ++attempt) {
+        SubprocessRequest req;
+        req.timeout = std::chrono::milliseconds{10};
+
+        auto result = run_with_watchdog(std::move(req), std::chrono::seconds{2});
+
+        REQUIRE_FALSE(result.has_value());
+        CHECK(result.error().code == cmlb::core::ErrorCode::InvalidArgument);
+    }
+}
 
 TEST_CASE("Subprocess runs a trivial echo command", "[infrastructure][system][subprocess]") {
     boost::asio::io_context io;

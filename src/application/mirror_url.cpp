@@ -20,9 +20,11 @@
 #include <boost/asio/cancellation_type.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
+#include <boost/asio/redirect_error.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/this_coro.hpp>
 #include <boost/asio/use_awaitable.hpp>
+#include <boost/system/error_code.hpp>
 
 #include <fmt/format.h>
 
@@ -317,7 +319,8 @@ asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> MirrorUrl::execute(
                     co_return;
             }
             drain_timer.expires_after(kCoordinationTick);
-            co_await drain_timer.async_wait(asio::use_awaitable);
+            boost::system::error_code wait_ec;
+            co_await drain_timer.async_wait(asio::redirect_error(asio::use_awaitable, wait_ec));
         }
     };
 
@@ -433,7 +436,8 @@ asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> MirrorUrl::execute(
         }
 
         timer.expires_after(download_complete ? kCoordinationTick : kPollInterval);
-        co_await timer.async_wait(asio::use_awaitable);
+        boost::system::error_code wait_ec;
+        co_await timer.async_wait(asio::redirect_error(asio::use_awaitable, wait_ec));
     }
 
     // ---- Fallback: non-pipelined upload when no files were processed ----
