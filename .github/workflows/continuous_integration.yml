@@ -205,7 +205,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-format-20 python3-pip
-          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-20 100
           python3 -m pip install --user cmake-format
 
       - name: Run clang-format (dry-run, treat warnings as errors)
@@ -216,8 +215,8 @@ jobs:
             echo "No C++ sources found to format-check."
             exit 0
           fi
-          clang-format --version
-          clang-format --dry-run --Werror "${files[@]}"
+          clang-format-20 --version
+          clang-format-20 --dry-run --Werror "${files[@]}"
 
       - name: Run cmake-format check
         shell: bash

@@ -42,8 +42,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-20 clang-tidy-20 clang-tools-20 lld-20 llvm-20 libc++-20-dev libc++abi-20-dev
-          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-20 100
-          sudo update-alternatives --install /usr/bin/run-clang-tidy run-clang-tidy /usr/bin/run-clang-tidy-20 100
           # Use libc++ rather than libstdc++. On Ubuntu noble, clang cannot reliably
           # find libstdc++-14's C++23 headers (std::expected, <print>) even with
           # --gcc-install-dir, because the split-package layout puts headers on a
@@ -123,7 +121,7 @@ jobs:
             echo "No changed C++ sources; skipping clang-tidy."
             exit 0
           fi
-          run-clang-tidy \
+          run-clang-tidy-20 \
             -p build/debug \
             -header-filter='^.*include/cmlb/.*\.hpp$' \
             -warnings-as-errors='*' \
@@ -139,7 +137,7 @@ jobs:
             echo "No C++ sources found."
             exit 0
           fi
-          run-clang-tidy \
+          run-clang-tidy-20 \
             -p build/debug \
             -header-filter='^.*include/cmlb/.*\.hpp$' \
             -warnings-as-errors='*' \
