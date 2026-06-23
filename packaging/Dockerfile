@@ -32,8 +32,8 @@ ARG DEBIAN_VERSION=13-slim
 ARG VCPKG_BASELINE=a7eda31dc16994fcaa8587982eb833a8695f1b6f
 ARG CMLB_BUILD_TYPE=Release
 ARG CMLB_RUN_TESTS=1
-ARG RCLONE_VERSION=1.74.3
-ARG SEVEN_ZIP_VERSION=26.01
+ARG CMLB_RCLONE_TOOL_VERSION=1.74.3
+ARG CMLB_SEVEN_ZIP_TOOL_VERSION=26.01
 
 # =============================================================================
 # Stage 1: builder — full toolchain + vcpkg
@@ -47,8 +47,8 @@ ARG TARGETARCH
 ARG VCPKG_BASELINE
 ARG CMLB_BUILD_TYPE
 ARG CMLB_RUN_TESTS
-ARG RCLONE_VERSION
-ARG SEVEN_ZIP_VERSION
+ARG CMLB_RCLONE_TOOL_VERSION
+ARG CMLB_SEVEN_ZIP_TOOL_VERSION
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
@@ -156,14 +156,14 @@ RUN case "${TARGETARCH:-amd64}" in \
     esac \
  && mkdir -p /opt/cmlb/tools /tmp/cmlb-tools \
  && curl -fsSLo /tmp/cmlb-tools/rclone.zip \
-        "https://github.com/rclone/rclone/releases/download/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-${rclone_arch}.zip" \
+        "https://github.com/rclone/rclone/releases/download/v${CMLB_RCLONE_TOOL_VERSION}/rclone-v${CMLB_RCLONE_TOOL_VERSION}-linux-${rclone_arch}.zip" \
  && echo "${rclone_sha}  /tmp/cmlb-tools/rclone.zip" | sha256sum -c - \
  && unzip -q /tmp/cmlb-tools/rclone.zip -d /tmp/cmlb-tools \
  && install -m 0755 \
-        "/tmp/cmlb-tools/rclone-v${RCLONE_VERSION}-linux-${rclone_arch}/rclone" \
+        "/tmp/cmlb-tools/rclone-v${CMLB_RCLONE_TOOL_VERSION}-linux-${rclone_arch}/rclone" \
         /opt/cmlb/tools/rclone \
  && curl -fsSLo /tmp/cmlb-tools/7zip.tar.xz \
-        "https://github.com/ip7z/7zip/releases/download/${SEVEN_ZIP_VERSION}/${seven_zip_asset}" \
+        "https://github.com/ip7z/7zip/releases/download/${CMLB_SEVEN_ZIP_TOOL_VERSION}/${seven_zip_asset}" \
  && echo "${seven_zip_sha}  /tmp/cmlb-tools/7zip.tar.xz" | sha256sum -c - \
  && mkdir -p /tmp/cmlb-tools/7zip \
  && tar -xJf /tmp/cmlb-tools/7zip.tar.xz -C /tmp/cmlb-tools/7zip \
@@ -179,8 +179,8 @@ FROM debian:${DEBIAN_VERSION} AS runtime
 ARG DEBIAN_VERSION
 ARG VCPKG_BASELINE
 ARG CMLB_BUILD_TYPE
-ARG RCLONE_VERSION
-ARG SEVEN_ZIP_VERSION
+ARG CMLB_RCLONE_TOOL_VERSION
+ARG CMLB_SEVEN_ZIP_TOOL_VERSION
 ARG GIT_SHA=unknown
 ARG BUILD_DATE=unknown
 
@@ -195,8 +195,8 @@ LABEL org.opencontainers.image.title="cmlb" \
       org.opencontainers.image.revision="${GIT_SHA}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.base.name="docker.io/library/debian:${DEBIAN_VERSION}" \
-      org.opencontainers.image.version.rclone="${RCLONE_VERSION}" \
-      org.opencontainers.image.version.7zip="${SEVEN_ZIP_VERSION}"
+      org.opencontainers.image.version.rclone="${CMLB_RCLONE_TOOL_VERSION}" \
+      org.opencontainers.image.version.7zip="${CMLB_SEVEN_ZIP_TOOL_VERSION}"
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
