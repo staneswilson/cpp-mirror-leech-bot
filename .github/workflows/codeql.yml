@@ -83,6 +83,7 @@ jobs:
           # maintainability recommendations as code-scanning alerts, including
           # third-party headers extracted during the C++ build.
           queries: security-extended
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Configure with CMake
         shell: bash

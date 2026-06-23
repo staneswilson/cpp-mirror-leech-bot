@@ -628,7 +628,8 @@ boost::asio::awaitable<cmlb::core::Result<UploadResult>> GoogleDriveUploader::up
 
                         std::optional<cmlb::core::Result<cmlb::infrastructure::http::HttpResponse>>
                             chunk_res;
-                        for (int auth_attempt = 0; auth_attempt < 2; ++auth_attempt) {
+                        bool refreshed_bearer = false;
+                        while (true) {
                             auto bearer_now = co_await acquire_bearer();
                             if (!bearer_now) {
                                 chunk_err = bearer_now.error();
@@ -650,9 +651,10 @@ boost::asio::awaitable<cmlb::core::Result<UploadResult>> GoogleDriveUploader::up
                                 break;
                             code = (*chunk_res)->status_code;
                             chunk_body = std::move((*chunk_res)->body);
-                            if (code != 401)
+                            if (code != 401 || refreshed_bearer)
                                 break;
                             invalidate_bearer_cache();
+                            refreshed_bearer = true;
                         }
                         if (chunk_done)
                             break;

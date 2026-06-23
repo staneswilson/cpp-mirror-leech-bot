@@ -121,7 +121,8 @@ void print_usage(std::ostream& out) {
 
     CliArgs args;
     std::span<char*> raw{argv + 1, static_cast<std::size_t>(argc - 1)};
-    for (std::size_t i = 0; i < raw.size(); ++i) {
+    std::size_t i = 0;
+    while (i < raw.size()) {
         std::string_view a{raw[i]};
         if (a == "--version") {
             args.show_version = true;
@@ -135,13 +136,15 @@ void print_usage(std::ostream& out) {
                 return error(ErrorCode::InvalidArgument,
                              "--validate-config requires a path argument");
             }
-            args.config_path = raw[++i];
+            args.config_path = raw[i + 1];
+            i += 1;
         } else if (a.starts_with("--")) {
             return error(ErrorCode::InvalidArgument,
                          std::string{"unknown option: "} + std::string{a});
         } else {
             args.config_path = std::string{a};
         }
+        i += 1;
     }
     return args;
 }

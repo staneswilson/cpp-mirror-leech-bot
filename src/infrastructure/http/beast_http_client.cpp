@@ -615,6 +615,9 @@ BeastHttpClient::BeastHttpClient(asio::any_io_executor exec)
     : exec_{std::move(exec)},
       ssl_ctx_{asio::ssl::context::tls_client},
       pool_{std::make_shared<ConnectionPool>(exec_)} {
+    ssl_ctx_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2
+                         | asio::ssl::context::no_sslv3 | asio::ssl::context::no_tlsv1
+                         | asio::ssl::context::no_tlsv1_1);
     ssl_ctx_.set_default_verify_paths();
     ssl_ctx_.set_verify_mode(asio::ssl::verify_peer);
     Logger::debug("BeastHttpClient: ready (pool max {} endpoints x {} sockets)",
@@ -641,6 +644,7 @@ asio::awaitable<Result<HttpResponse>> BeastHttpClient::request(HttpRequest req) 
         co_return std::unexpected{AppError{ErrorCode::InvalidArgument, "malformed URL: " + url}};
     }
 
+    bool redirected = false;
     for (std::size_t hop = 0; hop <= kMaxRedirects; ++hop) {
         auto parsed = parse_url(url);
         if (!parsed) {
@@ -660,7 +664,7 @@ asio::awaitable<Result<HttpResponse>> BeastHttpClient::request(HttpRequest req) 
         if (has_body)
             hreq.body() = body;
         // Strip Authorization on cross-origin redirect.
-        if (hop > 0 && !same_origin(*parsed_orig, *parsed)) {
+        if (redirected && !same_origin(*parsed_orig, *parsed)) {
             std::erase_if(headers, [](const HttpHeader& h) {
                 return iequals(h.name, "authorization");
             });
@@ -716,8 +720,6 @@ asio::awaitable<Result<HttpResponse>> BeastHttpClient::request(HttpRequest req) 
         // Redirect handling.
         if ((code == 301 || code == 302 || code == 303 || code == 307 || code == 308)
             && hop < kMaxRedirects) {
-            auto loc = find_header({/* unused */}, "location");
-            (void)loc;
             std::optional<std::string> location;
             for (const auto& h : resp.headers) {
                 if (iequals(h.name, "location")) {
@@ -742,6 +744,7 @@ asio::awaitable<Result<HttpResponse>> BeastHttpClient::request(HttpRequest req) 
                 method = HttpMethod::Get;
                 body.clear();
             }
+            redirected = true;
             continue;
         }
 
@@ -791,6 +794,7 @@ asio::awaitable<Result<HttpResponse>> BeastHttpClient::download_to_file(
     HttpMethod method = HttpMethod::Get;
     std::string body;
 
+    bool redirected = false;
     for (std::size_t hop = 0; hop <= kMaxRedirects; ++hop) {
         auto parsed = parse_url(url);
         if (!parsed) {
@@ -804,7 +808,7 @@ asio::awaitable<Result<HttpResponse>> BeastHttpClient::download_to_file(
         }
 
         bh::request<bh::string_body> hreq{to_verb(method), parsed->target, 11};
-        if (hop > 0 && !same_origin(*parsed_orig, *parsed)) {
+        if (redirected && !same_origin(*parsed_orig, *parsed)) {
             std::erase_if(headers, [](const HttpHeader& h) {
                 return iequals(h.name, "authorization");
             });
@@ -876,6 +880,7 @@ asio::awaitable<Result<HttpResponse>> BeastHttpClient::download_to_file(
                     AppError{ErrorCode::Network, "redirect target malformed: " + *location}};
             }
             url = *next;
+            redirected = true;
             continue;
         }
 

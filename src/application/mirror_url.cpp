@@ -492,7 +492,9 @@ asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> MirrorUrl::execute(
         // begin_upload() was never called along the pipelined path (e.g.
         // the fallback path also missed it). Drive the state machine here.
         if (auto t = task.begin_upload(); !t) {
-            // Already past Uploading? best-effort persist whatever we have.
+            cmlb::core::Logger::debug("mirror_url: task={} begin_upload skipped: {}",
+                                      meta.id.value(),
+                                      t.error().message);
         }
     }
     if (auto t = task.mark_completed(); !t) {

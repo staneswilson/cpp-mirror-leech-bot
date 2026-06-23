@@ -1,0 +1,14 @@
+name: CMLB CodeQL
+
+paths:
+  - include
+  - src
+  - packaging
+  - cmake
+
+paths-ignore:
+  - build/**
+  - out/**
+  - .vcpkg-bincache/**
+  - "**/vcpkg_installed/**"
+  - tests/**
