@@ -75,11 +75,6 @@ jobs:
             ${{ runner.os }}-gcc-14-vcpkg-
             ${{ runner.os }}-vcpkg-
 
-      - name: Report cache status
-        shell: bash
-        run: |
-          echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
-
       - name: Configure with CMake (release)
         shell: bash
         run: |
@@ -156,11 +151,6 @@ jobs:
             ${{ runner.os }}-apple-clang-vcpkg-
             ${{ runner.os }}-vcpkg-
 
-      - name: Report cache status
-        shell: bash
-        run: |
-          echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
-
       - name: Configure with CMake (release)
         shell: bash
         run: |
@@ -234,11 +224,6 @@ jobs:
             ${{ runner.os }}-msvc-telegram-vcpkg-
             ${{ runner.os }}-msvc-vcpkg-
             ${{ runner.os }}-vcpkg-
-
-      - name: Report cache status
-        shell: bash
-        run: |
-          echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
 
       - name: Configure with CMake (msvc-release)
         shell: bash

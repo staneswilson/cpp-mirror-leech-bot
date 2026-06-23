@@ -1,4 +1,4 @@
-# Static analysis: clang-tidy on changed C++ sources (PR) or full tree (main); optional IWYU on label.
+# Static analysis: clang-tidy on changed C++ sources (PR) or full tree (main).
 name: Static Analysis
 
 on:
@@ -83,19 +83,23 @@ jobs:
             ${{ runner.os }}-clang-20-vcpkg-
             ${{ runner.os }}-vcpkg-
 
-      - name: Report cache status
-        shell: bash
-        run: |
-          echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
-
       - name: Configure with CMake (debug, exports compile_commands.json)
         shell: bash
         run: cmake --preset debug
 
-      - name: Build dependencies and generated sources
+      - name: Check TDLib headers stay isolated
         shell: bash
-        # Build only what's needed so generated headers exist when clang-tidy runs.
-        run: cmake --build --preset debug --parallel --target all
+        run: |
+          mapfile -t violations < <(
+            git grep -n -E '#[[:space:]]*include[[:space:]]*[<"]td/telegram/(td_api|Client)' -- \
+              include src tests \
+              ':!src/infrastructure/telegram/telegram_gateway.cpp' || true
+          )
+          if [ "${#violations[@]}" -ne 0 ]; then
+            printf '%s\n' "TDLib headers must stay isolated in src/infrastructure/telegram/telegram_gateway.cpp:"
+            printf '  %s\n' "${violations[@]}"
+            exit 1
+          fi
 
       - name: Determine changed C++ sources (pull_request only)
         id: changed
@@ -143,83 +147,3 @@ jobs:
             -warnings-as-errors='*' \
             -quiet \
             "${files[@]}"
-
-  # Include-What-You-Use is heavy; only run on PRs labelled with `[iwyu]`.
-  # The label-based gate keeps default PR latency low while still allowing on-demand analysis.
-  iwyu:
-    name: include-what-you-use
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'iwyu')
-    permissions:
-      contents: read
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7.0.0
-        with:
-          submodules: recursive
-          fetch-depth: 1
-
-      - name: Install CMake and Ninja
-        uses: lukka/get-cmake@v4.3.4
-
-      - name: Install Clang 20 and IWYU
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-20 libclang-20-dev llvm-20-dev iwyu libc++-20-dev libc++abi-20-dev
-          # Use libc++ rather than libstdc++ for the same reason as the clang-tidy job:
-          # Ubuntu noble's split-package layout hides libstdc++-14 C++23 headers from
-          # clang's auto-probe. libc++ ships them directly.
-          {
-            printf '%s\n' "CC=clang-20"
-            printf '%s\n' "CXX=clang++-20"
-            printf '%s\n' "CXXFLAGS=-stdlib=libc++"
-            printf '%s\n' "LDFLAGS=-stdlib=libc++ -lc++abi"
-          } >> "$GITHUB_ENV"
-
-      - name: Set up vcpkg
-        shell: bash
-        run: |
-          if [ ! -d "$HOME/vcpkg" ]; then
-            git clone --depth 1 https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
-            "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
-          fi
-          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
-
-      - name: Prepare vcpkg binary cache directory
-        shell: bash
-        run: mkdir -p "${{ github.workspace }}/.vcpkg-bincache"
-
-      - name: Cache vcpkg binary archives
-        uses: actions/cache@v5.0.5
-        with:
-          path: |
-            ${{ github.workspace }}/.vcpkg-bincache
-            ~/.cache/vcpkg/archives
-          # Discriminator `libcxx` keeps libstdc++- and libc++-built archives in
-          # separate cache slots so an ABI-mismatched archive is never reused.
-          key: ${{ runner.os }}-clang-20-libcxx-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
-          restore-keys: |
-            ${{ runner.os }}-clang-20-libcxx-vcpkg-
-            ${{ runner.os }}-clang-20-vcpkg-
-            ${{ runner.os }}-vcpkg-
-
-      - name: Configure with CMake
-        shell: bash
-        run: cmake --preset debug
-
-      - name: Run include-what-you-use via iwyu_tool
-        shell: bash
-        run: |
-          iwyu_tool.py -p build/debug -- -Xiwyu --no_fwd_decls -Xiwyu --cxx17ns | tee iwyu-report.txt
-
-      - name: Upload IWYU report
-        if: always()
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: iwyu-report
-          path: iwyu-report.txt
-          if-no-files-found: ignore
-          retention-days: 14

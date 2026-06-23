@@ -148,11 +148,6 @@ jobs:
             ${{ runner.os }}-${{ matrix.compiler }}-vcpkg-
             ${{ runner.os }}-vcpkg-
 
-      - name: Report cache status
-        shell: bash
-        run: |
-          echo "vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}"
-
       - name: Configure with CMake
         if: ${{ !matrix.telegram }}
         shell: bash
