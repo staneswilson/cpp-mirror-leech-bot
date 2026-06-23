@@ -15,6 +15,7 @@ add_library(
     cancel_task.cpp
     pause_task.cpp
     resume_task.cpp
+    show_stats.cpp
     show_status.cpp
     update_user_settings.cpp
     update_bot_settings.cpp

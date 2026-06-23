@@ -23,7 +23,6 @@
 #include <cmlb/core/formatting.hpp>
 #include <cmlb/core/logger.hpp>
 #include <cmlb/domain/upload_destination.hpp>
-#include <cmlb/infrastructure/system/system_metrics.hpp>
 #include <cmlb/infrastructure/telegram/messenger.hpp>
 #include <cmlb/infrastructure/upload/google_drive_uploader.hpp>
 #include <cmlb/presentation/command_dispatcher.hpp>
@@ -40,6 +39,7 @@
 #include <cmlb/application/pause_task.hpp>
 #include <cmlb/application/resume_task.hpp>
 #include <cmlb/application/rss_subscription.hpp>
+#include <cmlb/application/show_stats.hpp>
 #include <cmlb/application/show_status.hpp>
 #include <cmlb/application/update_bot_settings.hpp>
 #include <cmlb/application/update_user_settings.hpp>
@@ -586,14 +586,17 @@ void CommandDispatcher::register_builtins_() {
 
     // -------- stats -------------------------------------------------------
     register_("stats",
-              Permission::Anyone,
+              Permission::User,
               "CPU / RAM / disk usage and bot uptime.",
               [this](CommandRequest req) -> asio::awaitable<Result<void>> {
-                  const auto snapshot = deps_.metrics.snapshot();
-                  const auto uptime = std::chrono::duration_cast<std::chrono::seconds>(
-                      std::chrono::steady_clock::now() - deps_.bot_start_time);
+                  auto report = co_await deps_.show_stats.execute(StatsRequest{});
+                  if (!report)
+                      co_return std::unexpected(report.error());
                   const std::string body =
-                      HtmlRenderer::render_stats(snapshot, uptime, /*active_downloads=*/0);
+                      HtmlRenderer::render_stats(report->metrics,
+                                                 report->bot_uptime,
+                                                 report->active_downloads,
+                                                 report->unavailable_downloaders);
                   auto send = co_await deps_.messenger.send_html(req.chat, body);
                   if (!send)
                       co_return std::unexpected(send.error());

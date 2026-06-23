@@ -13,7 +13,7 @@ CMLB has four authority tiers, ordered from least to most privileged:
 | Tier | Granted to | Notes |
 |---|---|---|
 | `Anyone` | every user the bot can see | `/start`, `/help`, `/ping` |
-| `User` | users in `telegram.users`, or anyone if the list is empty | `/mirror`, `/leech`, `/status`, `/settings` |
+| `User` | users in `telegram.users`, or anyone if the list is empty | `/mirror`, `/leech`, `/status`, `/settings`, `/stats` |
 | `Admin` | users in `telegram.admins` | per-user overrides, force-cancel others' tasks |
 | `Owner` | `telegram.owner_id` (single user) | `/log`, `/botsettings`, bypass all limits |
 
@@ -429,10 +429,10 @@ Shows system statistics:
 
 - CPU load (1 / 5 / 15 minute averages on Linux).
 - Memory usage (used / total).
-- Disk free in `paths.downloads` and `paths.data`.
+- Disk usage for the bot process working directory.
 - Bot uptime.
-- Active task count and breakdown by state.
-- Bytes downloaded / uploaded since boot.
+- Active downloader count aggregated from aria2 and qBittorrent.
+- Any downloader backend whose aggregate stats are temporarily unavailable.
 
 **Examples:**
 

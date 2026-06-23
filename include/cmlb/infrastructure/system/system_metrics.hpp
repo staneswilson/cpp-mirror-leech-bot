@@ -46,12 +46,13 @@ public:
     /// Records the construction time (used for `bot_uptime`) and primes the
     /// CPU-tick counters with an initial reading.
     SystemMetrics();
+    virtual ~SystemMetrics() = default;
 
     /// Returns a fresh snapshot. The first call returns
     /// `cpu_usage_percent = 0` since there is no previous sample to delta
     /// against. Never throws and never fails — unreadable counters fall
     /// back to zero with a warning logged via `cmlb::core::Logger`.
-    [[nodiscard]] SystemSnapshot snapshot() const;
+    [[nodiscard]] virtual SystemSnapshot snapshot() const;
 
 private:
     std::chrono::steady_clock::time_point start_time_;

@@ -142,9 +142,23 @@ std::string HtmlRenderer::render_no_active_tasks(
 
 std::string HtmlRenderer::render_stats(const cmlb::infrastructure::system::SystemSnapshot& metrics,
                                        std::chrono::seconds bot_uptime,
-                                       int active_downloads) {
+                                       int active_downloads,
+                                       std::span<const std::string> unavailable_downloaders) {
+    std::string degraded_line;
+    if (!unavailable_downloaders.empty()) {
+        std::string names;
+        for (std::size_t i = 0; i < unavailable_downloaders.size(); ++i) {
+            if (i != 0) {
+                names.append(", ");
+            }
+            names.append(cmlb::core::escape_html(unavailable_downloaders[i]));
+        }
+        degraded_line = fmt::format("<b>Unavailable downloaders:</b> <code>{}</code>\n", names);
+    }
+
     return fmt::format("<b>Bot Statistics</b>\n"
                        "<b>Active downloads:</b> <code>{}</code>\n"
+                       "{}"
                        "<b>Bot uptime:</b> <code>{}</code>\n"
                        "<b>System uptime:</b> <code>{}</code>\n"
                        "<b>CPU:</b> <code>{:.1f}%</code>\n"
@@ -152,6 +166,7 @@ std::string HtmlRenderer::render_stats(const cmlb::infrastructure::system::Syste
                        "<b>Disk:</b> <code>{} / {}</code>\n"
                        "<b>Load avg:</b> <code>{:.2f} / {:.2f} / {:.2f}</code>",
                        active_downloads,
+                       degraded_line,
                        format_duration(bot_uptime),
                        format_duration(metrics.system_uptime),
                        metrics.cpu_usage_percent,

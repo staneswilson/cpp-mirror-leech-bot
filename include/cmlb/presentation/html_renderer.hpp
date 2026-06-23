@@ -53,7 +53,8 @@ public:
     [[nodiscard]] static std::string render_stats(
         const cmlb::infrastructure::system::SystemSnapshot& metrics,
         std::chrono::seconds bot_uptime,
-        int active_downloads);
+        int active_downloads,
+        std::span<const std::string> unavailable_downloaders = {});
 
     /// Description of a single command for the `/help` listing.
     struct CommandDescription {

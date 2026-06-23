@@ -172,6 +172,14 @@ TEST_CASE("render_stats reports active downloads and load averages", "[presentat
     CHECK_THAT(html, ContainsSubstring("2m 5s"));
 }
 
+TEST_CASE("render_stats reports degraded downloader backends", "[presentation][html]") {
+    const std::array<std::string, 2> unavailable{"aria2", "qbittorrent"};
+    const auto html =
+        HtmlRenderer::render_stats(make_snapshot(), std::chrono::seconds{125}, 0, unavailable);
+    CHECK_THAT(html, ContainsSubstring("<b>Unavailable downloaders:</b>"));
+    CHECK_THAT(html, ContainsSubstring("<code>aria2, qbittorrent</code>"));
+}
+
 TEST_CASE("render_help renders each command name and permission", "[presentation][html]") {
     const std::array<HtmlRenderer::CommandDescription, 3> cmds{
         HtmlRenderer::CommandDescription{"mirror", "Mirror a URL", Permission::User},

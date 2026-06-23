@@ -37,6 +37,7 @@
 #include <cmlb/application/pause_task.hpp>
 #include <cmlb/application/resume_task.hpp>
 #include <cmlb/application/rss_subscription.hpp>
+#include <cmlb/application/show_stats.hpp>
 #include <cmlb/application/show_status.hpp>
 #include <cmlb/application/update_bot_settings.hpp>
 #include <cmlb/application/update_user_settings.hpp>
@@ -392,6 +393,7 @@ int main(int argc, char* argv[]) try {
     cmlb::application::CancelTask cancel_use_case{tasks_repo, aria2, qbit, messenger, active_tasks};
     cmlb::application::PauseTask pause_use_case{tasks_repo, aria2, qbit, messenger};
     cmlb::application::ResumeTask resume_use_case{tasks_repo, aria2, qbit, messenger};
+    cmlb::application::ShowStats show_stats_use_case{aria2, qbit, metrics, bot_start_time};
     cmlb::application::ShowStatus show_status_use_case{
         tasks_repo, aria2, qbit, messenger, metrics, bot_start_time};
     cmlb::application::UpdateUserSettings update_user_use_case{user_settings_repo};
@@ -410,13 +412,12 @@ int main(int argc, char* argv[]) try {
             .cancel_task = cancel_use_case,
             .pause_task = pause_use_case,
             .resume_task = resume_use_case,
+            .show_stats = show_stats_use_case,
             .show_status = show_status_use_case,
             .update_user = update_user_use_case,
             .update_bot = update_bot_use_case,
             .rss = rss_use_case,
             .messenger = messenger,
-            .metrics = metrics,
-            .bot_start_time = bot_start_time,
         }};
 
     cmlb::presentation::CallbackDispatcher callback_dispatcher{

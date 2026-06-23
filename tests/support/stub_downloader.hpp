@@ -53,6 +53,16 @@ public:
         status_error_ = std::move(err);
     }
 
+    void set_global_stats(cmlb::infrastructure::download::GlobalStats stats) {
+        std::lock_guard lk{mutex_};
+        global_stats_ = stats;
+    }
+
+    void set_global_stats_error(cmlb::core::AppError err) {
+        std::lock_guard lk{mutex_};
+        global_stats_error_ = std::move(err);
+    }
+
     /// Toggle the value returned by `supports_pipelining()`. Defaults to
     /// true so that application-layer tests exercise the aria2-style
     /// per-file pipelined upload path (the common case).
@@ -146,7 +156,12 @@ public:
 
     boost::asio::awaitable<cmlb::core::Result<cmlb::infrastructure::download::GlobalStats>>
     global_stats() override {
-        co_return cmlb::infrastructure::download::GlobalStats{};
+        std::lock_guard lk{mutex_};
+        if (global_stats_error_) {
+            cmlb::core::AppError err = *global_stats_error_;
+            co_return std::unexpected(err);
+        }
+        co_return global_stats_;
     }
 
     [[nodiscard]] bool is_connected() const noexcept override {
@@ -166,11 +181,13 @@ private:
     cmlb::domain::Gid next_gid_{std::string{"stub-gid"}};
     std::optional<cmlb::core::AppError> add_error_;
     std::optional<cmlb::core::AppError> status_error_;
+    std::optional<cmlb::core::AppError> global_stats_error_;
     std::vector<cmlb::infrastructure::download::DownloadStatus> statuses_;
     std::vector<AddCall> add_calls_;
     int pause_calls_{0};
     int resume_calls_{0};
     int remove_calls_{0};
+    cmlb::infrastructure::download::GlobalStats global_stats_;
     std::atomic<bool> supports_pipelining_{true};
 };
 

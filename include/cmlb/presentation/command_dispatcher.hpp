@@ -1,6 +1,5 @@
 #pragma once
 
-#include <chrono>
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -37,6 +36,7 @@ class DeleteDriveResource;
 class CancelTask;
 class PauseTask;
 class ResumeTask;
+class ShowStats;
 class ShowStatus;
 class UpdateUserSettings;
 class UpdateBotSettings;
@@ -46,10 +46,6 @@ class RssSubscription;
 namespace cmlb::infrastructure::telegram {
 class MessengerInterface;
 } // namespace cmlb::infrastructure::telegram
-
-namespace cmlb::infrastructure::system {
-class SystemMetrics;
-} // namespace cmlb::infrastructure::system
 
 namespace cmlb::presentation {
 
@@ -71,13 +67,12 @@ public:
         cmlb::application::CancelTask& cancel_task;
         cmlb::application::PauseTask& pause_task;
         cmlb::application::ResumeTask& resume_task;
+        cmlb::application::ShowStats& show_stats;
         cmlb::application::ShowStatus& show_status;
         cmlb::application::UpdateUserSettings& update_user;
         cmlb::application::UpdateBotSettings& update_bot;
         cmlb::application::RssSubscription& rss;
         cmlb::infrastructure::telegram::MessengerInterface& messenger;
-        cmlb::infrastructure::system::SystemMetrics& metrics;
-        std::chrono::steady_clock::time_point bot_start_time;
     };
 
     explicit CommandDispatcher(Dependencies deps);

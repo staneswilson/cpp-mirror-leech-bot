@@ -127,21 +127,20 @@ asio::awaitable<Result<void>> ProgressRenderer::do_render_impl(
     }
     SemReleaseGuard guard{*state.sem};
 
-    // ----- 1. Build the current rendering ---------------------------------
+    // ----- 1. Throttle before sampling host metrics or rendering HTML -----
+    const auto now = std::chrono::steady_clock::now();
+    const bool have_message = state.status_message_id.value() != 0;
+    if (have_message && (now - state.last_edit) < throttle_) {
+        co_return Result<void>{};
+    }
+
+    // ----- 2. Build the current rendering ---------------------------------
     const auto snapshot = metrics_.snapshot();
     const auto uptime = std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::steady_clock::now() - bot_start_time_);
 
     std::string html = active.empty() ? HtmlRenderer::render_no_active_tasks(snapshot, uptime)
                                       : HtmlRenderer::render_status(active, snapshot, uptime);
-
-    const auto now = std::chrono::steady_clock::now();
-    const bool have_message = state.status_message_id.value() != 0;
-
-    // ----- 2. Throttle: skip if within throttle window --------------------
-    if (have_message && (now - state.last_edit) < throttle_) {
-        co_return Result<void>{};
-    }
 
     // ----- 3. Dedup: skip if content unchanged ----------------------------
     if (have_message && html == state.last_rendered_html) {
