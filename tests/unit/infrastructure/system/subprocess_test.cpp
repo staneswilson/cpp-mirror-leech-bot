@@ -47,15 +47,17 @@ cmlb::core::Result<SubprocessResult> run_with_watchdog(SubprocessRequest req,
         },
         boost::asio::use_future);
 
-    std::jthread runner{[&io]() {
+    std::thread runner{[&io]() {
         io.run();
     }};
 
     if (fut.wait_for(timeout) != std::future_status::ready) {
         io.stop();
+        runner.join();
         return cmlb::core::error(cmlb::core::ErrorCode::DeadlineExceeded,
                                  "Subprocess test timed out waiting for awaitable completion");
     }
+    runner.join();
     return fut.get();
 }
 
