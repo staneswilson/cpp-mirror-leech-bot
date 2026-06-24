@@ -80,7 +80,6 @@ TEST_CASE("ProgressRenderer drops periodic renders inside the throttle window",
                               ctx.get_executor(),
                               std::chrono::hours{1}};
     const std::array active{make_status()};
-
     auto first = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {
         co_return co_await renderer.render(ChatId{-100123}, active);
     });
@@ -96,4 +95,37 @@ TEST_CASE("ProgressRenderer drops periodic renders inside the throttle window",
     CHECK(metrics.snapshot_calls() == 1);
     CHECK(messenger.sends().size() == 1);
     CHECK(messenger.edits().empty());
+}
+
+TEST_CASE("ProgressRenderer force_refresh edits the cached status message instead of sending "
+          "another chat message",
+          "[presentation][progress]") {
+    asio::io_context ctx;
+    StubMessenger messenger;
+    CountingMetrics metrics;
+    ProgressRenderer renderer{messenger,
+                              metrics,
+                              std::chrono::steady_clock::now(),
+                              ctx.get_executor(),
+                              std::chrono::hours{1}};
+    const std::array active{make_status()};
+    auto refreshed_status = make_status();
+    refreshed_status.downloaded_bytes = 768;
+    const std::array refreshed_active{refreshed_status};
+
+    auto first = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {
+        co_return co_await renderer.render(ChatId{-100123}, active);
+    });
+    REQUIRE(first.has_value());
+    REQUIRE(messenger.sends().size() == 1);
+    const auto status_message = messenger.sends().front().assigned;
+
+    auto refreshed = run_on(ctx, [&]() -> asio::awaitable<cmlb::core::Result<void>> {
+        co_return co_await renderer.force_refresh(ChatId{-100123}, refreshed_active);
+    });
+    REQUIRE(refreshed.has_value());
+
+    CHECK(messenger.sends().size() == 1);
+    REQUIRE(messenger.edits().size() == 1);
+    CHECK(messenger.edits().front().msg == status_message);
 }

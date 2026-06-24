@@ -71,8 +71,9 @@ public:
         cmlb::domain::ChatId chat,
         std::span<const cmlb::infrastructure::download::DownloadStatus> active) override;
 
-    /// Like `render()` but always emits a fresh message, discarding the
-    /// throttle and dedup checks for this call. The cached state is rewritten.
+    /// Like `render()` but bypasses the edit throttle for an explicit user
+    /// refresh. Edits the cached status message when possible and sends a
+    /// fresh message only when no cached message exists or the edit fails.
     [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>> force_refresh(
         cmlb::domain::ChatId chat,
         std::span<const cmlb::infrastructure::download::DownloadStatus> active) override;

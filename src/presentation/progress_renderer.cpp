@@ -215,6 +215,28 @@ asio::awaitable<Result<void>> ProgressRenderer::do_force_refresh_impl(
     std::string html = active.empty() ? HtmlRenderer::render_no_active_tasks(snapshot, uptime)
                                       : HtmlRenderer::render_status(active, snapshot, uptime);
 
+    const bool have_message = state.status_message_id.value() != 0;
+    if (have_message && html == state.last_rendered_html) {
+        state.last_edit = std::chrono::steady_clock::now();
+        co_return Result<void>{};
+    }
+
+    if (have_message) {
+        const auto cached_id = state.status_message_id;
+        auto edit = co_await messenger_.edit_html(chat, cached_id, html);
+        if (edit) {
+            state.last_edit = std::chrono::steady_clock::now();
+            state.last_rendered_html = std::move(html);
+            co_return Result<void>{};
+        }
+
+        Logger::debug(
+            "progress: force-refresh edit failed for chat={} (msg={}): {}. Sending fresh message.",
+            chat.value(),
+            cached_id.value(),
+            edit.error().message);
+    }
+
     auto send = co_await messenger_.send_html_with_keyboard(
         chat, html, cmlb::infrastructure::telegram::Messenger::refresh_close_row("status:refresh"));
     if (!send) {
