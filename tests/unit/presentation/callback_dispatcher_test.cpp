@@ -111,8 +111,7 @@ TEST_CASE("CallbackDispatcher::Dependencies is a plain aggregate", "[presentatio
     STATIC_REQUIRE(std::is_aggregate_v<CallbackDispatcher::Dependencies>);
 }
 
-TEST_CASE("settings callbacks edit the existing settings panel",
-          "[presentation][callback]") {
+TEST_CASE("settings callbacks edit the existing settings panel", "[presentation][callback]") {
     asio::io_context ctx;
 
     SECTION("upload destination cycle refreshes the panel text") {

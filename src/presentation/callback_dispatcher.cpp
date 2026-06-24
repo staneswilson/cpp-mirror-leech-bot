@@ -137,8 +137,7 @@ asio::awaitable<Result<void>> CallbackDispatcher::dispatch(cmlb::domain::ChatId 
                         settings_keyboard());
                     if (!edit) {
                         outcome = std::unexpected(edit.error());
-                        ack_text = std::string{
-                            cmlb::core::friendly_error_label(edit.error().code)};
+                        ack_text = std::string{cmlb::core::friendly_error_label(edit.error().code)};
                         ack_as_alert = true;
                     } else {
                         ack_text = "Upload destination updated";
@@ -169,8 +168,7 @@ asio::awaitable<Result<void>> CallbackDispatcher::dispatch(cmlb::domain::ChatId 
                         settings_keyboard());
                     if (!edit) {
                         outcome = std::unexpected(edit.error());
-                        ack_text = std::string{
-                            cmlb::core::friendly_error_label(edit.error().code)};
+                        ack_text = std::string{cmlb::core::friendly_error_label(edit.error().code)};
                         ack_as_alert = true;
                     } else {
                         ack_text = "Setting toggled";

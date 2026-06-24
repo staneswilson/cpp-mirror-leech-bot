@@ -49,8 +49,8 @@ public:
         return remove_calls_;
     }
 
-    boost::asio::awaitable<cmlb::core::Result<std::string>> copy(
-        std::string, std::string) override {
+    boost::asio::awaitable<cmlb::core::Result<std::string>> copy(std::string,
+                                                                 std::string) override {
         std::lock_guard lk{mutex_};
         ++copy_calls_;
         if (error_) {
@@ -82,9 +82,8 @@ private:
     mutable std::mutex mutex_;
     std::optional<cmlb::core::AppError> error_;
     std::string copy_result_{"copied-id"};
-    cmlb::infrastructure::upload::CountResult count_result_{.files = 3,
-                                                            .folders = 2,
-                                                            .total_bytes = 4096};
+    cmlb::infrastructure::upload::CountResult count_result_{
+        .files = 3, .folders = 2, .total_bytes = 4096};
     int copy_calls_{0};
     int count_calls_{0};
     int remove_calls_{0};

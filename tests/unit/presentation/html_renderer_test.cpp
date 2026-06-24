@@ -268,8 +268,7 @@ TEST_CASE("render_bot_settings renders the owner id and intervals", "[presentati
     CHECK_THAT(html, ContainsSubstring("60000 ms"));
 }
 
-TEST_CASE("render_rss_subscriptions renders an organized capped list",
-          "[presentation][html]") {
+TEST_CASE("render_rss_subscriptions renders an organized capped list", "[presentation][html]") {
     std::vector<cmlb::infrastructure::persistence::RssFeed> feeds;
     feeds.reserve(22);
     for (int i = 0; i < 22; ++i) {

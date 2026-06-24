@@ -70,16 +70,16 @@ CountDriveResource::execute(CountRequest request) {
         co_return std::unexpected(counted.error());
     }
 
-    (void)co_await messenger_.edit_html(request.chat,
-                                        *progress,
-                                        fmt::format("<b><u>Drive Count</u></b>\n"
-                                                    "<b>Files:</b> <code>{}</code>\n"
-                                                    "<b>Folders:</b> <code>{}</code>\n"
-                                                    "<b>Total:</b> <code>{}</code>",
-                                                    counted->files,
-                                                    counted->folders,
-                                                    cmlb::core::format_bytes(
-                                                        counted->total_bytes)));
+    (void)co_await messenger_.edit_html(
+        request.chat,
+        *progress,
+        fmt::format("<b><u>Drive Count</u></b>\n"
+                    "<b>Files:</b> <code>{}</code>\n"
+                    "<b>Folders:</b> <code>{}</code>\n"
+                    "<b>Total:</b> <code>{}</code>",
+                    counted->files,
+                    counted->folders,
+                    cmlb::core::format_bytes(counted->total_bytes)));
     cmlb::core::Logger::info("count_drive: files={} folders={} bytes={}",
                              counted->files,
                              counted->folders,

@@ -48,6 +48,7 @@
 
 namespace asio = boost::asio;
 
+using Catch::Matchers::ContainsSubstring;
 using cmlb::application::ActiveTaskRegistry;
 using cmlb::domain::ChatId;
 using cmlb::domain::MessageId;
@@ -62,7 +63,6 @@ using cmlb::test_support::StubDownloader;
 using cmlb::test_support::StubDriveResourceOperations;
 using cmlb::test_support::StubMessenger;
 using cmlb::test_support::StubUploader;
-using Catch::Matchers::ContainsSubstring;
 
 namespace {
 
@@ -137,8 +137,7 @@ struct DispatcherFixture {
     cmlb::application::CancelTask cancel_task{tasks, aria2, qbit, messenger, active_tasks};
     cmlb::application::PauseTask pause_task{tasks, aria2, qbit, messenger};
     cmlb::application::ResumeTask resume_task{tasks, aria2, qbit, messenger};
-    cmlb::application::ShowStats show_stats{
-        aria2, qbit, metrics, std::chrono::steady_clock::now()};
+    cmlb::application::ShowStats show_stats{aria2, qbit, metrics, std::chrono::steady_clock::now()};
     cmlb::application::ShowStatus show_status{
         tasks, aria2, qbit, messenger, metrics, std::chrono::steady_clock::now()};
     cmlb::application::UpdateUserSettings update_user{user_settings_repo};
@@ -149,8 +148,7 @@ struct DispatcherFixture {
         const std::array<UserId, 0> sudo{};
         const std::array<ChatId, 1> chats{CHAT};
         return CommandDispatcher{CommandDispatcher::Dependencies{
-            .authority =
-                cmlb::domain::Authority{OWNER, std::span<const UserId>{sudo}, chats},
+            .authority = cmlb::domain::Authority{OWNER, std::span<const UserId>{sudo}, chats},
             .mirror_url = mirror_url,
             .leech_url = leech_url,
             .clone = clone,

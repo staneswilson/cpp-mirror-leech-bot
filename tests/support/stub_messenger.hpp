@@ -87,8 +87,7 @@ public:
         std::string html,
         cmlb::infrastructure::telegram::InlineKeyboard kb) override {
         std::lock_guard lk{mutex_};
-        keyboard_edits_.push_back(
-            HtmlKeyboardEdit{chat, msg, std::move(html), std::move(kb)});
+        keyboard_edits_.push_back(HtmlKeyboardEdit{chat, msg, std::move(html), std::move(kb)});
         co_return cmlb::core::Result<void>{};
     }
 
