@@ -293,10 +293,6 @@ void CommandDispatcher::register_builtins_() {
             auto result = co_await deps_.clone.execute(std::move(cr));
             if (!result)
                 co_return std::unexpected(result.error());
-            auto send = co_await deps_.messenger.send_html(
-                req.chat, HtmlRenderer::render_success("Clone Complete", *result));
-            if (!send)
-                co_return std::unexpected(send.error());
             co_return Result<void>{};
         });
 
@@ -317,19 +313,6 @@ void CommandDispatcher::register_builtins_() {
             auto result = co_await deps_.count.execute(std::move(cr));
             if (!result)
                 co_return std::unexpected(result.error());
-            const std::string body = HtmlRenderer::render_heading("Drive Count")
-                                     + "\n"
-                                       "<b>Files:</b> <code>"
-                                     + std::to_string(result->files)
-                                     + "</code>\n"
-                                       "<b>Folders:</b> <code>"
-                                     + std::to_string(result->folders)
-                                     + "</code>\n"
-                                       "<b>Total:</b> <code>"
-                                     + cmlb::core::format_bytes(result->total_bytes) + "</code>";
-            auto send = co_await deps_.messenger.send_html(req.chat, body);
-            if (!send)
-                co_return std::unexpected(send.error());
             co_return Result<void>{};
         });
 
@@ -350,11 +333,6 @@ void CommandDispatcher::register_builtins_() {
             auto result = co_await deps_.delete_resource.execute(std::move(dr));
             if (!result)
                 co_return std::unexpected(result.error());
-            auto send = co_await deps_.messenger.send_html(
-                req.chat,
-                HtmlRenderer::render_success("Deleted", "Drive resource moved to trash."));
-            if (!send)
-                co_return std::unexpected(send.error());
             co_return Result<void>{};
         });
 
@@ -731,20 +709,7 @@ void CommandDispatcher::register_builtins_() {
                 auto list = co_await deps_.rss.list_for_chat(req.chat);
                 if (!list)
                     co_return std::unexpected(list.error());
-                std::string body = HtmlRenderer::render_heading("RSS Subscriptions") + "\n";
-                if (list->empty()) {
-                    body += "<i>(none)</i>";
-                } else {
-                    for (const auto& feed : *list) {
-                        body += "<code>";
-                        body += std::to_string(feed.feed_id);
-                        body += "</code> ";
-                        body += HtmlRenderer::escape_html(feed.title);
-                        body += " - <code>";
-                        body += HtmlRenderer::escape_html(feed.url);
-                        body += "</code>\n";
-                    }
-                }
+                const std::string body = HtmlRenderer::render_rss_subscriptions(*list);
                 auto send = co_await deps_.messenger.send_html(req.chat, body);
                 if (!send)
                     co_return std::unexpected(send.error());

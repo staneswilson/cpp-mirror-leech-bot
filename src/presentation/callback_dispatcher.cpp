@@ -19,6 +19,7 @@
 #include <cmlb/domain/upload_destination.hpp>
 #include <cmlb/infrastructure/telegram/messenger.hpp>
 #include <cmlb/presentation/callback_dispatcher.hpp>
+#include <cmlb/presentation/html_renderer.hpp>
 
 namespace cmlb::presentation {
 
@@ -56,6 +57,18 @@ struct PayloadSplit {
         return UploadDestination::Telegram;
     }
     return UploadDestination::Telegram;
+}
+
+[[nodiscard]] cmlb::infrastructure::telegram::InlineKeyboard settings_keyboard() {
+    return {
+        {
+            {"Cycle Upload Destination", "settings:upload:cycle"},
+            {"Toggle Document Mode", "settings:doc:toggle"},
+        },
+        {
+            {"Close", "close"},
+        },
+    };
 }
 
 } // namespace
@@ -116,7 +129,23 @@ asio::awaitable<Result<void>> CallbackDispatcher::dispatch(cmlb::domain::ChatId 
                 ack_text = std::string{cmlb::core::friendly_error_label(res.error().code)};
                 ack_as_alert = true;
             } else {
-                ack_text = "Upload destination updated";
+                if (msg_id.value() != 0) {
+                    auto edit = co_await deps_.messenger.edit_html_with_keyboard(
+                        chat,
+                        msg_id,
+                        HtmlRenderer::render_user_settings(*res),
+                        settings_keyboard());
+                    if (!edit) {
+                        outcome = std::unexpected(edit.error());
+                        ack_text = std::string{
+                            cmlb::core::friendly_error_label(edit.error().code)};
+                        ack_as_alert = true;
+                    } else {
+                        ack_text = "Upload destination updated";
+                    }
+                } else {
+                    ack_text = "Upload destination updated";
+                }
             }
         } else if (section == "doc" && action == "toggle") {
             UpdateUserSettingsRequest req{
@@ -132,7 +161,23 @@ asio::awaitable<Result<void>> CallbackDispatcher::dispatch(cmlb::domain::ChatId 
                 ack_text = std::string{cmlb::core::friendly_error_label(res.error().code)};
                 ack_as_alert = true;
             } else {
-                ack_text = "Setting toggled";
+                if (msg_id.value() != 0) {
+                    auto edit = co_await deps_.messenger.edit_html_with_keyboard(
+                        chat,
+                        msg_id,
+                        HtmlRenderer::render_user_settings(*res),
+                        settings_keyboard());
+                    if (!edit) {
+                        outcome = std::unexpected(edit.error());
+                        ack_text = std::string{
+                            cmlb::core::friendly_error_label(edit.error().code)};
+                        ack_as_alert = true;
+                    } else {
+                        ack_text = "Setting toggled";
+                    }
+                } else {
+                    ack_text = "Setting toggled";
+                }
             }
         } else {
             Logger::debug("callback: unknown settings action \"{}\"", data);

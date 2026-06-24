@@ -240,6 +240,39 @@ std::string HtmlRenderer::render_help(std::span<const CommandDescription> comman
     return out;
 }
 
+std::string HtmlRenderer::render_rss_subscriptions(
+    std::span<const cmlb::infrastructure::persistence::RssFeed> feeds) {
+    std::string out = render_heading("RSS Subscriptions");
+    out.append("\n");
+
+    if (feeds.empty()) {
+        out.append(render_quote("No feeds are configured for this chat."));
+        return out;
+    }
+
+    out.append(render_quote("Feeds watched for this chat."));
+    out.push_back('\n');
+
+    constexpr std::size_t kMaxRenderedFeeds = 20;
+    const std::size_t shown = std::min(feeds.size(), kMaxRenderedFeeds);
+    for (std::size_t i = 0; i < shown; ++i) {
+        const auto& feed = feeds[i];
+        const std::string title_source = feed.title.empty() ? feed.url : feed.title;
+        const std::string title = truncate_for_display(title_source, 80);
+        const std::string url = truncate_for_display(feed.url, 120);
+        out.append(fmt::format("<code>{}</code> <b>{}</b>\n"
+                               "<code>{}</code>\n",
+                               feed.feed_id,
+                               escape_html(title),
+                               escape_html(url)));
+    }
+
+    if (feeds.size() > shown) {
+        out.append(fmt::format("<i>... and {} more feed(s)</i>\n", feeds.size() - shown));
+    }
+    return out;
+}
+
 std::string HtmlRenderer::render_user_settings(
     const cmlb::infrastructure::persistence::UserSettingsRecord& settings) {
     return fmt::format("{}\n"

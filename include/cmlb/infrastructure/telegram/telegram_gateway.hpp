@@ -90,6 +90,14 @@ public:
     [[nodiscard]] boost::asio::awaitable<core::Result<void>> edit_formatted_message(
         domain::ChatId chat, domain::MessageId msg, std::string html);
 
+    /// Replaces message text and inline keyboard in one TDLib edit request.
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>>
+    edit_formatted_message_with_inline_keyboard(
+        domain::ChatId chat,
+        domain::MessageId msg,
+        std::string html,
+        std::vector<std::vector<std::pair<std::string, std::string>>> rows);
+
     /// Sends an HTML message with an attached inline keyboard. Each cell is
     /// `(label, callback_data)`.
     [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>>

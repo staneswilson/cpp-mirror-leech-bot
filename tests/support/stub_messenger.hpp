@@ -33,6 +33,13 @@ public:
         std::string html;
     };
 
+    struct HtmlKeyboardEdit {
+        cmlb::domain::ChatId chat;
+        cmlb::domain::MessageId msg;
+        std::string html;
+        cmlb::infrastructure::telegram::InlineKeyboard keyboard;
+    };
+
     StubMessenger() = default;
     ~StubMessenger() override = default;
 
@@ -45,6 +52,11 @@ public:
     [[nodiscard]] std::vector<HtmlEdit> edits() const {
         std::lock_guard lk{mutex_};
         return edits_;
+    }
+
+    [[nodiscard]] std::vector<HtmlKeyboardEdit> keyboard_edits() const {
+        std::lock_guard lk{mutex_};
+        return keyboard_edits_;
     }
 
     [[nodiscard]] std::vector<cmlb::domain::MessageId> deleted() const {
@@ -66,6 +78,17 @@ public:
                                                                std::string html) override {
         std::lock_guard lk{mutex_};
         edits_.push_back(HtmlEdit{chat, msg, std::move(html)});
+        co_return cmlb::core::Result<void>{};
+    }
+
+    boost::asio::awaitable<cmlb::core::Result<void>> edit_html_with_keyboard(
+        cmlb::domain::ChatId chat,
+        cmlb::domain::MessageId msg,
+        std::string html,
+        cmlb::infrastructure::telegram::InlineKeyboard kb) override {
+        std::lock_guard lk{mutex_};
+        keyboard_edits_.push_back(
+            HtmlKeyboardEdit{chat, msg, std::move(html), std::move(kb)});
         co_return cmlb::core::Result<void>{};
     }
 
@@ -116,6 +139,7 @@ private:
 
     std::vector<HtmlSend> sends_;
     std::vector<HtmlEdit> edits_;
+    std::vector<HtmlKeyboardEdit> keyboard_edits_;
     std::vector<cmlb::domain::MessageId> deleted_;
 };
 

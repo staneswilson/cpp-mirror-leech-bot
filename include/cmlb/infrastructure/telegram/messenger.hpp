@@ -59,6 +59,10 @@ public:
     [[nodiscard]] virtual boost::asio::awaitable<core::Result<void>> edit_html(
         domain::ChatId chat, domain::MessageId msg, std::string html) = 0;
 
+    /// Edits an existing HTML message and preserves/replaces its inline keyboard.
+    [[nodiscard]] virtual boost::asio::awaitable<core::Result<void>> edit_html_with_keyboard(
+        domain::ChatId chat, domain::MessageId msg, std::string html, InlineKeyboard kb) = 0;
+
     /// Sends an HTML message with an attached inline keyboard.
     [[nodiscard]] virtual boost::asio::awaitable<core::Result<domain::MessageId>>
     send_html_with_keyboard(domain::ChatId chat, std::string html, InlineKeyboard kb) = 0;
@@ -104,6 +108,10 @@ public:
     [[nodiscard]] boost::asio::awaitable<core::Result<void>> edit_html(domain::ChatId chat,
                                                                        domain::MessageId msg,
                                                                        std::string html) override;
+
+    /// Edits an HTML message while setting its inline keyboard in the same request.
+    [[nodiscard]] boost::asio::awaitable<core::Result<void>> edit_html_with_keyboard(
+        domain::ChatId chat, domain::MessageId msg, std::string html, InlineKeyboard kb) override;
 
     /// Sends an HTML message with an attached inline keyboard.
     [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>> send_html_with_keyboard(

@@ -646,6 +646,19 @@ asio::awaitable<core::Result<void>> TelegramGateway::edit_formatted_message(doma
     co_return response_to_void(std::move(obj), "edit_formatted_message");
 }
 
+asio::awaitable<core::Result<void>> TelegramGateway::edit_formatted_message_with_inline_keyboard(
+    domain::ChatId chat,
+    domain::MessageId msg,
+    std::string html,
+    std::vector<std::vector<std::pair<std::string, std::string>>> rows) {
+    auto content = make_html_message_content(std::move(html));
+    auto markup = build_inline_keyboard(rows);
+    auto fn = td_api::make_object<td_api::editMessageText>(
+        chat.value(), msg.value(), std::move(markup), std::move(content));
+    auto obj = co_await await_send(*impl_, std::move(fn));
+    co_return response_to_void(std::move(obj), "edit_formatted_message_with_inline_keyboard");
+}
+
 asio::awaitable<core::Result<domain::MessageId>> TelegramGateway::send_message_with_inline_keyboard(
     domain::ChatId chat,
     std::string html,

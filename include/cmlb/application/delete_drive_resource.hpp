@@ -7,7 +7,7 @@
 #include <cmlb/core/error.hpp>
 #include <cmlb/domain/identifiers.hpp>
 #include <cmlb/infrastructure/telegram/messenger.hpp>
-#include <cmlb/infrastructure/upload/google_drive_uploader.hpp>
+#include <cmlb/infrastructure/upload/drive_resource_operations.hpp>
 
 /// @file delete_drive_resource.hpp
 /// @brief DeleteDriveResource use case — Drive `files.delete` wrapper.
@@ -22,14 +22,14 @@ struct DeleteDriveRequest {
 
 class DeleteDriveResource {
 public:
-    DeleteDriveResource(cmlb::infrastructure::upload::GoogleDriveUploader& gdrive,
+    DeleteDriveResource(cmlb::infrastructure::upload::DriveResourceOperations& gdrive,
                         cmlb::infrastructure::telegram::MessengerInterface& messenger) noexcept;
 
     [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>> execute(
         DeleteDriveRequest request);
 
 private:
-    cmlb::infrastructure::upload::GoogleDriveUploader& gdrive_;
+    cmlb::infrastructure::upload::DriveResourceOperations& gdrive_;
     cmlb::infrastructure::telegram::MessengerInterface& messenger_;
 };
 

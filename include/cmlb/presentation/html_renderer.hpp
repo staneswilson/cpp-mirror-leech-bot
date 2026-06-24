@@ -10,6 +10,7 @@
 #include <cmlb/domain/task.hpp>
 #include <cmlb/infrastructure/download/downloader_interface.hpp>
 #include <cmlb/infrastructure/persistence/bot_settings_repository.hpp>
+#include <cmlb/infrastructure/persistence/rss_feed_repository.hpp>
 #include <cmlb/infrastructure/persistence/user_settings_repository.hpp>
 #include <cmlb/infrastructure/system/system_metrics.hpp>
 
@@ -66,6 +67,10 @@ public:
 
     /// Renders the `/help` output from a flat list of commands.
     [[nodiscard]] static std::string render_help(std::span<const CommandDescription> commands);
+
+    /// Renders the `/rss list` output with capped, readable feed entries.
+    [[nodiscard]] static std::string render_rss_subscriptions(
+        std::span<const cmlb::infrastructure::persistence::RssFeed> feeds);
 
     /// Renders the `/settings` panel for the per-user preferences.
     [[nodiscard]] static std::string render_user_settings(

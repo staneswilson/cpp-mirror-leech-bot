@@ -11,6 +11,7 @@
 
 #include <cmlb/core/configuration.hpp>
 #include <cmlb/core/error.hpp>
+#include <cmlb/infrastructure/upload/drive_resource_operations.hpp>
 #include <cmlb/infrastructure/upload/uploader_interface.hpp>
 
 /// @file google_drive_uploader.hpp
@@ -45,16 +46,8 @@ struct ServiceAccountKey {
     std::string token_uri{"https://oauth2.googleapis.com/token"};
 };
 
-/// Result of `GoogleDriveUploader::count`: recursive counts and total byte
-/// size of all files reachable from a folder.
-struct CountResult {
-    int files{0};
-    int folders{0};
-    std::int64_t total_bytes{0};
-};
-
 /// Google Drive mirror adapter.
-class GoogleDriveUploader final : public UploaderInterface {
+class GoogleDriveUploader final : public UploaderInterface, public DriveResourceOperations {
 public:
     /// @param exec         Executor for any internally-spawned timers.
     /// @param config       Drive-section configuration (parent folder, chunk
@@ -96,17 +89,18 @@ public:
     /// tree and re-issues `files.copy` for each file, recreating folder
     /// structure as it goes). Returns the new id of the top-level copy.
     [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<std::string>> copy(
-        std::string source_id, std::string target_folder_id);
+        std::string source_id, std::string target_folder_id) override;
 
     /// Recursive count of every file and folder reachable from @p folder_id
     /// plus the sum of all file byte sizes. The folder itself is not counted.
     [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<CountResult>> count(
-        std::string folder_id);
+        std::string folder_id) override;
 
     /// Permanently deletes the file or folder identified by @p file_id (the
     /// Drive `files.delete` endpoint — moves to the user's trash for
     /// `My Drive`; permanently deletes for shared drives).
-    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>> remove(std::string file_id);
+    [[nodiscard]] boost::asio::awaitable<cmlb::core::Result<void>> remove(
+        std::string file_id) override;
 
 private:
     /// Returns a cached or freshly-minted bearer token. Refresh threshold is

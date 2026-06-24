@@ -21,6 +21,7 @@
 #include <cmlb/domain/task.hpp>
 #include <cmlb/infrastructure/download/downloader_interface.hpp>
 #include <cmlb/infrastructure/persistence/bot_settings_repository.hpp>
+#include <cmlb/infrastructure/persistence/rss_feed_repository.hpp>
 #include <cmlb/infrastructure/persistence/user_settings_repository.hpp>
 #include <cmlb/infrastructure/system/system_metrics.hpp>
 #include <cmlb/presentation/html_renderer.hpp>
@@ -265,6 +266,36 @@ TEST_CASE("render_bot_settings renders the owner id and intervals", "[presentati
     CHECK_THAT(html, ContainsSubstring("downloads"));
     CHECK_THAT(html, ContainsSubstring("5000 ms"));
     CHECK_THAT(html, ContainsSubstring("60000 ms"));
+}
+
+TEST_CASE("render_rss_subscriptions renders an organized capped list",
+          "[presentation][html]") {
+    std::vector<cmlb::infrastructure::persistence::RssFeed> feeds;
+    feeds.reserve(22);
+    for (int i = 0; i < 22; ++i) {
+        cmlb::infrastructure::persistence::RssFeed feed;
+        feed.feed_id = i + 1;
+        feed.title = std::string{"Feed <"} + std::to_string(i + 1) + ">";
+        feed.url = std::string{"https://example.com/feed/"} + std::to_string(i + 1);
+        feed.chat = ChatId{-1001};
+        feeds.push_back(std::move(feed));
+    }
+
+    const auto html = HtmlRenderer::render_rss_subscriptions(feeds);
+
+    CHECK_THAT(html, ContainsSubstring("<b><u>RSS Subscriptions</u></b>"));
+    CHECK_THAT(html, ContainsSubstring("<blockquote>Feeds watched for this chat.</blockquote>"));
+    CHECK_THAT(html, ContainsSubstring("<code>1</code> <b>Feed &lt;1&gt;</b>"));
+    CHECK_THAT(html, ContainsSubstring("<code>https://example.com/feed/1</code>"));
+    CHECK_THAT(html, ContainsSubstring("and 2 more feed(s)"));
+    CHECK_THAT(html, !ContainsSubstring("Feed &lt;22&gt;"));
+}
+
+TEST_CASE("render_rss_subscriptions gives an empty-state hint", "[presentation][html]") {
+    const auto html = HtmlRenderer::render_rss_subscriptions({});
+
+    CHECK_THAT(html, ContainsSubstring("<b><u>RSS Subscriptions</u></b>"));
+    CHECK_THAT(html, ContainsSubstring("<blockquote>No feeds are configured for this chat."));
 }
 
 TEST_CASE("render_error reports the task name, code, and message", "[presentation][html]") {

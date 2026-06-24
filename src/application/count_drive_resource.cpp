@@ -35,8 +35,9 @@ namespace {
 
 } // namespace
 
-CountDriveResource::CountDriveResource(cmlb::infrastructure::upload::GoogleDriveUploader& gdrive,
-                                       tg_ns::MessengerInterface& messenger) noexcept
+CountDriveResource::CountDriveResource(
+    cmlb::infrastructure::upload::DriveResourceOperations& gdrive,
+    tg_ns::MessengerInterface& messenger) noexcept
     : gdrive_{gdrive}, messenger_{messenger} {
 }
 
@@ -74,10 +75,11 @@ CountDriveResource::execute(CountRequest request) {
                                         fmt::format("<b><u>Drive Count</u></b>\n"
                                                     "<b>Files:</b> <code>{}</code>\n"
                                                     "<b>Folders:</b> <code>{}</code>\n"
-                                                    "<b>Bytes:</b> <code>{}</code>",
+                                                    "<b>Total:</b> <code>{}</code>",
                                                     counted->files,
                                                     counted->folders,
-                                                    counted->total_bytes));
+                                                    cmlb::core::format_bytes(
+                                                        counted->total_bytes)));
     cmlb::core::Logger::info("count_drive: files={} folders={} bytes={}",
                              counted->files,
                              counted->folders,

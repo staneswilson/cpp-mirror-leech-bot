@@ -7,7 +7,7 @@
 #include <cmlb/core/error.hpp>
 #include <cmlb/domain/identifiers.hpp>
 #include <cmlb/infrastructure/telegram/messenger.hpp>
-#include <cmlb/infrastructure/upload/google_drive_uploader.hpp>
+#include <cmlb/infrastructure/upload/drive_resource_operations.hpp>
 
 /// @file clone_drive_resource.hpp
 /// @brief CloneDriveResource use case — server-side GDrive copy.
@@ -23,7 +23,7 @@ struct CloneRequest {
 
 class CloneDriveResource {
 public:
-    CloneDriveResource(cmlb::infrastructure::upload::GoogleDriveUploader& gdrive,
+    CloneDriveResource(cmlb::infrastructure::upload::DriveResourceOperations& gdrive,
                        cmlb::infrastructure::telegram::MessengerInterface& messenger,
                        std::string target_folder_id) noexcept;
 
@@ -32,7 +32,7 @@ public:
         CloneRequest request);
 
 private:
-    cmlb::infrastructure::upload::GoogleDriveUploader& gdrive_;
+    cmlb::infrastructure::upload::DriveResourceOperations& gdrive_;
     cmlb::infrastructure::telegram::MessengerInterface& messenger_;
     std::string target_folder_id_;
 };

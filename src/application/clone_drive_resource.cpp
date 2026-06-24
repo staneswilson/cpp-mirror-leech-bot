@@ -37,9 +37,10 @@ namespace {
 
 } // namespace
 
-CloneDriveResource::CloneDriveResource(cmlb::infrastructure::upload::GoogleDriveUploader& gdrive,
-                                       tg_ns::MessengerInterface& messenger,
-                                       std::string target_folder_id) noexcept
+CloneDriveResource::CloneDriveResource(
+    cmlb::infrastructure::upload::DriveResourceOperations& gdrive,
+    tg_ns::MessengerInterface& messenger,
+    std::string target_folder_id) noexcept
     : gdrive_{gdrive}, messenger_{messenger}, target_folder_id_{std::move(target_folder_id)} {
 }
 

@@ -42,6 +42,14 @@ asio::awaitable<core::Result<void>> Messenger::edit_html(domain::ChatId chat,
     co_return co_await gateway_.edit_formatted_message(chat, msg, std::move(html));
 }
 
+asio::awaitable<core::Result<void>> Messenger::edit_html_with_keyboard(domain::ChatId chat,
+                                                                       domain::MessageId msg,
+                                                                       std::string html,
+                                                                       InlineKeyboard kb) {
+    co_return co_await gateway_.edit_formatted_message_with_inline_keyboard(
+        chat, msg, std::move(html), to_raw(kb));
+}
+
 asio::awaitable<core::Result<domain::MessageId>> Messenger::send_html_with_keyboard(
     domain::ChatId chat, std::string html, InlineKeyboard kb) {
     co_return co_await gateway_.send_message_with_inline_keyboard(

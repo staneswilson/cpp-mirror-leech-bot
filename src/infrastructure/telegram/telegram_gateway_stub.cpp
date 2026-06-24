@@ -99,6 +99,15 @@ boost::asio::awaitable<core::Result<void>> TelegramGateway::edit_formatted_messa
     co_return stub_error<void>();
 }
 
+boost::asio::awaitable<core::Result<void>>
+TelegramGateway::edit_formatted_message_with_inline_keyboard(
+    domain::ChatId,
+    domain::MessageId,
+    std::string,
+    std::vector<std::vector<std::pair<std::string, std::string>>>) {
+    co_return stub_error<void>();
+}
+
 boost::asio::awaitable<core::Result<domain::MessageId>>
 TelegramGateway::send_message_with_inline_keyboard(
     domain::ChatId, std::string, std::vector<std::vector<std::pair<std::string, std::string>>>) {

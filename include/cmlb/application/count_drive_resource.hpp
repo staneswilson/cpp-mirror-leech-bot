@@ -7,7 +7,7 @@
 #include <cmlb/core/error.hpp>
 #include <cmlb/domain/identifiers.hpp>
 #include <cmlb/infrastructure/telegram/messenger.hpp>
-#include <cmlb/infrastructure/upload/google_drive_uploader.hpp>
+#include <cmlb/infrastructure/upload/drive_resource_operations.hpp>
 
 /// @file count_drive_resource.hpp
 /// @brief CountDriveResource use case — recursive count of files/folders/bytes.
@@ -22,7 +22,7 @@ struct CountRequest {
 
 class CountDriveResource {
 public:
-    CountDriveResource(cmlb::infrastructure::upload::GoogleDriveUploader& gdrive,
+    CountDriveResource(cmlb::infrastructure::upload::DriveResourceOperations& gdrive,
                        cmlb::infrastructure::telegram::MessengerInterface& messenger) noexcept;
 
     [[nodiscard]] boost::asio::awaitable<
@@ -30,7 +30,7 @@ public:
     execute(CountRequest request);
 
 private:
-    cmlb::infrastructure::upload::GoogleDriveUploader& gdrive_;
+    cmlb::infrastructure::upload::DriveResourceOperations& gdrive_;
     cmlb::infrastructure::telegram::MessengerInterface& messenger_;
 };
 

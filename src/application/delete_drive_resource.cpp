@@ -35,8 +35,9 @@ namespace {
 
 } // namespace
 
-DeleteDriveResource::DeleteDriveResource(cmlb::infrastructure::upload::GoogleDriveUploader& gdrive,
-                                         tg_ns::MessengerInterface& messenger) noexcept
+DeleteDriveResource::DeleteDriveResource(
+    cmlb::infrastructure::upload::DriveResourceOperations& gdrive,
+    tg_ns::MessengerInterface& messenger) noexcept
     : gdrive_{gdrive}, messenger_{messenger} {
 }
 
