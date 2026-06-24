@@ -68,7 +68,10 @@ asio::awaitable<cmlb::core::Result<void>> CancelTask::execute(CancelTaskRequest 
                                  request.task_id.value());
         (void)co_await messenger_.send_html(
             request.chat,
-            fmt::format("<b>Cancelling</b>: <code>{}</code>", request.task_id.value()));
+            fmt::format("<b><u>Cancelling</u></b>\n"
+                        "<b>Task:</b> <code>{}</code>\n"
+                        "<blockquote>Graceful shutdown signal sent.</blockquote>",
+                        request.task_id.value()));
         co_return cmlb::core::Result<void>{};
     }
 
@@ -105,7 +108,11 @@ asio::awaitable<cmlb::core::Result<void>> CancelTask::execute(CancelTaskRequest 
         co_return std::unexpected(saved.error());
 
     (void)co_await messenger_.send_html(
-        request.chat, fmt::format("<b>Cancelled</b>: <code>{}</code>", request.task_id.value()));
+        request.chat,
+        fmt::format("<b><u>Cancelled</u></b>\n"
+                    "<b>Task:</b> <code>{}</code>\n"
+                    "<blockquote>Task stopped and marked cancelled.</blockquote>",
+                    request.task_id.value()));
     cmlb::core::Logger::info("cancel_task: task={} cancelled", request.task_id.value());
     co_return cmlb::core::Result<void>{};
 }
@@ -142,7 +149,9 @@ asio::awaitable<cmlb::core::Result<CancelAllResult>> CancelTask::cancel_all(
     }
 
     (void)co_await messenger_.send_html(chat,
-                                        fmt::format("<b>Bulk cancel</b>: {} cancelled, {} failed",
+                                        fmt::format("<b><u>Bulk Cancel</u></b>\n"
+                                                    "<b>Cancelled:</b> <code>{}</code>\n"
+                                                    "<b>Failed:</b> <code>{}</code>",
                                                     result.cancelled,
                                                     result.failed));
     cmlb::core::Logger::info("cancel_all: chat={} cancelled={} failed={}",

@@ -15,6 +15,7 @@ Cross-references:
 - [`adr/0010-security-boundary-and-credential-handling.md`](adr/0010-security-boundary-and-credential-handling.md)
 - [`adr/0011-forward-only-schema-migrations.md`](adr/0011-forward-only-schema-migrations.md)
 - [`adr/0012-ci-tdlib-include-probe.md`](adr/0012-ci-tdlib-include-probe.md)
+- [`adr/0013-tdlib-overlay-pin.md`](adr/0013-tdlib-overlay-pin.md)
 
 ---
 

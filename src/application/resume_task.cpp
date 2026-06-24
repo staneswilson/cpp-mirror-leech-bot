@@ -75,7 +75,11 @@ asio::awaitable<cmlb::core::Result<void>> ResumeTask::execute(ResumeTaskRequest 
     }
 
     (void)co_await messenger_.send_html(
-        request.chat, fmt::format("<b>Resumed</b>: <code>{}</code>", request.task_id.value()));
+        request.chat,
+        fmt::format("<b><u>Resumed</u></b>\n"
+                    "<b>Task:</b> <code>{}</code>\n"
+                    "<blockquote>Resumed at the download backend.</blockquote>",
+                    request.task_id.value()));
     cmlb::core::Logger::info("resume_task: task={} resumed (backend hint sent)",
                              request.task_id.value());
     co_return cmlb::core::Result<void>{};

@@ -78,7 +78,11 @@ asio::awaitable<cmlb::core::Result<void>> PauseTask::execute(PauseTaskRequest re
     // live in Downloading per the domain spec.
 
     (void)co_await messenger_.send_html(
-        request.chat, fmt::format("<b>Paused</b>: <code>{}</code>", request.task_id.value()));
+        request.chat,
+        fmt::format("<b><u>Paused</u></b>\n"
+                    "<b>Task:</b> <code>{}</code>\n"
+                    "<blockquote>Paused at the download backend.</blockquote>",
+                    request.task_id.value()));
     cmlb::core::Logger::info("pause_task: task={} paused (backend hint sent)",
                              request.task_id.value());
     co_return cmlb::core::Result<void>{};

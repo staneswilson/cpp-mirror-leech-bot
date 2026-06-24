@@ -88,12 +88,36 @@ TEST_CASE("escape_html escapes the three significant characters", "[presentation
     CHECK(HtmlRenderer::escape_html("") == "");
 }
 
+TEST_CASE("rich text primitives escape content and use Telegram HTML entities",
+          "[presentation][html]") {
+    CHECK(HtmlRenderer::render_heading("Security & Quality")
+          == "<b><u>Security &amp; Quality</u></b>");
+    CHECK(HtmlRenderer::render_quote("Use <safe> & fast mode")
+          == "<blockquote>Use &lt;safe&gt; &amp; fast mode</blockquote>");
+    CHECK(HtmlRenderer::render_code("x < y & z") == "<code>x &lt; y &amp; z</code>");
+}
+
+TEST_CASE("render_usage produces a compact rich command hint", "[presentation][html]") {
+    const auto html = HtmlRenderer::render_usage("mirror", "<url|magnet>");
+
+    CHECK_THAT(html, ContainsSubstring("<b><u>Usage</u></b>"));
+    CHECK_THAT(html, ContainsSubstring("<code>/mirror &lt;url|magnet&gt;</code>"));
+}
+
+TEST_CASE("success and notice blocks escape detail text", "[presentation][html]") {
+    CHECK(HtmlRenderer::render_success("Done", "file <ok> & ready")
+          == "<b><u>Done</u></b>\n<blockquote>file &lt;ok&gt; &amp; ready</blockquote>");
+    CHECK(HtmlRenderer::render_notice("Hold", "/bad <arg>")
+          == "<b><u>Hold</u></b>\n<blockquote>/bad &lt;arg&gt;</blockquote>");
+}
+
 TEST_CASE("render_task_status produces the expected fragments", "[presentation][html]") {
     const auto task = make_task();
     const auto status = make_download_status();
     const auto html = HtmlRenderer::render_task_status(task, status);
 
-    CHECK_THAT(html, ContainsSubstring("<b>Mirror:</b>"));
+    CHECK_THAT(html, ContainsSubstring("<b><u>Mirror</u></b>"));
+    CHECK_THAT(html, ContainsSubstring("<blockquote>Big File.iso</blockquote>"));
     CHECK_THAT(html, ContainsSubstring("Big File.iso"));
     CHECK_THAT(html, ContainsSubstring("[###"));
     CHECK_THAT(html, ContainsSubstring("25.0%"));
@@ -115,7 +139,9 @@ TEST_CASE("render_status with empty span returns the no-tasks placeholder",
           "[presentation][html]") {
     const auto snapshot = make_snapshot();
     const auto html = HtmlRenderer::render_status({}, snapshot, std::chrono::seconds{3600});
-    CHECK_THAT(html, ContainsSubstring("<b>No active tasks.</b>"));
+    CHECK_THAT(html, ContainsSubstring("<b><u>Status</u></b>"));
+    CHECK_THAT(html, ContainsSubstring("<blockquote>No active tasks."));
+    CHECK_THAT(html, ContainsSubstring("<b><u>System</u></b>"));
     CHECK_THAT(html, ContainsSubstring("<b>CPU:</b>"));
     CHECK_THAT(html, ContainsSubstring("<b>Bot uptime:</b>"));
     CHECK_THAT(html, ContainsSubstring("1h 0m 0s"));
@@ -155,7 +181,8 @@ TEST_CASE("render_status truncates excess tasks beyond the limit", "[presentatio
 TEST_CASE("render_no_active_tasks always contains the footer", "[presentation][html]") {
     const auto html =
         HtmlRenderer::render_no_active_tasks(make_snapshot(), std::chrono::seconds{45});
-    CHECK_THAT(html, ContainsSubstring("<b>No active tasks.</b>"));
+    CHECK_THAT(html, ContainsSubstring("<b><u>Status</u></b>"));
+    CHECK_THAT(html, ContainsSubstring("<blockquote>No active tasks."));
     CHECK_THAT(html, ContainsSubstring("<b>RAM:</b>"));
     CHECK_THAT(html, ContainsSubstring("<b>Disk:</b>"));
     CHECK_THAT(html, ContainsSubstring("45s"));
@@ -163,7 +190,7 @@ TEST_CASE("render_no_active_tasks always contains the footer", "[presentation][h
 
 TEST_CASE("render_stats reports active downloads and load averages", "[presentation][html]") {
     const auto html = HtmlRenderer::render_stats(make_snapshot(), std::chrono::seconds{125}, 7);
-    CHECK_THAT(html, ContainsSubstring("<b>Bot Statistics</b>"));
+    CHECK_THAT(html, ContainsSubstring("<b><u>Bot Statistics</u></b>"));
     CHECK_THAT(html, ContainsSubstring("<b>Active downloads:</b>"));
     CHECK_THAT(html, ContainsSubstring("<code>7</code>"));
     CHECK_THAT(html, ContainsSubstring("<b>Load avg:</b>"));
@@ -187,7 +214,8 @@ TEST_CASE("render_help renders each command name and permission", "[presentation
         HtmlRenderer::CommandDescription{"log", "Send log", Permission::Owner},
     };
     const auto html = HtmlRenderer::render_help(cmds);
-    CHECK_THAT(html, ContainsSubstring("<b>Available commands</b>"));
+    CHECK_THAT(html, ContainsSubstring("<b><u>Available Commands</u></b>"));
+    CHECK_THAT(html, ContainsSubstring("<blockquote>Only commands available"));
     CHECK_THAT(html, ContainsSubstring("<code>/mirror</code>"));
     CHECK_THAT(html, ContainsSubstring("<code>/help</code>"));
     CHECK_THAT(html, ContainsSubstring("<code>/log</code>"));
@@ -207,7 +235,8 @@ TEST_CASE("render_user_settings renders every key field", "[presentation][html]"
     rec.gdrive_folder_id = "abc123";
 
     const auto html = HtmlRenderer::render_user_settings(rec);
-    CHECK_THAT(html, ContainsSubstring("<b>User Settings</b>"));
+    CHECK_THAT(html, ContainsSubstring("<b><u>User Settings</u></b>"));
+    CHECK_THAT(html, ContainsSubstring("<blockquote>Personal defaults"));
     CHECK_THAT(html, ContainsSubstring("<code>777</code>"));
     CHECK_THAT(html, ContainsSubstring("telegram"));
     CHECK_THAT(html, ContainsSubstring("gdrive"));
@@ -229,7 +258,8 @@ TEST_CASE("render_bot_settings renders the owner id and intervals", "[presentati
     rec.rss_poll_interval = std::chrono::milliseconds{60000};
 
     const auto html = HtmlRenderer::render_bot_settings(rec);
-    CHECK_THAT(html, ContainsSubstring("<b>Bot Settings</b>"));
+    CHECK_THAT(html, ContainsSubstring("<b><u>Bot Settings</u></b>"));
+    CHECK_THAT(html, ContainsSubstring("<blockquote>Global controls"));
     CHECK_THAT(html, ContainsSubstring("<code>12345</code>"));
     CHECK_THAT(html, ContainsSubstring("unlimited"));
     CHECK_THAT(html, ContainsSubstring("downloads"));
@@ -240,10 +270,10 @@ TEST_CASE("render_bot_settings renders the owner id and intervals", "[presentati
 TEST_CASE("render_error reports the task name, code, and message", "[presentation][html]") {
     const cmlb::core::AppError err{cmlb::core::ErrorCode::Network, "connection refused"};
     const auto html = HtmlRenderer::render_error("file.iso", err);
-    CHECK_THAT(html, ContainsSubstring("<b>Error</b>"));
+    CHECK_THAT(html, ContainsSubstring("<b><u>Error</u></b>"));
     CHECK_THAT(html, ContainsSubstring("file.iso"));
     CHECK_THAT(html, ContainsSubstring("Network"));
-    CHECK_THAT(html, ContainsSubstring("connection refused"));
+    CHECK_THAT(html, ContainsSubstring("<blockquote>connection refused</blockquote>"));
 }
 
 TEST_CASE("render_error escapes HTML-special characters in inputs", "[presentation][html]") {

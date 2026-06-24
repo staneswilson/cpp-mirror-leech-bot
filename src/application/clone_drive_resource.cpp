@@ -9,6 +9,7 @@
 #include <fmt/format.h>
 
 #include <cmlb/application/clone_drive_resource.hpp>
+#include <cmlb/core/formatting.hpp>
 #include <cmlb/core/logger.hpp>
 
 namespace cmlb::application {
@@ -59,7 +60,8 @@ asio::awaitable<cmlb::core::Result<std::string>> CloneDriveResource::execute(Clo
 
     const std::string source_id = extract_drive_id(request.source_url);
 
-    auto progress = co_await messenger_.send_html(request.chat, "<b>Cloning</b> on Drive…");
+    auto progress = co_await messenger_.send_html(
+        request.chat, "<b><u>Cloning</u></b>\n<blockquote>Drive copy started.</blockquote>");
     if (!progress)
         co_return std::unexpected(progress.error());
 
@@ -68,7 +70,8 @@ asio::awaitable<cmlb::core::Result<std::string>> CloneDriveResource::execute(Clo
         (void)co_await messenger_.edit_html(
             request.chat,
             *progress,
-            fmt::format("<b>Clone failed</b>: {}", copied.error().message));
+            fmt::format("<b><u>Clone Failed</u></b>\n<blockquote>{}</blockquote>",
+                        cmlb::core::escape_html(copied.error().message)));
         cmlb::core::Logger::error("clone_drive: {}", copied.error().message);
         co_return std::unexpected(copied.error());
     }
@@ -76,9 +79,8 @@ asio::awaitable<cmlb::core::Result<std::string>> CloneDriveResource::execute(Clo
     (void)co_await messenger_.edit_html(
         request.chat,
         *progress,
-        fmt::format("<b>Cloned</b>: <a href=\"https://drive.google.com/"
-                    "open?id={0}\">{0}</a>",
-                    *copied));
+        fmt::format("<b><u>Cloned</u></b>\n<b>Drive id:</b> <code>{}</code>",
+                    cmlb::core::escape_html(*copied)));
     cmlb::core::Logger::info("clone_drive: new id={}", *copied);
     co_return *copied;
 }

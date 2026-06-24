@@ -110,7 +110,7 @@ asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> LeechUrl::execute(Leec
 
     auto status_msg = co_await messenger_.send_html(
         request.chat,
-        fmt::format("<b>Queued (leech)</b>: <code>{}</code>",
+        fmt::format("<b><u>Queued Leech</u></b>\n<blockquote>{}</blockquote>",
                     cmlb::core::escape_html(cmlb::core::truncate_for_display(request.url, 200))));
     if (!status_msg)
         co_return std::unexpected(status_msg.error());
@@ -162,9 +162,10 @@ asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> LeechUrl::execute(Leec
         (void)task.mark_failed(err.message);
         co_await persist_best_effort("mark_failed");
         const std::string html = fmt::format(
-            "<b>Failed</b> ({})\n"
+            "<b><u>Failed</u></b>\n"
+            "<b>Stage:</b> <code>{}</code>\n"
             "<b>Reason:</b> {}\n"
-            "<pre>{}</pre>",
+            "<blockquote>{}</blockquote>",
             cmlb::core::escape_html(stage),
             cmlb::core::escape_html(cmlb::core::friendly_error_label(err.code)),
             cmlb::core::escape_html(cmlb::core::truncate_for_display(err.message, 512)));
@@ -283,7 +284,10 @@ asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> LeechUrl::execute(Leec
             (void)co_await downloader.remove(gid, true);
             (void)task.mark_cancelled();
             co_await persist_best_effort("mark_cancelled");
-            (void)co_await messenger_.edit_html(request.chat, *status_msg, "<b>Cancelled</b>");
+            (void)co_await messenger_.edit_html(
+                request.chat,
+                *status_msg,
+                "<b><u>Cancelled</u></b>\n<blockquote>Task cancelled by request.</blockquote>");
             cmlb::core::Logger::info("leech_url: task={} cancelled (source={})",
                                      meta.id.value(),
                                      registry_cancelled ? "registry" : "coroutine");
@@ -393,7 +397,9 @@ asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> LeechUrl::execute(Leec
         }
         co_await persist_best_effort("begin_upload_fallback");
         (void)co_await messenger_.edit_html(
-            request.chat, *status_msg, "<b>Uploading</b> to Telegram");
+            request.chat,
+            *status_msg,
+            "<b><u>Uploading</u></b>\n<blockquote>Destination: Telegram</blockquote>");
 
         if (final_status.files.empty()) {
             co_return co_await fail_with("download",
@@ -433,7 +439,10 @@ asio::awaitable<cmlb::core::Result<cmlb::domain::TaskId>> LeechUrl::execute(Leec
     // aria2 entry from the active list). `delete_files=false` to keep the
     // on-disk artefacts in case the operator wants them around.
     (void)co_await downloader.remove(gid, false);
-    (void)co_await messenger_.edit_html(request.chat, *status_msg, "<b>Completed</b>");
+    (void)co_await messenger_.edit_html(
+        request.chat,
+        *status_msg,
+        "<b><u>Completed</u></b>\n<blockquote>Files uploaded to Telegram.</blockquote>");
     cmlb::core::Logger::info("leech_url: task={} completed", meta.id.value());
     co_return meta.id;
 }

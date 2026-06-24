@@ -9,6 +9,7 @@
 #include <fmt/format.h>
 
 #include <cmlb/application/count_drive_resource.hpp>
+#include <cmlb/core/formatting.hpp>
 #include <cmlb/core/logger.hpp>
 
 namespace cmlb::application {
@@ -52,7 +53,9 @@ CountDriveResource::execute(CountRequest request) {
     }
     const std::string folder_id = extract_drive_id(request.source_url);
 
-    auto progress = co_await messenger_.send_html(request.chat, "<b>Counting</b> Drive folder…");
+    auto progress = co_await messenger_.send_html(
+        request.chat,
+        "<b><u>Counting</u></b>\n<blockquote>Drive folder scan started.</blockquote>");
     if (!progress)
         co_return std::unexpected(progress.error());
 
@@ -61,17 +64,20 @@ CountDriveResource::execute(CountRequest request) {
         (void)co_await messenger_.edit_html(
             request.chat,
             *progress,
-            fmt::format("<b>Count failed</b>: {}", counted.error().message));
+            fmt::format("<b><u>Count Failed</u></b>\n<blockquote>{}</blockquote>",
+                        cmlb::core::escape_html(counted.error().message)));
         co_return std::unexpected(counted.error());
     }
 
-    (void)co_await messenger_.edit_html(
-        request.chat,
-        *progress,
-        fmt::format("<b>Count</b>\nFiles: {}\nFolders: {}\nBytes: {}",
-                    counted->files,
-                    counted->folders,
-                    counted->total_bytes));
+    (void)co_await messenger_.edit_html(request.chat,
+                                        *progress,
+                                        fmt::format("<b><u>Drive Count</u></b>\n"
+                                                    "<b>Files:</b> <code>{}</code>\n"
+                                                    "<b>Folders:</b> <code>{}</code>\n"
+                                                    "<b>Bytes:</b> <code>{}</code>",
+                                                    counted->files,
+                                                    counted->folders,
+                                                    counted->total_bytes));
     cmlb::core::Logger::info("count_drive: files={} folders={} bytes={}",
                              counted->files,
                              counted->folders,

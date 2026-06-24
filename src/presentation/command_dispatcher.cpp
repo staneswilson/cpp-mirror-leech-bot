@@ -111,10 +111,10 @@ asio::awaitable<Result<void>> CommandDispatcher::dispatch(CommandRequest request
         Logger::debug("dispatch: unknown command \"{}\" from user {}",
                       request.command,
                       request.sender.value());
-        const std::string notice =
-            "<b>Unknown command</b> <code>/"
-            + HtmlRenderer::escape_html(HtmlRenderer::truncate_for_display(resolved_name, 64))
-            + "</code>. Try <code>/help</code>.";
+        const std::string notice = HtmlRenderer::render_notice(
+            "Unknown Command",
+            fmt::format("/{} is not registered. Use /help to see available commands.",
+                        HtmlRenderer::truncate_for_display(resolved_name, 64)));
         auto reply = co_await deps_.messenger.send_html(request.chat, notice);
         if (!reply) {
             Logger::warn("dispatch: failed to send unknown-command notice: {}",
@@ -145,9 +145,9 @@ asio::awaitable<Result<void>> CommandDispatcher::dispatch(CommandRequest request
             }
             return "authorized user";
         }(entry.required);
-        const std::string notice = "<b>Permission denied.</b> <code>/"
-                                   + HtmlRenderer::escape_html(resolved_name)
-                                   + "</code> requires <b>" + std::string{required_label} + "</b>.";
+        const std::string notice = HtmlRenderer::render_notice(
+            "Permission Denied",
+            fmt::format("/{} requires {} access.", resolved_name, required_label));
         auto reply = co_await deps_.messenger.send_html(request.chat, notice);
         if (!reply) {
             Logger::warn("dispatch: failed to send permission-denied notice: {}",
@@ -174,36 +174,35 @@ void CommandDispatcher::register_builtins_() {
     // friendly hint instead of forwarding "" downstream to the use case
     // where the failure mode is usually a generic "invalid URL" error.
     const auto require_arg = [this](CommandRequest& req,
-                                    std::string_view usage_html) -> asio::awaitable<bool> {
+                                    std::string usage_html) -> asio::awaitable<bool> {
         if (!req.arguments.empty())
             co_return true;
-        (void)co_await deps_.messenger.send_html(req.chat, std::string{usage_html});
+        (void)co_await deps_.messenger.send_html(req.chat, std::move(usage_html));
         co_return false;
     };
 
     // -------- mirror / qbmirror -------------------------------------------
-    register_("mirror",
-              Permission::User,
-              "Download a URL/magnet via aria2 and upload to GDrive/rclone.",
-              [this, require_arg](CommandRequest req) -> asio::awaitable<Result<void>> {
-                  if (!co_await require_arg(
-                          req, "<b>Usage:</b> <code>/mirror &lt;url|magnet&gt;</code>")) {
-                      co_return cmlb::core::error(ErrorCode::InvalidArgument,
-                                                  "/mirror requires a url");
-                  }
-                  MirrorRequest mr{
-                      .url = std::move(req.arguments),
-                      .user = req.sender,
-                      .chat = req.chat,
-                      .source_message = req.source_message,
-                      .use_qbittorrent = false,
-                      .override_destination = std::nullopt,
-                  };
-                  auto result = co_await deps_.mirror_url.execute(std::move(mr));
-                  if (!result)
-                      co_return std::unexpected(result.error());
-                  co_return Result<void>{};
-              });
+    register_(
+        "mirror",
+        Permission::User,
+        "Download a URL/magnet via aria2 and upload to GDrive/rclone.",
+        [this, require_arg](CommandRequest req) -> asio::awaitable<Result<void>> {
+            if (!co_await require_arg(req, HtmlRenderer::render_usage("mirror", "<url|magnet>"))) {
+                co_return cmlb::core::error(ErrorCode::InvalidArgument, "/mirror requires a url");
+            }
+            MirrorRequest mr{
+                .url = std::move(req.arguments),
+                .user = req.sender,
+                .chat = req.chat,
+                .source_message = req.source_message,
+                .use_qbittorrent = false,
+                .override_destination = std::nullopt,
+            };
+            auto result = co_await deps_.mirror_url.execute(std::move(mr));
+            if (!result)
+                co_return std::unexpected(result.error());
+            co_return Result<void>{};
+        });
     register_alias_("m", "mirror");
 
     register_("qbmirror",
@@ -211,7 +210,7 @@ void CommandDispatcher::register_builtins_() {
               "Mirror via qBittorrent (use for torrents you intend to seed).",
               [this, require_arg](CommandRequest req) -> asio::awaitable<Result<void>> {
                   if (!co_await require_arg(
-                          req, "<b>Usage:</b> <code>/qbmirror &lt;magnet|torrent_url&gt;</code>")) {
+                          req, HtmlRenderer::render_usage("qbmirror", "<magnet|torrent_url>"))) {
                       co_return cmlb::core::error(ErrorCode::InvalidArgument,
                                                   "/qbmirror requires a magnet/url");
                   }
@@ -231,27 +230,26 @@ void CommandDispatcher::register_builtins_() {
     register_alias_("qm", "qbmirror");
 
     // -------- leech / qbleech ---------------------------------------------
-    register_("leech",
-              Permission::User,
-              "Download via aria2 and upload back to this chat.",
-              [this, require_arg](CommandRequest req) -> asio::awaitable<Result<void>> {
-                  if (!co_await require_arg(
-                          req, "<b>Usage:</b> <code>/leech &lt;url|magnet&gt;</code>")) {
-                      co_return cmlb::core::error(ErrorCode::InvalidArgument,
-                                                  "/leech requires a url");
-                  }
-                  LeechRequest lr{
-                      .url = std::move(req.arguments),
-                      .user = req.sender,
-                      .chat = req.chat,
-                      .source_message = req.source_message,
-                      .use_qbittorrent = false,
-                  };
-                  auto result = co_await deps_.leech_url.execute(std::move(lr));
-                  if (!result)
-                      co_return std::unexpected(result.error());
-                  co_return Result<void>{};
-              });
+    register_(
+        "leech",
+        Permission::User,
+        "Download via aria2 and upload back to this chat.",
+        [this, require_arg](CommandRequest req) -> asio::awaitable<Result<void>> {
+            if (!co_await require_arg(req, HtmlRenderer::render_usage("leech", "<url|magnet>"))) {
+                co_return cmlb::core::error(ErrorCode::InvalidArgument, "/leech requires a url");
+            }
+            LeechRequest lr{
+                .url = std::move(req.arguments),
+                .user = req.sender,
+                .chat = req.chat,
+                .source_message = req.source_message,
+                .use_qbittorrent = false,
+            };
+            auto result = co_await deps_.leech_url.execute(std::move(lr));
+            if (!result)
+                co_return std::unexpected(result.error());
+            co_return Result<void>{};
+        });
     register_alias_("l", "leech");
 
     register_("qbleech",
@@ -259,7 +257,7 @@ void CommandDispatcher::register_builtins_() {
               "Leech via qBittorrent (use for torrents you intend to seed).",
               [this, require_arg](CommandRequest req) -> asio::awaitable<Result<void>> {
                   if (!co_await require_arg(
-                          req, "<b>Usage:</b> <code>/qbleech &lt;magnet|torrent_url&gt;</code>")) {
+                          req, HtmlRenderer::render_usage("qbleech", "<magnet|torrent_url>"))) {
                       co_return cmlb::core::error(ErrorCode::InvalidArgument,
                                                   "/qbleech requires a magnet/url");
                   }
@@ -283,7 +281,7 @@ void CommandDispatcher::register_builtins_() {
         Permission::User,
         "Server-side copy a GDrive file or folder to the configured parent.",
         [this, require_arg](CommandRequest req) -> asio::awaitable<Result<void>> {
-            if (!co_await require_arg(req, "<b>Usage:</b> <code>/clone &lt;drive_url&gt;</code>")) {
+            if (!co_await require_arg(req, HtmlRenderer::render_usage("clone", "<drive_url>"))) {
                 co_return cmlb::core::error(ErrorCode::InvalidArgument,
                                             "/clone requires a drive url");
             }
@@ -296,7 +294,7 @@ void CommandDispatcher::register_builtins_() {
             if (!result)
                 co_return std::unexpected(result.error());
             auto send = co_await deps_.messenger.send_html(
-                req.chat, "<b>Clone:</b> <code>" + HtmlRenderer::escape_html(*result) + "</code>");
+                req.chat, HtmlRenderer::render_success("Clone Complete", *result));
             if (!send)
                 co_return std::unexpected(send.error());
             co_return Result<void>{};
@@ -307,7 +305,7 @@ void CommandDispatcher::register_builtins_() {
         Permission::User,
         "Recursively count files/folders/bytes in a GDrive resource.",
         [this, require_arg](CommandRequest req) -> asio::awaitable<Result<void>> {
-            if (!co_await require_arg(req, "<b>Usage:</b> <code>/count &lt;drive_url&gt;</code>")) {
+            if (!co_await require_arg(req, HtmlRenderer::render_usage("count", "<drive_url>"))) {
                 co_return cmlb::core::error(ErrorCode::InvalidArgument,
                                             "/count requires a drive url");
             }
@@ -319,8 +317,9 @@ void CommandDispatcher::register_builtins_() {
             auto result = co_await deps_.count.execute(std::move(cr));
             if (!result)
                 co_return std::unexpected(result.error());
-            const std::string body = "<b>Count</b>\n"
-                                     "<b>Files:</b> <code>"
+            const std::string body = HtmlRenderer::render_heading("Drive Count")
+                                     + "\n"
+                                       "<b>Files:</b> <code>"
                                      + std::to_string(result->files)
                                      + "</code>\n"
                                        "<b>Folders:</b> <code>"
@@ -339,7 +338,7 @@ void CommandDispatcher::register_builtins_() {
         Permission::Admin,
         "Delete a GDrive file or folder (trash, recoverable for 30 days).",
         [this, require_arg](CommandRequest req) -> asio::awaitable<Result<void>> {
-            if (!co_await require_arg(req, "<b>Usage:</b> <code>/del &lt;drive_url&gt;</code>")) {
+            if (!co_await require_arg(req, HtmlRenderer::render_usage("del", "<drive_url>"))) {
                 co_return cmlb::core::error(ErrorCode::InvalidArgument,
                                             "/del requires a drive url");
             }
@@ -351,7 +350,9 @@ void CommandDispatcher::register_builtins_() {
             auto result = co_await deps_.delete_resource.execute(std::move(dr));
             if (!result)
                 co_return std::unexpected(result.error());
-            auto send = co_await deps_.messenger.send_html(req.chat, "<b>Deleted.</b>");
+            auto send = co_await deps_.messenger.send_html(
+                req.chat,
+                HtmlRenderer::render_success("Deleted", "Drive resource moved to trash."));
             if (!send)
                 co_return std::unexpected(send.error());
             co_return Result<void>{};
@@ -365,7 +366,7 @@ void CommandDispatcher::register_builtins_() {
                   const auto split = split_first_token(req.arguments);
                   if (split.head.empty()) {
                       auto send = co_await deps_.messenger.send_html(
-                          req.chat, "<b>Usage:</b> <code>/cancel &lt;task_id&gt;</code>");
+                          req.chat, HtmlRenderer::render_usage("cancel", "<task_id>"));
                       (void)send;
                       co_return cmlb::core::error(ErrorCode::InvalidArgument,
                                                   "/cancel requires a task id");
@@ -401,7 +402,7 @@ void CommandDispatcher::register_builtins_() {
                   const auto split = split_first_token(req.arguments);
                   if (split.head.empty()) {
                       auto send = co_await deps_.messenger.send_html(
-                          req.chat, "<b>Usage:</b> <code>/pause &lt;task_id&gt;</code>");
+                          req.chat, HtmlRenderer::render_usage("pause", "<task_id>"));
                       (void)send;
                       co_return cmlb::core::error(ErrorCode::InvalidArgument,
                                                   "/pause requires a task id");
@@ -423,7 +424,7 @@ void CommandDispatcher::register_builtins_() {
                   const auto split = split_first_token(req.arguments);
                   if (split.head.empty()) {
                       auto send = co_await deps_.messenger.send_html(
-                          req.chat, "<b>Usage:</b> <code>/resume &lt;task_id&gt;</code>");
+                          req.chat, HtmlRenderer::render_usage("resume", "<task_id>"));
                       (void)send;
                       co_return cmlb::core::error(ErrorCode::InvalidArgument,
                                                   "/resume requires a task id");
@@ -608,8 +609,9 @@ void CommandDispatcher::register_builtins_() {
               Permission::Anyone,
               "Show the running cmlb build version.",
               [this](CommandRequest req) -> asio::awaitable<Result<void>> {
-                  const std::string body =
-                      "<b>cmlb</b> v<code>" + std::string{cmlb::version} + "</code>";
+                  const std::string body = HtmlRenderer::render_heading("cmlb")
+                                           + "\n<b>Version:</b> <code>" + std::string{cmlb::version}
+                                           + "</code>";
                   auto send = co_await deps_.messenger.send_html(req.chat, body);
                   if (!send)
                       co_return std::unexpected(send.error());
@@ -622,7 +624,8 @@ void CommandDispatcher::register_builtins_() {
               "Round-trip latency check against Telegram.",
               [this](CommandRequest req) -> asio::awaitable<Result<void>> {
                   const auto start = std::chrono::steady_clock::now();
-                  auto send = co_await deps_.messenger.send_html(req.chat, "<b>Pong!</b>");
+                  auto send = co_await deps_.messenger.send_html(
+                      req.chat, HtmlRenderer::render_heading("Pong"));
                   if (!send)
                       co_return std::unexpected(send.error());
                   const auto latency = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -630,161 +633,166 @@ void CommandDispatcher::register_builtins_() {
                   auto edit = co_await deps_.messenger.edit_html(
                       req.chat,
                       *send,
-                      "<b>Pong!</b> Latency: <code>" + std::to_string(latency.count())
-                          + " ms</code>");
+                      HtmlRenderer::render_heading("Pong") + "\n<b>Latency:</b> <code>"
+                          + std::to_string(latency.count()) + " ms</code>");
                   if (!edit)
                       co_return std::unexpected(edit.error());
                   co_return Result<void>{};
               });
 
     // -------- log ---------------------------------------------------------
-    register_("log",
-              Permission::Owner,
-              "Upload the current cmlb.log file to this chat (owner only).",
-              [this](CommandRequest req) -> asio::awaitable<Result<void>> {
-                  const std::filesystem::path log_path{"logs/cmlb.log"};
-                  // Size guard: TDLib will happily upload a multi-GB log, but the
-                  // operator almost never wants that. 50 MiB matches the rotating
-                  // sink's per-file cap so a single rotation segment fits.
-                  std::error_code ec;
-                  const bool exists = std::filesystem::exists(log_path, ec);
-                  if (ec || !exists) {
-                      auto send = co_await deps_.messenger.send_html(
-                          req.chat, "<b>Log:</b> <code>logs/cmlb.log</code> not found.");
-                      (void)send;
-                      co_return cmlb::core::error(ErrorCode::Io,
-                                                  "log file not found: " + log_path.string());
-                  }
-                  std::error_code size_ec;
-                  const auto bytes = std::filesystem::file_size(log_path, size_ec);
-                  if (size_ec) {
-                      auto send = co_await deps_.messenger.send_html(
-                          req.chat,
-                          "<b>Log:</b> couldn't stat <code>logs/cmlb.log</code>: "
-                              + HtmlRenderer::escape_html(size_ec.message()) + ".");
-                      (void)send;
-                      co_return cmlb::core::error(ErrorCode::Io,
-                                                  "log stat failed: " + size_ec.message());
-                  }
-                  constexpr std::uint64_t kLogSizeCap = 50ULL * 1024ULL * 1024ULL;
-                  if (bytes > kLogSizeCap) {
-                      auto send = co_await deps_.messenger.send_html(
-                          req.chat,
-                          "<b>Log:</b> file is <code>"
-                              + cmlb::core::format_bytes(static_cast<std::int64_t>(bytes))
-                              + "</code> (over 50 MiB). Truncate or fetch it from disk.");
-                      (void)send;
-                      co_return cmlb::core::error(ErrorCode::InvalidArgument,
-                                                  "log file too large to send");
-                  }
-                  auto send = co_await deps_.messenger.send_file(req.chat,
-                                                                 log_path,
-                                                                 /*caption=*/"cmlb.log",
-                                                                 /*thumbnail=*/std::nullopt);
-                  if (!send)
-                      co_return std::unexpected(send.error());
-                  co_return Result<void>{};
-              });
+    register_(
+        "log",
+        Permission::Owner,
+        "Upload the current cmlb.log file to this chat (owner only).",
+        [this](CommandRequest req) -> asio::awaitable<Result<void>> {
+            const std::filesystem::path log_path{"logs/cmlb.log"};
+            // Size guard: TDLib will happily upload a multi-GB log, but the
+            // operator almost never wants that. 50 MiB matches the rotating
+            // sink's per-file cap so a single rotation segment fits.
+            std::error_code ec;
+            const bool exists = std::filesystem::exists(log_path, ec);
+            if (ec || !exists) {
+                auto send = co_await deps_.messenger.send_html(
+                    req.chat,
+                    HtmlRenderer::render_notice("Log Unavailable", "logs/cmlb.log was not found."));
+                (void)send;
+                co_return cmlb::core::error(ErrorCode::Io,
+                                            "log file not found: " + log_path.string());
+            }
+            std::error_code size_ec;
+            const auto bytes = std::filesystem::file_size(log_path, size_ec);
+            if (size_ec) {
+                auto send = co_await deps_.messenger.send_html(
+                    req.chat,
+                    HtmlRenderer::render_notice("Log Unavailable",
+                                                "Could not inspect logs/cmlb.log: "
+                                                    + size_ec.message()));
+                (void)send;
+                co_return cmlb::core::error(ErrorCode::Io, "log stat failed: " + size_ec.message());
+            }
+            constexpr std::uint64_t kLogSizeCap = 50ULL * 1024ULL * 1024ULL;
+            if (bytes > kLogSizeCap) {
+                auto send = co_await deps_.messenger.send_html(
+                    req.chat,
+                    HtmlRenderer::render_notice(
+                        "Log Too Large",
+                        "logs/cmlb.log is "
+                            + cmlb::core::format_bytes(static_cast<std::int64_t>(bytes))
+                            + ", which is over the 50 MiB send limit."));
+                (void)send;
+                co_return cmlb::core::error(ErrorCode::InvalidArgument,
+                                            "log file too large to send");
+            }
+            auto send = co_await deps_.messenger.send_file(req.chat,
+                                                           log_path,
+                                                           /*caption=*/"cmlb.log",
+                                                           /*thumbnail=*/std::nullopt);
+            if (!send)
+                co_return std::unexpected(send.error());
+            co_return Result<void>{};
+        });
 
     // -------- rss ---------------------------------------------------------
-    register_("rss",
-              Permission::User,
-              "Manage RSS feeds (subcommands: add, list, remove).",
-              [this](CommandRequest req) -> asio::awaitable<Result<void>> {
-                  const auto split = split_first_token(req.arguments);
-                  const std::string sub = split.head;
-                  if (sub == "add") {
-                      if (split.tail.empty()) {
-                          auto send = co_await deps_.messenger.send_html(
-                              req.chat, "<b>Usage:</b> <code>/rss add &lt;url&gt;</code>");
-                          (void)send;
-                          co_return cmlb::core::error(ErrorCode::InvalidArgument,
-                                                      "/rss add requires a url");
-                      }
-                      cmlb::infrastructure::persistence::RssFeed feed;
-                      feed.url = split.tail;
-                      feed.title = split.tail; // until the poller fetches a title
-                      feed.chat = req.chat;
-                      feed.enabled = true;
+    register_(
+        "rss",
+        Permission::User,
+        "Manage RSS feeds (subcommands: add, list, remove).",
+        [this](CommandRequest req) -> asio::awaitable<Result<void>> {
+            const auto split = split_first_token(req.arguments);
+            const std::string sub = split.head;
+            if (sub == "add") {
+                if (split.tail.empty()) {
+                    auto send = co_await deps_.messenger.send_html(
+                        req.chat, HtmlRenderer::render_usage("rss add", "<url>"));
+                    (void)send;
+                    co_return cmlb::core::error(ErrorCode::InvalidArgument,
+                                                "/rss add requires a url");
+                }
+                cmlb::infrastructure::persistence::RssFeed feed;
+                feed.url = split.tail;
+                feed.title = split.tail; // until the poller fetches a title
+                feed.chat = req.chat;
+                feed.enabled = true;
 
-                      auto add_result = co_await deps_.rss.add(std::move(feed));
-                      if (!add_result)
-                          co_return std::unexpected(add_result.error());
-                      auto send = co_await deps_.messenger.send_html(
-                          req.chat,
-                          "<b>RSS:</b> Subscription added (id <code>" + std::to_string(*add_result)
-                              + "</code>).");
-                      if (!send)
-                          co_return std::unexpected(send.error());
-                      co_return Result<void>{};
-                  }
-                  if (sub == "list") {
-                      auto list = co_await deps_.rss.list_for_chat(req.chat);
-                      if (!list)
-                          co_return std::unexpected(list.error());
-                      std::string body = "<b>RSS subscriptions:</b>\n";
-                      if (list->empty()) {
-                          body += "<i>(none)</i>";
-                      } else {
-                          for (const auto& feed : *list) {
-                              body += "<code>";
-                              body += std::to_string(feed.feed_id);
-                              body += "</code> ";
-                              body += HtmlRenderer::escape_html(feed.title);
-                              body += " - <code>";
-                              body += HtmlRenderer::escape_html(feed.url);
-                              body += "</code>\n";
-                          }
-                      }
-                      auto send = co_await deps_.messenger.send_html(req.chat, body);
-                      if (!send)
-                          co_return std::unexpected(send.error());
-                      co_return Result<void>{};
-                  }
-                  if (sub == "remove" || sub == "delete" || sub == "del") {
-                      const auto id_split = split_first_token(split.tail);
-                      if (id_split.head.empty()) {
-                          auto send = co_await deps_.messenger.send_html(
-                              req.chat, "<b>Usage:</b> <code>/rss remove &lt;id&gt;</code>");
-                          (void)send;
-                          co_return cmlb::core::error(ErrorCode::InvalidArgument,
-                                                      "/rss remove requires a feed id");
-                      }
-                      // C++ coroutines disallow co_await inside catch-handlers,
-                      // so flag the parse failure and handle the user-feedback
-                      // co_await after the try/catch closes.
-                      std::int64_t feed_id = 0;
-                      bool parse_failed = false;
-                      try {
-                          feed_id = std::stoll(id_split.head);
-                      } catch (...) {
-                          parse_failed = true;
-                      }
-                      if (parse_failed) {
-                          auto send = co_await deps_.messenger.send_html(
-                              req.chat, "<b>RSS:</b> Feed id must be a number.");
-                          (void)send;
-                          co_return cmlb::core::error(ErrorCode::InvalidArgument,
-                                                      "feed id is not a number");
-                      }
-                      auto rem = co_await deps_.rss.remove(feed_id, req.sender, req.chat);
-                      if (!rem)
-                          co_return std::unexpected(rem.error());
-                      auto send = co_await deps_.messenger.send_html(
-                          req.chat, "<b>RSS:</b> Subscription removed.");
-                      if (!send)
-                          co_return std::unexpected(send.error());
-                      co_return Result<void>{};
-                  }
-                  auto send =
-                      co_await deps_.messenger.send_html(req.chat,
-                                                         "<b>Usage:</b> "
-                                                         "<code>/rss add &lt;url&gt;</code>, "
-                                                         "<code>/rss list</code>, "
-                                                         "<code>/rss remove &lt;id&gt;</code>");
-                  (void)send;
-                  co_return cmlb::core::error(ErrorCode::InvalidArgument, "unknown rss subcommand");
-              });
+                auto add_result = co_await deps_.rss.add(std::move(feed));
+                if (!add_result)
+                    co_return std::unexpected(add_result.error());
+                auto send = co_await deps_.messenger.send_html(
+                    req.chat,
+                    HtmlRenderer::render_success("RSS Subscription Added",
+                                                 "Feed id " + std::to_string(*add_result)
+                                                     + " is now active."));
+                if (!send)
+                    co_return std::unexpected(send.error());
+                co_return Result<void>{};
+            }
+            if (sub == "list") {
+                auto list = co_await deps_.rss.list_for_chat(req.chat);
+                if (!list)
+                    co_return std::unexpected(list.error());
+                std::string body = HtmlRenderer::render_heading("RSS Subscriptions") + "\n";
+                if (list->empty()) {
+                    body += "<i>(none)</i>";
+                } else {
+                    for (const auto& feed : *list) {
+                        body += "<code>";
+                        body += std::to_string(feed.feed_id);
+                        body += "</code> ";
+                        body += HtmlRenderer::escape_html(feed.title);
+                        body += " - <code>";
+                        body += HtmlRenderer::escape_html(feed.url);
+                        body += "</code>\n";
+                    }
+                }
+                auto send = co_await deps_.messenger.send_html(req.chat, body);
+                if (!send)
+                    co_return std::unexpected(send.error());
+                co_return Result<void>{};
+            }
+            if (sub == "remove" || sub == "delete" || sub == "del") {
+                const auto id_split = split_first_token(split.tail);
+                if (id_split.head.empty()) {
+                    auto send = co_await deps_.messenger.send_html(
+                        req.chat, HtmlRenderer::render_usage("rss remove", "<id>"));
+                    (void)send;
+                    co_return cmlb::core::error(ErrorCode::InvalidArgument,
+                                                "/rss remove requires a feed id");
+                }
+                // C++ coroutines disallow co_await inside catch-handlers,
+                // so flag the parse failure and handle the user-feedback
+                // co_await after the try/catch closes.
+                std::int64_t feed_id = 0;
+                bool parse_failed = false;
+                try {
+                    feed_id = std::stoll(id_split.head);
+                } catch (...) {
+                    parse_failed = true;
+                }
+                if (parse_failed) {
+                    auto send = co_await deps_.messenger.send_html(
+                        req.chat,
+                        HtmlRenderer::render_notice("RSS Error", "Feed id must be a number."));
+                    (void)send;
+                    co_return cmlb::core::error(ErrorCode::InvalidArgument,
+                                                "feed id is not a number");
+                }
+                auto rem = co_await deps_.rss.remove(feed_id, req.sender, req.chat);
+                if (!rem)
+                    co_return std::unexpected(rem.error());
+                auto send = co_await deps_.messenger.send_html(
+                    req.chat,
+                    HtmlRenderer::render_success("RSS Subscription Removed",
+                                                 "Feed will no longer be polled."));
+                if (!send)
+                    co_return std::unexpected(send.error());
+                co_return Result<void>{};
+            }
+            auto send = co_await deps_.messenger.send_html(
+                req.chat, HtmlRenderer::render_usage("rss", "add <url> | list | remove <id>"));
+            (void)send;
+            co_return cmlb::core::error(ErrorCode::InvalidArgument, "unknown rss subcommand");
+        });
 }
 
 } // namespace cmlb::presentation

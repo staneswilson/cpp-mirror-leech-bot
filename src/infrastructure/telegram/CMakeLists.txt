@@ -34,6 +34,9 @@ target_link_libraries(
 
 if(CMLB_WITH_TELEGRAM)
     target_link_libraries(cmlb_telegram PUBLIC Td::tdclient Td::tdapi)
+    if(CMLB_TDLIB_HAS_RICH_MESSAGE)
+        target_compile_definitions(cmlb_telegram PRIVATE CMLB_TDLIB_HAS_RICH_MESSAGE=1)
+    endif()
 endif()
 
 set_target_properties(

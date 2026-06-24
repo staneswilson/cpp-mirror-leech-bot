@@ -78,6 +78,7 @@ include(cmlb_helpers)
 # ---- Feature probes ------------------------------------------------------
 # Bail out early on toolchains that lack the C++23 headers we depend on.
 include(CheckIncludeFileCXX)
+include(CheckCXXSourceCompiles)
 
 set(CMAKE_REQUIRED_FLAGS "${CMAKE_CXX23_STANDARD_COMPILE_OPTION}")
 foreach(_hdr expected print format source_location)
@@ -144,6 +145,39 @@ else()
                        "-DCMLB_WITH_TELEGRAM=ON to opt into the real backend)."
         )
     endif()
+endif()
+
+if(CMLB_WITH_TELEGRAM)
+    unset(CMLB_TDLIB_HAS_RICH_MESSAGE CACHE)
+    unset(CMLB_TDLIB_HAS_RICH_MESSAGE)
+    set(CMAKE_REQUIRED_LIBRARIES Td::tdapi)
+    check_cxx_source_compiles(
+        [[
+#include <string>
+#include <utility>
+#include <td/telegram/td_api.h>
+#include <td/telegram/td_api.hpp>
+
+int main() {
+    namespace td_api = td::td_api;
+    auto source = td_api::make_object<td_api::richMessageSourceHtml>(std::string{"<b>ok</b>"});
+    auto message = td_api::make_object<td_api::inputRichMessage>(
+        td_api::move_object_as<td_api::RichMessageSource>(std::move(source)), false, true);
+    auto content = td_api::make_object<td_api::inputMessageRichMessage>(std::move(message), false);
+    (void)content;
+    return 0;
+}
+]]
+        CMLB_TDLIB_HAS_RICH_MESSAGE
+    )
+    unset(CMAKE_REQUIRED_LIBRARIES)
+    if(CMLB_TDLIB_HAS_RICH_MESSAGE)
+        message(STATUS "TDLib: rich message API available - enabling inputMessageRichMessage.")
+    else()
+        message(STATUS "TDLib: rich message API unavailable - using formattedText fallback.")
+    endif()
+else()
+    set(CMLB_TDLIB_HAS_RICH_MESSAGE OFF)
 endif()
 
 # ---- Build the project tree ---------------------------------------------

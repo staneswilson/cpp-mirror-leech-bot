@@ -53,7 +53,8 @@ namespace {
 
 [[nodiscard]] std::string render_metrics_footer(const system_ns::SystemSnapshot& metrics,
                                                 std::chrono::seconds bot_uptime) {
-    return fmt::format("<b>CPU:</b> <code>{:.1f}%</code> | "
+    return fmt::format("<b><u>System</u></b>\n"
+                       "<b>CPU:</b> <code>{:.1f}%</code> | "
                        "<b>RAM:</b> <code>{}/{}</code> | "
                        "<b>Disk:</b> <code>{}/{}</code>\n"
                        "<b>Bot uptime:</b> <code>{}</code>",
@@ -67,7 +68,10 @@ namespace {
 
 [[nodiscard]] std::string render_no_active_tasks(const system_ns::SystemSnapshot& metrics,
                                                  std::chrono::seconds bot_uptime) {
-    return "<b>No active tasks.</b>\n\n" + render_metrics_footer(metrics, bot_uptime);
+    return "<b><u>Status</u></b>\n"
+           "<blockquote>No active tasks. New mirror and leech jobs will appear "
+           "here.</blockquote>\n\n"
+           + render_metrics_footer(metrics, bot_uptime);
 }
 
 [[nodiscard]] std::string render_downloader_status(const download_ns::DownloadStatus& status,
@@ -102,7 +106,7 @@ namespace {
         return render_no_active_tasks(metrics, bot_uptime);
     }
 
-    std::string out;
+    std::string out{"<b><u>Active Tasks</u></b>\n"};
     out.reserve(256 * active.size());
 
     constexpr std::size_t kMaxRenderedTasks = 10;
@@ -125,9 +129,10 @@ namespace {
                                                          const system_ns::SystemSnapshot& metrics,
                                                          std::chrono::seconds bot_uptime) {
     return fmt::format(
+        "<b><u>Task Status</u></b>\n"
         "<b>Task:</b> <code>{}</code>\n"
         "<b>State:</b> <code>{}</code>\n"
-        "<b>Source:</b> <code>{}</code>\n\n{}",
+        "<b>Source:</b>\n<blockquote>{}</blockquote>\n\n{}",
         task.metadata().id.value(),
         cmlb::domain::to_string(task.state()),
         cmlb::core::escape_html(cmlb::core::truncate_for_display(task.metadata().source_url, 200)),
@@ -166,7 +171,9 @@ asio::awaitable<cmlb::core::Result<void>> ShowStatus::execute(StatusRequest requ
             co_return std::unexpected(loaded.error());
         }
         if (!loaded->has_value()) {
-            const std::string body = fmt::format("<b>Status:</b> task <code>{}</code> not found.",
+            const std::string body = fmt::format("<b><u>Status</u></b>\n"
+                                                 "<b>Task:</b> <code>{}</code>\n"
+                                                 "<blockquote>Task was not found.</blockquote>",
                                                  request.task_id->value());
             (void)co_await messenger_.send_html(request.chat, body);
             co_return cmlb::core::error(cmlb::core::ErrorCode::NotFound, "status: task not found");

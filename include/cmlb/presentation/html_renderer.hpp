@@ -19,8 +19,9 @@
 /// All methods are `static` and `[[nodiscard]]`. No state is held; the renderer
 /// is purely a name-spaced bag of pure functions over plain data.
 ///
-/// Output uses the Telegram HTML subset: only `<b>`, `<i>`, `<code>`, `<pre>`,
-/// and newlines. No emoji, per project formatting policy.
+/// Output uses Telegram HTML that TDLib parses into native `formattedText`
+/// entities via `parseTextEntities`. Keep composition here so every reply
+/// has one consistent, parseable voice.
 
 namespace cmlb::presentation {
 
@@ -90,6 +91,27 @@ public:
     /// Renders the `/start` greeting block. Falls back to a generic
     /// greeting when @p user_first_name is empty.
     [[nodiscard]] static std::string render_greeting(std::string_view user_first_name);
+
+    /// Renders a premium section title using Telegram rich text entities.
+    [[nodiscard]] static std::string render_heading(std::string_view text);
+
+    /// Renders escaped inline code.
+    [[nodiscard]] static std::string render_code(std::string_view text);
+
+    /// Renders escaped supporting detail as a Telegram block quote.
+    [[nodiscard]] static std::string render_quote(std::string_view text);
+
+    /// Renders a command usage hint such as `/mirror <url>`.
+    [[nodiscard]] static std::string render_usage(std::string_view command,
+                                                  std::string_view syntax);
+
+    /// Renders a compact success block with an optional quoted detail.
+    [[nodiscard]] static std::string render_success(std::string_view title,
+                                                    std::string_view detail = {});
+
+    /// Renders a compact operational notice with an optional quoted detail.
+    [[nodiscard]] static std::string render_notice(std::string_view title,
+                                                   std::string_view detail = {});
 
     /// Returns a short, human-readable label for @p code, suitable for
     /// user-facing copy. Never returns a raw enumerator name.

@@ -130,7 +130,7 @@ sudo apt-get install -y build-essential cmake ninja-build git curl zip unzip pkg
     automake libtool bison flex python3 python3-jinja2 ca-certificates \
     tar xz-utils bzip2
 
-# vcpkg (manifest mode; CMLB pins the registry baseline in both manifest files)
+# vcpkg (manifest mode; CMLB pins the registry baseline and TDLib overlay)
 git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
 ~/vcpkg/bootstrap-vcpkg.sh
 export VCPKG_ROOT=~/vcpkg
@@ -254,11 +254,15 @@ Docker is the primary production package. Images are published to
 | Native `.deb` / `.rpm` | Not published | Deferred until package metadata is CI-validated |
 
 Dependency resolution is pinned through `vcpkg.json`,
-`vcpkg-configuration.json`, and the Docker build argument
-`VCPKG_BASELINE=a7eda31dc16994fcaa8587982eb833a8695f1b6f`. The runtime image
-also pins upstream rclone and 7-Zip binaries instead of relying on stale distro
-packages. Do not replace those pins with floating package manager state in
-deployment automation.
+`vcpkg-configuration.json`, `vcpkg-overlays/tdlib`, and the Docker build
+argument `VCPKG_BASELINE=a7eda31dc16994fcaa8587982eb833a8695f1b6f`. TDLib is
+pinned by overlay port to upstream `1.8.65` at
+`a17f87c4cff7b90b278d12b91ba0614383aaee82`; the overlay records the archive
+SHA512 so CI and Docker never consume a floating branch. See
+[ADR-0013](docs/adr/0013-tdlib-overlay-pin.md) for the decision record. The
+runtime image also pins upstream rclone and 7-Zip binaries instead of relying
+on stale distro packages. Do not replace those pins with floating package
+manager state in deployment automation.
 
 ---
 
@@ -286,7 +290,12 @@ ctest --preset debug --output-on-failure
 
 CI runs the same presets on Linux GCC 14, Linux Clang 20 (with ASan, UBSan, TSan in separate jobs), Windows MSVC 2022, and macOS Clang. Warnings-as-errors is symmetric across all four toolchains; see [ADR-0005](docs/adr/0005-warnings-as-errors-symmetric.md).
 
-Package resolution is pinned, not floating. `vcpkg.json`, `vcpkg-configuration.json`, and `packaging/Dockerfile` all use baseline `a7eda31dc16994fcaa8587982eb833a8695f1b6f`; Docker images are published as `ghcr.io/staneswilson/cpp-mirror-leech-bot:<tag>`.
+Package resolution is pinned, not floating. `vcpkg.json` declares direct
+dependencies and overrides, `vcpkg-configuration.json` and `packaging/Dockerfile`
+use baseline `a7eda31dc16994fcaa8587982eb833a8695f1b6f`, and
+`vcpkg-overlays/tdlib` pins TDLib to the exact upstream commit used by the real
+Telegram gateway; Docker images are published as
+`ghcr.io/staneswilson/cpp-mirror-leech-bot:<tag>`.
 
 ---
 

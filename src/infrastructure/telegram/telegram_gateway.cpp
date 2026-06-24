@@ -58,9 +58,9 @@ namespace td_api = td::td_api;
 
 namespace {
 
-/// Convert an HTML snippet into a `formattedText`. On parse failure, fall
-/// back to plain text containing the literal HTML so the message still goes
-/// out (rather than failing the whole send).
+/// Convert Telegram HTML into `formattedText` entities. Used for captions and
+/// as a compatibility fallback when the pinned TDLib lacks rich-message sends.
+/// On parse failure, fall back to literal plain text so delivery continues.
 [[nodiscard]] td_api::object_ptr<td_api::formattedText> parse_html(const std::string& html) {
     auto parse_request = td_api::make_object<td_api::parseTextEntities>(
         html, td_api::make_object<td_api::textParseModeHTML>());
@@ -71,6 +71,31 @@ namespace {
     core::Logger::warn("telegram_gateway: HTML parse failed, falling back to plain text");
     return td_api::make_object<td_api::formattedText>(
         html, std::vector<td_api::object_ptr<td_api::textEntity>>{});
+}
+
+/// Builds message text content from Telegram HTML. New TDLib releases expose
+/// `inputMessageRichMessage` for bots; older pinned TDLib builds only support
+/// `inputMessageText(formattedText)`. The CMake feature probe controls which
+/// path is compiled so CI catches Telegram API drift without breaking local
+/// stub builds.
+[[nodiscard]] td_api::object_ptr<td_api::InputMessageContent> make_html_message_content(
+    std::string html) {
+#if defined(CMLB_TDLIB_HAS_RICH_MESSAGE)
+    auto source = td_api::make_object<td_api::richMessageSourceHtml>(std::move(html));
+    auto message = td_api::make_object<td_api::inputRichMessage>(
+        td_api::move_object_as<td_api::RichMessageSource>(std::move(source)),
+        /*is_rtl=*/false,
+        /*detect_automatic_blocks=*/true);
+    auto content = td_api::make_object<td_api::inputMessageRichMessage>(std::move(message),
+                                                                        /*clear_draft=*/false);
+    return td_api::move_object_as<td_api::InputMessageContent>(std::move(content));
+#else
+    auto formatted = parse_html(html);
+    auto content = td_api::make_object<td_api::inputMessageText>(std::move(formatted),
+                                                                 /*link_preview_options=*/nullptr,
+                                                                 /*clear_draft=*/false);
+    return td_api::move_object_as<td_api::InputMessageContent>(std::move(content));
+#endif
 }
 
 /// Translate the gateway's raw `(label, callback_data)` rows into a TDLib
@@ -598,10 +623,7 @@ asio::awaitable<core::Result<domain::MessageId>> TelegramGateway::send_text_mess
 
 asio::awaitable<core::Result<domain::MessageId>> TelegramGateway::send_formatted_message(
     domain::ChatId chat, std::string html) {
-    auto formatted = parse_html(html);
-    auto content = td_api::make_object<td_api::inputMessageText>(std::move(formatted),
-                                                                 /*link_preview_options=*/nullptr,
-                                                                 /*clear_draft=*/false);
+    auto content = make_html_message_content(std::move(html));
     auto fn = td_api::make_object<td_api::sendMessage>(chat.value(),
                                                        /*topic_id=*/nullptr,
                                                        /*reply_to=*/nullptr,
@@ -615,10 +637,7 @@ asio::awaitable<core::Result<domain::MessageId>> TelegramGateway::send_formatted
 asio::awaitable<core::Result<void>> TelegramGateway::edit_formatted_message(domain::ChatId chat,
                                                                             domain::MessageId msg,
                                                                             std::string html) {
-    auto formatted = parse_html(html);
-    auto content = td_api::make_object<td_api::inputMessageText>(std::move(formatted),
-                                                                 /*link_preview_options=*/nullptr,
-                                                                 /*clear_draft=*/false);
+    auto content = make_html_message_content(std::move(html));
     auto fn = td_api::make_object<td_api::editMessageText>(chat.value(),
                                                            msg.value(),
                                                            /*reply_markup=*/nullptr,
@@ -631,10 +650,7 @@ asio::awaitable<core::Result<domain::MessageId>> TelegramGateway::send_message_w
     domain::ChatId chat,
     std::string html,
     std::vector<std::vector<std::pair<std::string, std::string>>> rows) {
-    auto formatted = parse_html(html);
-    auto content = td_api::make_object<td_api::inputMessageText>(std::move(formatted),
-                                                                 /*link_preview_options=*/nullptr,
-                                                                 /*clear_draft=*/false);
+    auto content = make_html_message_content(std::move(html));
     auto markup = build_inline_keyboard(rows);
     auto fn = td_api::make_object<td_api::sendMessage>(chat.value(),
                                                        /*topic_id=*/nullptr,
@@ -793,11 +809,12 @@ asio::awaitable<core::Result<domain::MessageId>> TelegramGateway::send_file(
 
     auto caption_ft = parse_html(caption);
 
-    auto content =
-        td_api::make_object<td_api::inputMessageDocument>(std::move(input_file),
-                                                          std::move(thumb_obj),
-                                                          /*disable_content_type_detection=*/false,
-                                                          std::move(caption_ft));
+    auto document = td_api::make_object<td_api::inputDocument>(
+        td_api::move_object_as<td_api::InputFile>(std::move(input_file)),
+        std::move(thumb_obj),
+        /*disable_content_type_detection=*/false);
+    auto content = td_api::make_object<td_api::inputMessageDocument>(std::move(document),
+                                                                     std::move(caption_ft));
 
     auto fn = td_api::make_object<td_api::sendMessage>(chat.value(),
                                                        /*topic_id=*/nullptr,

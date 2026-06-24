@@ -9,6 +9,7 @@
 #include <fmt/format.h>
 
 #include <cmlb/application/delete_drive_resource.hpp>
+#include <cmlb/core/formatting.hpp>
 #include <cmlb/core/logger.hpp>
 
 namespace cmlb::application {
@@ -54,13 +55,17 @@ asio::awaitable<cmlb::core::Result<void>> DeleteDriveResource::execute(DeleteDri
     auto removed = co_await gdrive_.remove(file_id);
     if (!removed) {
         (void)co_await messenger_.send_html(
-            request.chat, fmt::format("<b>Delete failed</b>: {}", removed.error().message));
+            request.chat,
+            fmt::format("<b><u>Delete Failed</u></b>\n<blockquote>{}</blockquote>",
+                        cmlb::core::escape_html(removed.error().message)));
         cmlb::core::Logger::warn("delete_drive: {}", removed.error().message);
         co_return std::unexpected(removed.error());
     }
 
-    (void)co_await messenger_.send_html(request.chat,
-                                        fmt::format("<b>Deleted</b>: <code>{}</code>", file_id));
+    (void)co_await messenger_.send_html(
+        request.chat,
+        fmt::format("<b><u>Deleted</u></b>\n<b>Drive id:</b> <code>{}</code>",
+                    cmlb::core::escape_html(file_id)));
     cmlb::core::Logger::info("delete_drive: removed id={}", file_id);
     co_return cmlb::core::Result<void>{};
 }

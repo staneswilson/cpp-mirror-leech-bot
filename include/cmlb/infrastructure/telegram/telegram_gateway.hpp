@@ -79,9 +79,10 @@ public:
     [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>> send_text_message(
         domain::ChatId chat, std::string text);
 
-    /// Sends an HTML-formatted message. Supports `<b>`, `<i>`, `<code>`,
-    /// `<pre>`. Malformed HTML falls back to plain text — the send is *not*
-    /// failed by parse errors.
+    /// Sends Telegram HTML. With TDLib versions that expose
+    /// `inputMessageRichMessage`, bots use the native rich-message API;
+    /// older TDLib builds fall back to `formattedText` entities via
+    /// `parseTextEntities`.
     [[nodiscard]] boost::asio::awaitable<core::Result<domain::MessageId>> send_formatted_message(
         domain::ChatId chat, std::string html);
 

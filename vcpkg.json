@@ -1,10 +1,9 @@
 {
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
     "$comment": [
-        "CMLB vcpkg manifest. Reproducibility is anchored by `builtin-baseline`",
-        "below — every dependency resolves to its version at that baseline SHA.",
-        "Update the baseline with:  git -C <vcpkg-root> rev-parse HEAD",
-        "and bump both this file and vcpkg-configuration.json in lockstep.",
+        "CMLB vcpkg manifest. Reproducibility is anchored by",
+        "vcpkg-configuration.json's default-registry baseline.",
+        "Update that baseline with: git -C <vcpkg-root> rev-parse HEAD.",
         "Version floors (version>=) are intentionally omitted: the baseline",
         "is the source of truth, and adding incompatible floors causes the",
         "`no version database entry` failure mode."
@@ -15,7 +14,6 @@
     "homepage": "https://github.com/staneswilson/cpp-mirror-leech-bot",
     "license": "MIT",
     "supports": "(windows | linux | osx) & (x64 | arm64)",
-    "builtin-baseline": "a7eda31dc16994fcaa8587982eb833a8695f1b6f",
     "dependencies": [
         "boost-asio",
         "boost-beast",
@@ -53,6 +51,10 @@
         {
             "name": "sqlite-modern-cpp",
             "version-date": "2023-12-03"
+        },
+        {
+            "name": "tdlib",
+            "version": "1.8.65"
         }
     ]
 }

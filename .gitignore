@@ -97,6 +97,9 @@ secrets/
 
 # ----- TDLib runtime state -----------------------------------------------
 tdlib/
+!vcpkg-overlays/
+!vcpkg-overlays/tdlib/
+!vcpkg-overlays/tdlib/**
 td_log.txt
 
 # ----- Bot runtime state -------------------------------------------------
