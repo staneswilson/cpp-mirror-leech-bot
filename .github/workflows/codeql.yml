@@ -87,11 +87,17 @@ jobs:
 
       - name: Configure with CMake
         shell: bash
-        run: cmake --preset debug
+        run: |
+          cmake -S . -B "$RUNNER_TEMP/cmlb-codeql-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_INSTALLED_DIR="$RUNNER_TEMP/cmlb-vcpkg-installed" \
+            -DCMLB_BUILD_TESTS=ON
 
       - name: Build with Ninja
         shell: bash
-        run: cmake --build --preset debug --parallel
+        run: cmake --build "$RUNNER_TEMP/cmlb-codeql-build" --parallel
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4.36.2

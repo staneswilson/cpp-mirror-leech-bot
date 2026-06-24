@@ -275,7 +275,7 @@ public:
     Impl(cmlb::core::Executor& exec, cmlb::core::Aria2Config config)
         : executor_{exec},
           strand_{asio::make_strand(exec.get_executor())},
-          ssl_ctx_{asio::ssl::context::tls_client},
+          ssl_ctx_{asio::ssl::context::tlsv12_client},
           reconnect_timer_{strand_},
           config_{std::move(config)} {
         ssl_ctx_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2

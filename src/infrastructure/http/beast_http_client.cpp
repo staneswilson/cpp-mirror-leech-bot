@@ -613,7 +613,7 @@ asio::awaitable<Result<std::pair<HttpResponse, bool /*reusable*/>>> exchange_to_
 
 BeastHttpClient::BeastHttpClient(asio::any_io_executor exec)
     : exec_{std::move(exec)},
-      ssl_ctx_{asio::ssl::context::tls_client},
+      ssl_ctx_{asio::ssl::context::tlsv12_client},
       pool_{std::make_shared<ConnectionPool>(exec_)} {
     ssl_ctx_.set_options(asio::ssl::context::default_workarounds | asio::ssl::context::no_sslv2
                          | asio::ssl::context::no_sslv3 | asio::ssl::context::no_tlsv1
