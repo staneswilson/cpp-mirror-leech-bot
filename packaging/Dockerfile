@@ -94,6 +94,7 @@ WORKDIR /src
 # binaries on an aarch64 host. The triplet is recorded to /opt/cmlb/triplet
 # so the later configure step can read it back without recomputing.
 COPY vcpkg.json vcpkg-configuration.json ./
+COPY vcpkg-overlays ./vcpkg-overlays
 RUN --mount=type=cache,target=/root/.cache/vcpkg,sharing=locked \
     mkdir -p /opt/cmlb \
  && case "${TARGETARCH:-amd64}" in \
